@@ -416,11 +416,12 @@ public class BridgeActivity extends android.app.Activity {
     }
 
     /**
-     * Hides both system bars, the modern equivalent of the flags the game's own Android launcher sets
-     * through arc's {@code useImmersiveMode}. The back key is why the bars cannot simply be left alone:
-     * with them hidden, a three-button device spends the first press on revealing them, so the game sees
-     * no back at all (measured). The behaviour set below is what hides transient bars again after a
-     * swipe - the job the flags needed a visibility listener for.
+     * Hides both system bars the way the game's own Android launcher does through arc's
+     * {@code useImmersiveMode}: the controller below is the modern half of it, and the flags it also
+     * sets are the other. The back key is why the bars cannot simply be left alone: with them hidden, a
+     * three-button device spends the first press on revealing them, so the game sees no back at all
+     * (measured). The behaviour set below is what hides transient bars again after a swipe - the job
+     * the flags needed a visibility listener for.
      *
      * <p>The controller is asked of the decor view, never of the window: {@code PhoneWindow}'s own
      * {@code getInsetsController()} dereferences the decor it holds, and no decor exists yet at the
@@ -432,12 +433,34 @@ public class BridgeActivity extends android.app.Activity {
     private void hideStatusBar() {
         Window window = getWindow();
         layoutUnderBars(window);
+        legacyBarFlags();
 
         WindowInsetsController controller = window.getDecorView().getWindowInsetsController();
         if (controller == null)
             return;
         controller.hide(WindowInsets.Type.systemBars());
         controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+    }
+
+    /**
+     * The flags the game's own Android launcher sets, kept beside the controller above.
+     *
+     * <p>On a stock system the two are the same request: the platform turns {@code HIDE_NAVIGATION}
+     * into a hide of the navigation bar types. What the flags carry and the controller does not is the
+     * window's own visibility, which the window manager is given with every set of attributes, and a
+     * vendor build that decides the navigation bar from that field alone never hides it - measured on
+     * one: the controller's request alone left the bar drawn over the game, while the game's own
+     * Android build, which sets these flags, had none. Both are kept so the bar is hidden on either
+     * kind of system.</p>
+     */
+    @SuppressWarnings("deprecation")
+    private void legacyBarFlags() {
+        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
     }
 
     /**

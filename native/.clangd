@@ -1,0 +1,24 @@
+# clangd configuration for the bridge's native library.
+#
+# The compile database is generated rather than configured: :native:configureArm64V8a passes
+# CMAKE_EXPORT_COMPILE_COMMANDS, so that ABI's CMake tree holds a compile_commands.json; all three ABIs
+# compile the same sources, so one database indexes all of them.
+#
+# Nothing here compensates for the NDK: CMake emits the plain clang++ with an explicit --target and
+# --sysroot, so clangd resolves the Android headers and the NDK's libc++ by itself. --query-driver is NOT
+# needed - only the NDK's versioned wrapper drivers hide their target and sysroot from the command line.
+
+CompileFlags:
+  # Relative to this file's directory, and stated explicitly so clangd finds the database no matter which
+  # directory it was started from.
+  CompilationDatabase: build/cmake/arm64-v8a
+
+Diagnostics:
+  # Several includes here are load-bearing for the ABI rather than for a name used in the file -
+  # android/log.h and the JNI headers among them - so the "unused include" hint is noise here.
+  UnusedIncludes: None
+
+Completion:
+  # JNI code reaches for private members of its own types often enough that hiding them costs more than it
+  # saves.
+  AllScopes: Yes

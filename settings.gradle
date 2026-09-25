@@ -1,0 +1,40 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+        maven { url = 'https://maven.google.com' }
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        maven { url = 'https://maven.google.com' }
+    }
+}
+
+rootProject.name = 'android-bridge'
+
+// no arc or game dependency: the JNI bindings, the ART side activity, the version table.
+include 'core'
+
+// a compiled processor is needed before :core can be compiled, and it depends on nothing:
+// annotations are looked up by name, which is what keeps this from being a cycle.
+include 'processor'
+
+// the arc backend and the game launcher, compiled against one epoch's jars from .mindustry/ and
+// .arc/ - never against sources - and run on every version from 146.0 up.
+include 'bridge-v1'
+
+// libcopperbridge.so for every ABI, in the same task graph so its result is staged where pack
+// expects it; not a Java module.
+include 'native'
+
+// the deployable jar: dex, the lwjgl classes and natives, the .so, the version table.
+include 'pack'
+
+// No includeBuild for ../Mindustry and ../Arc: a composite build is configured by the including
+// build's Gradle, and the epochs do not share one - v151's arc applies gdx-jnigen, which Gradle 9
+// cannot configure. Each epoch is built by its own wrapper, and this build consumes those jars.

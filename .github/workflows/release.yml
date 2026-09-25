@@ -1,0 +1,56 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build-and-release:
+    name: Build and Create Release
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: 17
+          distribution: 'temurin'
+
+      # The three repositories, side by side in the run directory and nothing cloned from outside it.
+      # The bridge's own repository is cloned too - at the revision this workflow is running for,
+      # which is why it is a checkout by commit rather than a plain clone of a branch.
+      - name: Checkout Arc, Mindustry and the bridge
+        run: |
+          git clone --filter=blob:none https://github.com/Anuken/Arc.git Arc
+          git clone --filter=blob:none https://github.com/Anuken/Mindustry.git Mindustry
+          git clone --filter=blob:none https://github.com/${{ github.repository }}.git Bridge
+          git -C Bridge checkout --detach ${{ github.sha }}
+
+      - name: Grant execute permission for gradlew
+        working-directory: Bridge
+        run: chmod +x gradlew
+
+      # Versions come from gradle.properties: the platform level the branch supports, and the exact
+      # NDK and cmake the shipped .so is built with (a different NDK changes the codegen).
+      - name: Install Android SDK, NDK and CMake
+        run: echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-37.0" "build-tools;37.0.0" "ndk;29.0.14206865" "cmake;3.22.1"
+
+      # An epoch is built from full clones of the game and arc, which gradle.properties names as
+      # ../Mindustry and ../Arc - from inside Bridge/ that is exactly where the clones above landed.
+      # The jar's own task pulls in the rest: the generators (the JNI binding and the bus tables), the
+      # branch compiled against its epoch, the native library for every ABI, and pack's own steps.
+      - name: Build Tasks
+        working-directory: Bridge
+        run: ./gradlew :pack:bridgeJar
+
+      - name: Publish Release and Upload Artifacts
+        uses: softprops/action-gh-release@v3
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          generate_release_notes: true
+          files: |
+            Bridge/pack/build/libs/*.jar

@@ -1,0 +1,122 @@
+
+/**
+ * libcopperbridge.so, built with CMake for every Android ABI and staged under build/output/<abi>/.
+ *
+ * CMakeLists.txt has no install() rule, so the staged copy is what pack embeds - at the resource path
+ * copper.bridge.Bridge.prepare() reads back at runtime. Not a Java module: Gradle only drives CMake.
+ */
+
+def exe = System.getProperty('os.name').toLowerCase().contains('windows') ? '.exe' : ''
+
+def sdkRoot = System.getenv('ANDROID_HOME') ?: System.getenv('ANDROID_SDK_ROOT')
+if (!sdkRoot) {
+    throw new GradleException("No Android SDK found. Set ANDROID_HOME or ANDROID_SDK_ROOT.")
+}
+def sdk = new File(sdkRoot)
+
+def cmakeVersion = property('cmakeVersion')
+def cmake = new File(sdk, "cmake/${cmakeVersion}/bin/cmake${exe}")
+if (!cmake.isFile()) {
+    throw new GradleException("No cmake ${cmakeVersion} under ${sdk}/cmake. " +
+            "Install it or point cmakeVersion at one that is there.")
+}
+
+// ninja ships next to the SDK's cmake and is not guaranteed on PATH; CMake's default generator cannot
+// cross compile, so both the generator and the program are named explicitly.
+def ninja = new File(cmake.parentFile, "ninja${exe}")
+if (!ninja.isFile()) {
+    throw new GradleException("No ninja next to ${cmake}. The Android SDK's cmake bundle includes it.")
+}
+
+def ndkVersion = property('ndkVersion')
+def ndk = new File(sdk, "ndk/${ndkVersion}")
+def toolchain = new File(ndk, 'build/cmake/android.toolchain.cmake')
+if (!toolchain.isFile()) {
+    throw new GradleException("No NDK ${ndkVersion} at ${ndk}. Install it or fix ndkVersion.")
+}
+
+def minApi = property('minAndroidApi')
+
+/**
+ * The ABIs the bridge ships. The first entry is the one .clangd points at: its tree holds the compile
+ * database.
+ */
+def abis = ['arm64-v8a', 'armeabi-v7a', 'x86_64']
+
+/** arm64-v8a -> Arm64V8a, so one task name per ABI is readable. */
+def suffixOf = { String abi -> abi.split('-').collect { it.capitalize() }.join('') }
+
+/**
+ * Declares the CMake inputs on a task so an unchanged tree can be skipped, and makes it wait for the
+ * compile that writes src/gen: a table that had not been regenerated would be compiled in silently.
+ */
+def declareSources = { task ->
+    task.dependsOn ':core:compileJava'
+    task.inputs.file(new File(projectDir, 'CMakeLists.txt'))
+    ['util', 'jre', 'bus', 'batch', 'jni', 'gen'].each { String dir ->
+        task.inputs.files(fileTree("src/${dir}"))
+    }
+}
+
+def staged = []
+
+abis.each { String abi ->
+    def suffix = suffixOf(abi)
+    def buildDir = layout.buildDirectory.dir("cmake/${abi}")
+
+    def configure = tasks.register("configure${suffix}", Exec) {
+        group = 'native'
+        description = "Configures the ${abi} CMake build tree with the NDK toolchain."
+        workingDir projectDir
+        commandLine(cmake.absolutePath,
+                '-S', projectDir.absolutePath,
+                '-B', buildDir.get().asFile.absolutePath,
+                '-G', 'Ninja',
+                "-DCMAKE_MAKE_PROGRAM=${ninja.absolutePath}",
+                "-DCMAKE_TOOLCHAIN_FILE=${toolchain.absolutePath}",
+                "-DANDROID_ABI=${abi}",
+                "-DANDROID_PLATFORM=android-${minApi}",
+                '-DCMAKE_BUILD_TYPE=Release',
+                // what makes the language server possible at all: clangd reads this database
+                '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON')
+        outputs.file(new File(buildDir.get().asFile, 'CMakeCache.txt'))
+    }
+    configure.configure { declareSources(it) }
+
+    def build = tasks.register("build${suffix}", Exec) {
+        group = 'native'
+        description = "Compiles libcopperbridge.so for ${abi}."
+        dependsOn configure
+        workingDir projectDir
+        commandLine(cmake.absolutePath, '--build', buildDir.get().asFile.absolutePath,
+                '--config', 'Release')
+        outputs.file(new File(buildDir.get().asFile, 'libcopperbridge.so'))
+    }
+    build.configure { declareSources(it) }
+
+    // a flat from/into pair: a nested from(dir) { include ... } is the shape whose patterns silently
+    // did not apply elsewhere in this build.
+    staged << tasks.register("stage${suffix}", Copy) {
+        group = 'native'
+        description = "Puts the ${abi} library under build/output, where pack embeds it from."
+        dependsOn build
+        from(layout.buildDirectory.file("cmake/${abi}/libcopperbridge.so"))
+        into(layout.buildDirectory.dir("output/${abi}"))
+    }
+}
+
+/** Builds and stages every ABI. This is what pack depends on. */
+tasks.register('assemble') {
+    group = 'native'
+    description = "Builds and stages libcopperbridge.so for every ABI."
+    dependsOn staged
+}
+
+/** Removes the CMake build trees and the staged libraries. */
+tasks.register('clean') {
+    group = 'native'
+    description = "Removes the CMake build trees and the staged libraries."
+    doLast {
+        delete layout.buildDirectory
+    }
+}

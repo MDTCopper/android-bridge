@@ -1,0 +1,3 @@
+copper.bridge.gen.bus.BusProcessor
+copper.bridge.gen.batch.BatchProcessor
+copper.bridge.gen.binding.BindingProcessor

@@ -1,0 +1,56 @@
+
+/**
+ * The single version branch: releases 146.0 and up, bleeding-edge builds 24369 and up, open at the top.
+ *
+ * It compiles against the v159 epoch, the newest shape it has to survive and deliberately not the range
+ * floor, so one source satisfies both directions: implement what the newest epoch demands and reference
+ * only symbols the oldest still has. Mindustry 159 replaced four file-chooser entry points with
+ * FileChooserParams, which needs a different class rather than a different epoch, hence the
+ * BridgeLauncherLegacy / BridgeLauncherParams split and the run-time probe in BridgeLaunchers.
+ *
+ * Everything is compile only: the game and arc jars arrive on the command line at runtime.
+ */
+def branch = name.startsWith('bridge-') ? name.substring('bridge-'.length()) : name
+def jars = rootProject.ext.epochJars(branch)
+def epoch = rootProject.ext.epochInfo(branch)
+
+sourceSets {
+    main {
+        java.srcDirs = ["src"]
+    }
+}
+
+dependencies {
+    api project(':core')
+
+    // android.jar supplies android.*; the JVM side never loads these classes.
+    def sdkRoot = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")
+    def androidJarRoot = sdkRoot ? new File("$sdkRoot/platforms/")
+            .listFiles()?.sort()?.reverse()?.find { f -> new File(f, "android.jar").exists() }
+            : null
+    if (androidJarRoot == null) {
+        throw new GradleException("No valid Android SDK found. Set ANDROID_HOME or ANDROID_SDK_ROOT.")
+    }
+    compileOnly files(new File(androidJarRoot, "android.jar"))
+
+    // the game, and arc with its extensions: two directories of jars the epoch preparation fills.
+    compileOnly jars.game
+    compileOnly jars.arc
+
+    // what the arc backend reaches EGL and GLES through. The version has to match the android natives
+    // pack downloads, so both read lwjglVersion.
+    compileOnly platform("org.lwjgl:lwjgl-bom:${property('lwjglVersion')}")
+    compileOnly "org.lwjgl:lwjgl"
+    compileOnly "org.lwjgl:lwjgl-egl"
+    compileOnly "org.lwjgl:lwjgl-opengles"
+}
+
+tasks.named('compileJava') {
+    // without the epoch's jars javac reports a wall of missing arc/mindustry symbols instead.
+    doFirst {
+        if (jars.game.isEmpty() || jars.arc.isEmpty()) {
+            throw new GradleException("epoch ${branch}: no jars in ${epoch.gameOut} or ${epoch.arcOut}. " +
+                    "Run :prepareEpoch${branch.capitalize()}, or drop -PskipEpochPrepare.")
+        }
+    }
+}

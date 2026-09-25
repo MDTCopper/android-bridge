@@ -1,0 +1,7 @@
+# Everything :native:assemble produces: one CMake build tree per ABI under cmake/ (they also hold the
+# compile database clangd reads) and the staged libraries under output/.
+build/
+
+# Everything :core:compileJava writes into the native tree: the two vocabulary headers, the tables, the
+# stubs and the calls.
+src/gen/

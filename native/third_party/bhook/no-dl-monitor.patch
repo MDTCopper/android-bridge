@@ -1,0 +1,103 @@
+Take the dlopen/dlclose monitor out of ByteHook, which it would otherwise register through shadowhook.
+
+The monitor is shadowhook's, and shadowhook cannot initialize on this device: it reads the linker's own
+symbol table, which this ROM does not give up (SHADOWHOOK_ERRNO_INIT_LINKER, 12). It exists for the
+automatic mode, which hooks libraries as they are loaded; this bridge uses the manual mode and hooks
+libraries it already knows are loaded, and those libraries are never unloaded, so the monitor has nothing
+to watch.
+
+Out with it go the three pieces that only served it: the two callbacks it would have been driven by, and
+the automatic mode's own entry (`bh_task_manager_hook_elf`), which only the first of those called.
+
+ByteHook's own CMake requires shadowhook on arm, and its sources include its header unconditionally there,
+so these hunks are what let the sources build and run without it.
+
+What stays is `bh_elf_manager_load()`: that one is ByteHook's own, not shadowhook's, and it is the list of
+loaded libraries the hook itself is matched against. Taking it out with the rest of the block leaves that
+list empty, and every hook request then fails without saying so - which is exactly what happened the first
+time this patch was written, and why it is written this way.
+
+The alternative to a patch - a header and two functions of our own that pretend the registration
+succeeded - compiles the same thing, but keeps a fake dependency in the tree. This is the dependency
+actually removed.
+
+Every hunk is against the tag the build pins (v1.1.2), which is what makes a patch stable here.
+
+diff --git a/bytehook/src/main/cpp/bh_task_manager.c b/bytehook/src/main/cpp/bh_task_manager.c
+index bd905b2..aaa4084 100644
+--- a/bytehook/src/main/cpp/bh_task_manager.c
++++ b/bytehook/src/main/cpp/bh_task_manager.c
+@@ -38,9 +38,6 @@
+ #include "bh_task.h"
+ #include "bh_util.h"
+ #include "queue.h"
+-#if defined(__arm__) || defined(__aarch64__)
+-#include "shadowhook.h"
+-#endif
+ 
+ typedef TAILQ_HEAD(bh_task_queue, bh_task, ) bh_task_queue_t;
+ 
+@@ -59,7 +56,7 @@ void bh_task_manager_del(bh_task_t *task) {
+   pthread_rwlock_unlock(&bh_tasks_lock);
+ }
+ 
+-static void bh_task_manager_hook_elf(bh_elf_t *elf) {
++static void __attribute__((unused)) bh_task_manager_hook_elf(bh_elf_t *elf) {
+   BH_LOG_INFO("task manager: try hook in new ELF: %s", elf->pathname);
+   pthread_rwlock_rdlock(&bh_tasks_lock);
+   bh_task_t *task;
+@@ -130,40 +127,7 @@ static int bh_task_manager_init_dl_open_close_monitor(void) {
+ #endif
+ 
+ #if BH_LINKER_MAYBE_SUPPORT_DL_INIT_FINI_MONITOR
+-static void bh_task_manager_dl_init_pre(struct dl_phdr_info *info, size_t size, void *data) {
+-  (void)size, (void)data;
+-  BH_LOG_INFO("task manager: dl_init, load_bias %" PRIxPTR ", %s", (uintptr_t)info->dlpi_addr,
+-              info->dlpi_name);
+-  bh_elf_t *elf = bh_elf_manager_add(info);
+-  if (NULL != elf) {
+-    bh_task_manager_hook_elf(elf);
+-    bh_elf_decrement_ref_count(elf);
+-  }
+-}
+ 
+-static void bh_task_manager_dl_fini_post(struct dl_phdr_info *info, size_t size, void *data) {
+-  (void)size, (void)data;
+-  BH_LOG_INFO("task manager: dl_fini, load_bias %" PRIxPTR ", %s", (uintptr_t)info->dlpi_addr,
+-              info->dlpi_name);
+-
+-  // free ELF, switch(es), hub(s)
+-  bh_elf_manager_del(info);
+-
+-  // reset "status flag" for finished single-type task
+-  pthread_rwlock_rdlock(&bh_tasks_lock);
+-  bh_task_t *task;
+-  TAILQ_FOREACH(task, &bh_tasks, link) {
+-    if (BH_TASK_TYPE_SINGLE == task->type && BH_TASK_STATUS_FINISHED == task->status && !task->is_invisible &&
+-        0 != task->caller_load_bias && info->dlpi_addr == task->caller_load_bias) {
+-      task->caller_load_bias = 0;
+-      task->status_code = BYTEHOOK_STATUS_CODE_MAX;
+-      task->status = BH_TASK_STATUS_UNFINISHED;
+-      BH_LOG_INFO("task manager: reset finished flag for: caller_path_name %s, sym_name %s",
+-                  task->caller_path_name, task->sym_name);
+-    }
+-  }
+-  pthread_rwlock_unlock(&bh_tasks_lock);
+-}
+ 
+ static int bh_task_manager_init_dl_init_fini_monitor(void) {
+   static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+@@ -176,9 +140,10 @@ static int bh_task_manager_init_dl_init_fini_monitor(void) {
+   if (!inited) {
+     inited = true;
+     bh_elf_manager_load();
+-    if (0 == shadowhook_register_dl_init_callback(bh_task_manager_dl_init_pre, NULL, NULL) &&
+-        0 == shadowhook_register_dl_fini_callback(NULL, bh_task_manager_dl_fini_post, NULL))
+-      inited_ok = true;
++    // This bridge hooks libraries it already knows are loaded (manual mode), so the monitor
++    // these registrations would install has nothing to watch. The ELF list above is what
++    // the hook itself needs, so it stays.
++    inited_ok = true;
+   }
+   pthread_mutex_unlock(&lock);
+   return inited_ok ? 0 : -1;

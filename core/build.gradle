@@ -1,0 +1,36 @@
+
+/**
+ * The shared half of the bridge: the same sources fill both payloads of the bridge jar, classes.dex
+ * for ART and class files for the JVM.
+ *
+ * A class the JVM loads must not hard-reference Android, the game or arc: none of the three exists on
+ * that side. Classes only ART loads may.
+ */
+sourceSets {
+    main {
+        java.srcDirs = ["src"]
+    }
+}
+
+dependencies {
+    // android.jar is compile only: the JVM side never touches these classes.
+    def sdkRoot = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")
+    def platform = sdkRoot ? new File("$sdkRoot/platforms/")
+            .listFiles()?.sort()?.reverse()?.find { f -> new File(f, "android.jar").exists() }
+            : null
+    if (platform == null) {
+        throw new GradleException("No valid Android SDK found. Set ANDROID_HOME or ANDROID_SDK_ROOT.")
+    }
+    compileOnly files(new File(platform, "android.jar"))
+
+    // the generators read this module's declarations, so javac needs them compiled first.
+    annotationProcessor project(':processor')
+
+    // the native bindings are reached through RegisterNatives, so nothing has to be generated
+}
+
+// The generators' C++ output goes into the native source tree, and :native waits for this compile,
+// so the tables CMake compiles are always the ones these declarations produce.
+tasks.named('compileJava') {
+    options.compilerArgs += ["-AbusOutput=${rootProject.projectDir}/native/src/gen".toString()]
+}

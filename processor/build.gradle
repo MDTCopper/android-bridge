@@ -1,0 +1,20 @@
+/**
+ * The bridge's annotation processors: the bus half reads the handler annotations, the batch half the
+ * channel ones. Nothing here depends on :core - every annotation is looked up by name, which is what
+ * keeps this from being a cycle.
+ */
+sourceSets {
+    main {
+        java.srcDirs = ["src"]
+        // javac finds the processor through the service file at the root of the processor path.
+        resources.srcDirs = ["src"]
+        resources.exclude "**/*.java"
+    }
+}
+
+// The generators emit text blocks, which need Java 15. This project is a build-time artifact that is
+// never shipped, so raising it here does not reach the classes the root pins to 11.
+java {
+    sourceCompatibility = JavaVersion.VERSION_15
+    targetCompatibility = JavaVersion.VERSION_15
+}

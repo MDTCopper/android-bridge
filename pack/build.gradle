@@ -1,0 +1,259 @@
+
+/**
+ * Assembles the deployable bridge jar: dex for ART, class files for the JVM, the lwjgl classes and
+ * android natives, and libcopperbridge.so - one file per bridge version.
+ *
+ * Only the shared half is dexed: a branch's classes reference arc and the game, which ART's class path
+ * does not have. The branch runs on the JVM, from the class files this jar also carries.
+ */
+
+def exe = System.getProperty('os.name').toLowerCase().contains('windows') ? '.bat' : ''
+
+def sdkRoot = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")
+if (!sdkRoot)
+    throw new GradleException("No Android SDK found. Set ANDROID_HOME or ANDROID_SDK_ROOT.")
+def sdk = new File(sdkRoot)
+
+/**
+ * d8, from the newest installed build-tools: it is not pinned the way the NDK is, because the platform
+ * level comes from --min-api rather than from its own version.
+ */
+def buildTools = new File(sdk, 'build-tools').listFiles()?.sort { it.name }?.reverse()
+        ?.find { dir -> new File(dir, "d8${exe}").isFile() }
+if (buildTools == null)
+    throw new GradleException("No d8 under ${sdk}/build-tools. Install Android build-tools.")
+def d8 = new File(buildTools, "d8${exe}")
+
+/** android.jar is a library to d8: it is what the dexed classes are resolved against. */
+def androidPlatform = new File(sdk, 'platforms').listFiles()?.sort { it.name }?.reverse()
+        ?.find { dir -> new File(dir, 'android.jar').isFile() }
+if (androidPlatform == null)
+    throw new GradleException("No android.jar under ${sdk}/platforms.")
+def androidJar = new File(androidPlatform, 'android.jar')
+
+def minApi = property('minAndroidApi')
+
+/** The branches that have code, and therefore the ones this jar ships. */
+def branchNames = ['v1'].findAll { rootProject.ext.branchHasSources(it) }
+
+def coreJar = project(':core').tasks.named('jar', Jar)
+
+configurations {
+    lwjglJava
+}
+
+dependencies {
+    lwjglJava platform("org.lwjgl:lwjgl-bom:${property('lwjglVersion')}")
+    lwjglJava "org.lwjgl:lwjgl"
+    lwjglJava "org.lwjgl:lwjgl-egl"
+    lwjglJava "org.lwjgl:lwjgl-opengles"
+}
+
+/** Layout of the lwjgl natives archive for one Android ABI. */
+def lwjglArch = ['arm64-v8a': 'arm64', 'armeabi-v7a': 'arm32', 'x86_64': 'x64']
+
+/**
+ * Downloads and unpacks one lwjgl natives archive per ABI. Never committed to the repository.
+ *
+ * The properties are read outside the task configuration: inside it the closure's delegate is the task,
+ * where property('lwjglVersion') is an unknown property and breaks even gradlew tasks.
+ */
+def lwjglVersion = property('lwjglVersion')
+def lwjglReleaseBase = property('lwjglReleaseBase')
+
+tasks.register('fetchLwjglNatives') {
+    def version = lwjglVersion
+    def base = lwjglReleaseBase
+    def outputDir = layout.buildDirectory.dir('lwjgl-natives')
+    // stamped per version, outside the directory that becomes native/lwjgl in the jar: a version bump
+    // has to re-download even though the file names stay the same.
+    def stampDir = layout.buildDirectory.dir('lwjgl-stamps')
+
+    inputs.property('lwjglVersion', version)
+    outputs.dir(outputDir)
+    doLast {
+        def root = outputDir.get().asFile
+        def stamps = stampDir.get().asFile
+        root.mkdirs()
+        stamps.mkdirs()
+        lwjglArch.each { abi, arch ->
+            def stamp = new File(stamps, "${version}-${abi}")
+            if (stamp.exists())
+                return
+            def url = "$base/$version/lwjgl-$version-android-${abi}.zip"
+            def zip = new File(root, "lwjgl-$version-${abi}.zip")
+            logger.lifecycle("downloading $url")
+            zip.parentFile.mkdirs()
+            new URL(url).withInputStream { input -> zip.withOutputStream { output -> output << input } }
+            copy { from zipTree(zip); into root }
+            zip.delete()
+            stamp.createNewFile()
+        }
+    }
+}
+
+// --- dex ---------------------------------------------------------------------
+//
+// d8 takes a directory or a .zip, not a plain file name, so the run writes classes.dex into a scratch
+// directory the task then moves. That also makes a module outgrowing one dex visible: d8 would write
+// classes2.dex silently, while the jar carries exactly one.
+
+/** Declares one d8 run: {@code inputTask} is dexed, {@code libs} are only resolved against. */
+def declareDex = { String taskName, String description, Object inputTask, FileCollection libs, String outputName ->
+    def scratch = layout.buildDirectory.dir("d8/${taskName}").get().asFile
+    def output = layout.buildDirectory.file("dex/${outputName}").get().asFile
+
+    return tasks.register(taskName, Exec) {
+        group = 'pack'
+        description = description
+        inputs.files(inputTask)
+        inputs.files(libs)
+        outputs.file(output)
+        doFirst {
+            // the whole output directory goes, not just this task's file: the jar picks up whatever is
+            // in there, so an artifact left by an earlier layout must not survive into a new jar.
+            delete output.parentFile
+            // a rename onto an existing file fails on Windows, so the old output goes first
+            delete scratch
+            delete output
+            scratch.mkdirs()
+            output.parentFile.mkdirs()
+
+            // assembled here: two of its parts are file collections that only resolve at execution time
+            def command = [d8.absolutePath, '--min-api', minApi, '--output', scratch.absolutePath]
+            // a library is resolved against, not dexed: everything else arrives at runtime
+            libs.files.sort { it.name }.each { File lib -> command.addAll(['--lib', lib.absolutePath]) }
+            inputTask.get().outputs.files.files.sort { it.name }
+                    .each { File file -> command.add(file.absolutePath) }
+            commandLine(command)
+        }
+        doLast {
+            def produced = new File(scratch, 'classes.dex')
+            if (!produced.isFile())
+                throw new GradleException("${taskName}: d8 produced no ${produced}")
+            if (new File(scratch, 'classes2.dex').isFile())
+                throw new GradleException("${taskName}: d8 produced a second dex. The launcher reads " +
+                        "only ${outputName}, so the module has to shrink or the contract has to change.")
+            produced.renameTo(output)
+        }
+    }
+}
+
+def dexTasks = [declareDex('dexCore', "Dexes the shared half of the bridge into classes.dex.",
+        coreJar, project.files(androidJar), 'classes.dex')]
+
+// --- version table -----------------------------------------------------------
+//
+// The table is generated from the declarations in gradle.properties, so what the jar says about a
+// branch is exactly what that branch was compiled and dexed with. Nothing is inferred at runtime.
+
+def versionBlocks = branchNames.collect { String branch ->
+    [
+            name            : branch,
+            target          : "Mindustry ${property("${branch}.mindustryTag")}",
+            mindustryTag    : property("${branch}.mindustryTag"),
+            arcVersion      : findProperty("${branch}.arcTag") ?: property("${branch}.arcHash"),
+            minVersionNumber: property("${branch}.minVersionNumber"),
+            maxVersionNumber: findProperty("${branch}.maxVersionNumber") ?: '',
+            minBeBuild      : property("${branch}.minBeBuild"),
+            maxBeBuild      : findProperty("${branch}.maxBeBuild") ?: ''
+    ]
+}
+
+def versionTable = tasks.register('versionTable') {
+    group = 'pack'
+    description = "Aggregates each branch's declared version ranges into the shipped version table."
+    def output = layout.buildDirectory.file('version-table/bridge-versions.properties').get().asFile
+    def blocks = versionBlocks
+    // the blocks are the task's input: without this a branch added later would be missing from the table.
+    inputs.property('blocks', blocks)
+    outputs.file(output)
+    doLast {
+        def text = new StringBuilder("# generated by :pack:versionTable, one block per branch in this jar\n")
+        text.append("count=${blocks.size()}\n")
+        blocks.eachWithIndex { block, index ->
+            text.append("\n# ${block.name} vs ${block.target}\n")
+            def prefix = "branch.${index}."
+            ['name', 'target', 'mindustryTag', 'arcVersion',
+             'minVersionNumber', 'maxVersionNumber', 'minBeBuild', 'maxBeBuild'].each { String key ->
+                text.append("${prefix}${key}=${block[key]}\n")
+            }
+        }
+        output.parentFile.mkdirs()
+        output.text = text.toString()
+        logger.lifecycle("version table: ${blocks.collect { it.name }.join(', ')}")
+    }
+}
+
+/**
+ * Writes the version marker the ART side reads back from its own class loader
+ * ({@code copper.bridge.art.Main}); without the resource it can only print its placeholder.
+ */
+def bridgeProperties = tasks.register('bridgeProperties') {
+    group = 'pack'
+    description = "Writes the version marker resource the ART side reads."
+    def output = layout.buildDirectory.file('bridge/bridge.properties').get().asFile
+    def version = project.version
+    // the version is what this file is made of, so it is an input like any other
+    inputs.property('version', version)
+    outputs.file(output)
+    doLast {
+        output.parentFile.mkdirs()
+        output.text = "version=${version}\n"
+    }
+}
+
+// --- the jar -----------------------------------------------------------------
+
+// The class output of every module the jar carries, taken here rather than inside the task: a from {}
+// closure is evaluated while the jar is built, and reaching for the project then is what the
+// configuration cache refuses.
+def coreOutput = project(':core').sourceSets.main.output
+def branchOutputs = branchNames.collect { String branch ->
+    project(":bridge-${branch}").sourceSets.main.output
+}
+
+tasks.register('bridgeJar', Jar) {
+    dependsOn ':core:jar'
+    dependsOn fetchLwjglNatives
+    dependsOn ':native:assemble'
+    dependsOn dexTasks
+    dependsOn versionTable
+    dependsOn bridgeProperties
+
+    archiveFileName = "bridge-${project.version}.jar"
+    destinationDirectory = layout.buildDirectory.dir('libs')
+
+    // ART payload: the shared half only; a branch is never loaded on ART.
+    from(layout.buildDirectory.dir('dex')) { include '*.dex' }
+
+    // what both VMs read back: the branch ranges and the bridge version
+    from(layout.buildDirectory.file('version-table/bridge-versions.properties'))
+    from(layout.buildDirectory.file('bridge/bridge.properties'))
+
+    // JVM payload: every class of every module, unchanged. Source set outputs rather than module jars,
+    // which would drag their own manifests into the bridge jar.
+    from(coreOutput)
+    branchOutputs.each { output -> from(output) }
+
+    // The native bridge, at the resource path copper.bridge.Bridge.prepare() reads back at runtime:
+    // "native/bridge/<abi>/libcopperbridge.so". The staged libraries come from the native build.
+    from(rootProject.file('native/build/output')) {
+        into 'native/bridge'
+    }
+
+    // lwjgl java classes keep their package layout so arc can link against them
+    from {
+        configurations.lwjglJava.collect { zipTree(it) }
+    } {
+        exclude 'META-INF/**'
+        exclude 'module-info.class'
+    }
+
+    // lwjgl android natives, in the layout lwjgl's own loader expects
+    from(fetchLwjglNatives) {
+        into 'native/lwjgl'
+    }
+
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}

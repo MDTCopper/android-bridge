@@ -1,0 +1,38 @@
+# Epoch build products: game and arc jars produced from the reference clones. They are large, they
+# are reproducible with :prepareEpochVn, and they are not sources.
+.mindustry/
+.arc/
+
+# Gradle build trees and caches, one per module plus this root: every one of them is reproducible
+# and the jar alone is several megabytes. Covers core/build, pack/build and build/ alike, and
+# native/build on top of native/.gitignore.
+build/
+.gradle/
+
+# IDE state, which belongs to whoever opened the project. native/.clangd stays tracked: it names the
+# ABI whose compile database indexes the sources and the diagnostics this project wants silenced,
+# which is knowledge about the project rather than about one editor.
+.idea/
+.vscode/
+
+# The SDK location, as the header of the file itself says.
+local.properties
+
+# Leftovers of running the bridge by hand from this directory. arc looks a library up as a classpath
+# resource and, failing that, unpacks it into the working directory, so what it leaves behind is one
+# libarc*.so per library it was handed - the infix is why the pattern is not the arm64 spelling,
+# which is only what one device produced - and its own unpacking directory. Neither is a source, and
+# both come back the next time someone tests a command line here.
+libarc*.so
+.temp/
+
+# A JVM started by hand from here drops its crash report and its heap dump into the working
+# directory: both are large, machine specific, and worthless to anyone else.
+hs_err_pid*.log
+replay_pid*.log
+*.hprof
+
+# Editor and file manager droppings from the other platforms this is built on.
+.DS_Store
+Thumbs.db
+desktop.ini

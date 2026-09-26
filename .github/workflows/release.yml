@@ -66,11 +66,12 @@ jobs:
           mv pack/build/libs/*.jar "$GITHUB_WORKSPACE/artifacts/release/"
 
       # Every run ends with this pass, and each pass moves its jar out, so neither release can pick up
-      # the other's. The second pass only reruns what the version reaches.
+      # the other's. The second pass only reruns what the version reaches. What it pushed is passed in:
+      # the commit a snapshot prints has to be one the remote has, and the CI is what knows that.
       - name: Build the snapshot jar
         working-directory: Bridge
         run: |
-          ./gradlew :pack:bridgeJar
+          ./gradlew :pack:bridgeJar -PbuildCommit=${{ github.sha }}
           mkdir -p "$GITHUB_WORKSPACE/artifacts/snapshot"
           mv pack/build/libs/*.jar "$GITHUB_WORKSPACE/artifacts/snapshot/"
 

@@ -22,6 +22,18 @@ public class BridgeOptions {
     /** Bridge version, read from {@code bridge.properties} inside the bridge jar. */
     public String bridgeVersion = "0.0.0";
 
+    /**
+     * The commit this build came from, and only when the remote has that commit. Only a snapshot carries
+     * one: every snapshot shares the version "snapshot", so the commit is what tells two of them apart.
+     */
+    public String bridgeCommit = "";
+
+    /**
+     * Whether this is a custom build: it was not built from a commit the remote has, so the version and
+     * the commit cannot say what is inside. A local commit or a changed tree lands here.
+     */
+    public boolean customBuild = false;
+
     /** All classpath jars passed on the ART side, in the order they were given. */
     public final List<File> gameJars = new ArrayList<>();
     /** Custom loader jars, in the order they were given. Only used in the injected-loader case. */
@@ -109,6 +121,21 @@ public class BridgeOptions {
     public File bridgeLibrary;
 
     /**
+     * The version as the startup lines print it. A release reads {@code v0.1.3}, with the {@code v} its tag
+     * is written with; a snapshot reads {@code snapshot} on its own, {@code snapshot+a1b2c3d} when it was
+     * built from a commit the remote has, and {@code snapshot+custom} when it was not.
+     */
+    public String versionLabel() {
+        String label = bridgeVersion;
+        if (customBuild)
+            label += "+custom";
+        else if (bridgeCommit != null && !bridgeCommit.isEmpty())
+            label += "+" + bridgeCommit;
+        // "snapshot" is the name of the untagged build, so it prints as it is called
+        return "snapshot".equals(bridgeVersion) ? label : "v" + label;
+    }
+
+    /**
      * These options as properties, keyed exactly as they cross to the JVM: {@link #PREFIX} is
      * already in the keys, so this set <em>is</em> the {@code -D} argument list, with no translation
      * on either side - adding a field here is the whole change.
@@ -116,6 +143,8 @@ public class BridgeOptions {
     public Properties toProperties() {
         Properties props = new Properties();
         put(props, "bridgeVersion", bridgeVersion);
+        put(props, "bridgeCommit", bridgeCommit);
+        put(props, "bridgeCustom", Boolean.toString(customBuild));
         putList(props, "gameJars", gameJars);
         putList(props, "loaderJars", loaderJars);
         putFile(props, "gameDataFolder", gameDataFolder);
@@ -158,6 +187,8 @@ public class BridgeOptions {
     private static BridgeOptions parse(Properties props) {
         BridgeOptions options = new BridgeOptions();
         options.bridgeVersion = get(props, "bridgeVersion", "0.0.0");
+        options.bridgeCommit = get(props, "bridgeCommit", "");
+        options.customBuild = Boolean.parseBoolean(get(props, "bridgeCustom", "false"));
         options.gameJars.addAll(getFiles(props, "gameJars"));
         options.loaderJars.addAll(getFiles(props, "loaderJars"));
         options.gameDataFolder = getFile(props, "gameDataFolder");

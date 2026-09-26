@@ -33,7 +33,7 @@ public class Main {
         Log.setBackend(new NativeLogBackend());
         Log.setSide(Log.Side.JVM);
 
-        Log.info("CopperBridge v" + Bridge.options.bridgeVersion + " (JVM side)");
+        Log.info("CopperBridge " + Bridge.options.versionLabel() + " (JVM side)");
         Log.info("java.home = " + Bridge.options.javaHome);
         Log.info("classpath = " + System.getProperty("java.class.path"));
         Log.info("class loader = " + Main.class.getClassLoader());

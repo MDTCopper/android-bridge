@@ -187,19 +187,26 @@ def versionTable = tasks.register('versionTable') {
 
 /**
  * Writes the version marker the ART side reads back from its own class loader
- * ({@code copper.bridge.art.Main}); without the resource it can only print its placeholder.
+ * ({@code copper.bridge.art.Main}); without the resource it can only print its placeholder. A snapshot
+ * also says which commit it came from, or that it is a custom build, because every snapshot shares the
+ * one version.
  */
 def bridgeProperties = tasks.register('bridgeProperties') {
     group = 'pack'
     description = "Writes the version marker resource the ART side reads."
     def output = layout.buildDirectory.file('bridge/bridge.properties').get().asFile
     def version = project.version
-    // the version is what this file is made of, so it is an input like any other
+    // both stay empty on a release: its version names the commit by itself
+    def commit = project.buildCommit
+    def custom = project.buildCustom
+    // the version and the commit are what this file is made of, so both are inputs like any other
     inputs.property('version', version)
+    inputs.property('commit', commit)
+    inputs.property('custom', custom)
     outputs.file(output)
     doLast {
         output.parentFile.mkdirs()
-        output.text = "version=${version}\n"
+        output.text = "version=${version}\n" + (custom ? "custom=true\n" : commit ? "commit=${commit}\n" : "")
     }
 }
 

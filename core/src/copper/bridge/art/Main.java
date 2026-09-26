@@ -37,7 +37,7 @@ public class Main {
         Log.setOutputFile(logFile);
         Log.setBackend(new AndroidLogBackend());
 
-        Log.info("CopperBridge v" + Bridge.options.bridgeVersion + " (ART side)");
+        Log.info("CopperBridge " + Bridge.options.versionLabel() + " (ART side)");
         Log.info("cache = " + Bridge.options.cacheFolder);
         Log.info("game jars:");
         for (File jar : Bridge.options.gameJars)
@@ -142,7 +142,7 @@ public class Main {
      */
     private static void parse(String[] args) {
         Bridge.options = new BridgeOptions();
-        Bridge.options.bridgeVersion = readBridgeVersion();
+        readBridgeProperties();
         ArgParser parser = buildParser();
         parser.parse(args);
 
@@ -178,16 +178,23 @@ public class Main {
         Bridge.options.javaHome = deriveJavaHome(Bridge.options.javaExecutable);
     }
 
-    /** Reads {@code bridge.properties}, falling back to a placeholder when it is missing. */
-    private static String readBridgeVersion() {
+    /**
+     * Reads {@code bridge.properties}, the build stamp {@code :pack} writes: the version, and for a
+     * snapshot either the commit it was built from or the fact that it is a custom build. A missing
+     * resource, or a jar built before the stamp carried either, leaves the placeholders standing
+     * instead of failing the launch.
+     */
+    private static void readBridgeProperties() {
         try (InputStream in = Main.class.getClassLoader().getResourceAsStream("bridge.properties")) {
             if (in == null)
-                return "0.0.0";
+                return;
             Properties props = new Properties();
             props.load(new InputStreamReader(in, java.nio.charset.StandardCharsets.UTF_8));
-            return props.getProperty("version", "0.0.0");
-        } catch (Throwable e) {
-            return "0.0.0";
+            Bridge.options.bridgeVersion = props.getProperty("version", "0.0.0");
+            Bridge.options.bridgeCommit = props.getProperty("commit", "").trim();
+            Bridge.options.customBuild = Boolean.parseBoolean(props.getProperty("custom", "false"));
+        } catch (Throwable ignored) {
+            // the placeholders stand
         }
     }
 

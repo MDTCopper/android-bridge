@@ -6,16 +6,70 @@ def release = project.hasProperty('release')
 def releaseVersion = project.property('buildVersion')
 def bridgeVersion = release ? releaseVersion : 'snapshot'
 
+// The build stamp a snapshot carries. Every build without -Prelease calls itself "snapshot", so the
+// version alone cannot say which code is inside; what identifies it is the commit it was built from,
+// stamped the way Mindustry stamps its own version.properties. Only a commit the remote has counts: a
+// local commit, a tree that differs from it, or a build with no git at all is a custom build, and says
+// so instead of naming a commit nobody else can fetch. The CI knows the commit it pushed and passes it
+// with -PbuildCommit; the git query answers for a local build, and GITHUB_SHA for a build with no
+// checkout to ask. A release needs none of this: its version names the commit by itself.
+def gitQuery = { List<String> args ->
+    def out = new ByteArrayOutputStream()
+    try {
+        def execOps = project.services.get(org.gradle.process.ExecOperations)
+        def result = execOps.exec { spec ->
+            spec.commandLine(['git'] + args)
+            spec.workingDir = rootProject.projectDir
+            spec.standardOutput = out
+            spec.errorOutput = new ByteArrayOutputStream()
+            spec.ignoreExitValue = true
+        }
+        return result.exitValue == 0 ? out.toString('UTF-8').trim() : null
+    } catch (Throwable ignored) {
+        return null
+    }
+}
+def commit = ''
+def custom = false
+if (!release) {
+    def passed = project.findProperty('buildCommit')
+    def fromCi = System.getenv('GITHUB_SHA')
+    if (passed != null && !passed.trim().isEmpty()) {
+        // the caller built a revision it knows the remote has: this is how the CI names what it pushed
+        commit = passed.trim().take(7)
+    } else {
+        def head = gitQuery(['rev-parse', '--verify', '--short', 'HEAD'])
+        if (head != null) {
+            def onRemote = gitQuery(['branch', '--remotes', '--contains', 'HEAD'])
+            def changes = gitQuery(['status', '--porcelain'])
+            // the remote has this commit, and the tree holds nothing beyond it
+            if (onRemote != null && !onRemote.isEmpty() && changes != null && changes.isEmpty())
+                commit = head
+            else
+                custom = true
+        } else if (fromCi != null && !fromCi.trim().isEmpty()) {
+            // nothing here to ask, but the CI built the commit it pushed
+            commit = fromCi.trim().take(7)
+        } else {
+            custom = true
+        }
+    }
+}
+
 // Repositories live in settings.gradle only: a project level declaration could resolve against a
 // repository the settings file does not know about.
 allprojects {
     ext {
         buildVersion = bridgeVersion
+        // the remote commit a snapshot came from; empty for a custom build, and on a release
+        buildCommit = commit
+        // true when the code this build came from is not a commit the remote has
+        buildCustom = custom
         lwjglVersion = property("lwjglVersion")
     }
 }
 
-logger.lifecycle("bridge ${bridgeVersion}")
+logger.lifecycle("bridge ${bridgeVersion}" + (custom ? ' (custom)' : commit ? " (${commit})" : ''))
 
 // :native is CMake, not Java: the Java plugin would only look for a src/ directory it does not have.
 configure(subprojects - project(':native')) {

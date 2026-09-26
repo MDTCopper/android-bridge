@@ -40,6 +40,7 @@ public class JvmArgs {
         property("user.language", Locale.getDefault().getLanguage());
         property("user.country", Locale.getDefault().getCountry());
         property("user.timezone", TimeZone.getDefault().getID());
+        property("user.home", Bridge.options.gameDataFolder.getAbsolutePath());
         property("os.name", "Linux");
         property("os.version", "Android-" + Bridge.options.androidVersion);
         property("os.arch", Bridge.options.arch);

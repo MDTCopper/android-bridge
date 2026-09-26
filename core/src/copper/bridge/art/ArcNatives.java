@@ -59,6 +59,9 @@ public final class ArcNatives {
         Map<String, File> wanted = new LinkedHashMap<>();
         String arcName = null;
         for (File library : libraries) {
+            library.setExecutable(true, false);
+            library.setReadOnly();
+
             String logical = library.getName();
             if (logical.endsWith(SUFFIX))
                 logical = logical.substring(0, logical.length() - SUFFIX.length());

@@ -50,9 +50,12 @@ public final class Bridge {
             if (cached.isFile() && cached.length() == entry.size())
                 return cached;
 
+            cached.delete();
             Log.info("extracting the bridge native library (crc=0x"
                     + Long.toHexString(entry.crc()) + ", " + entry.size() + " bytes)");
             archives.extract(entryName, cached);
+            cached.setExecutable(true, false);
+            cached.setReadOnly();
             return cached;
         }
     }

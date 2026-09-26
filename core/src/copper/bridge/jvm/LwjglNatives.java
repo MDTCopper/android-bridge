@@ -1,7 +1,6 @@
 package copper.bridge.jvm;
 
 import copper.bridge.*;
-
 import copper.bridge.util.*;
 import java.io.*;
 
@@ -38,18 +37,36 @@ public final class LwjglNatives {
         for (String name : LWJGL_LIBRARIES) {
             String resource = "native/lwjgl/linux/" + arch + "/" + name;
             File target = new File(root, name);
-            try (InputStream in = LwjglNatives.class.getClassLoader().getResourceAsStream(resource)) {
-                if (in == null) {
-                    Log.warn("GL", "lwjgl native not found in the bridge jar: " + resource);
-                    continue;
+
+            boolean extract;
+            if (target.exists()) {
+                try (InputStream src = LwjglNatives.class.getClassLoader().getResourceAsStream(resource);
+                     InputStream dst = new FileInputStream(target)) {
+                    extract = !Streams.contentEquals(src, dst);
+                } catch (Throwable e) {
+                    extract = true;
                 }
-                target.getParentFile().mkdirs();
-                try (OutputStream out = new FileOutputStream(target)) {
-                    Streams.pipeStream(in, out, true);
+            } else {
+                extract = true;
+            }
+
+            if (extract) {
+                try (InputStream in = LwjglNatives.class.getClassLoader().getResourceAsStream(resource)) {
+                    if (in == null) {
+                        Log.warn("GL", "lwjgl native not found in the bridge jar: " + resource);
+                        continue;
+                    }
+                    target.getParentFile().mkdirs();
+                    target.delete();
+                    try (OutputStream out = new FileOutputStream(target)) {
+                        Streams.pipeStream(in, out, true);
+                    }
+                    target.setExecutable(true, false);
+                    target.setReadOnly();
+                } catch (IOException e) {
+                    Log.error("GL", "failed to extract " + resource);
+                    Log.error("GL", e);
                 }
-            } catch (IOException e) {
-                Log.error("GL", "failed to extract " + resource);
-                Log.error("GL", e);
             }
         }
 

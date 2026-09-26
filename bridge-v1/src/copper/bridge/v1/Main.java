@@ -32,10 +32,13 @@ public class Main{
         Log.info("starting branch v1 for game " + Launch.gameVersion());
         Log.info("game arguments: " + (args.length == 0 ? "none" : String.join(" ", args)));
 
+        // On desktop, the game extracts libraries without setting executable and readonly
+        // and it uses appdata folder as data folder. Don't let these happen.
+        setOsType();
+
         prepareLwjglNatives();
         prepareArcNatives();
         prepareGameFolders();
-        setOsType();
 
         // The game wraps its logger while it sets itself up so that everything it prints also goes to
         // last_log.txt. The printed copy is the one this bridge wants - the native side turns the process's

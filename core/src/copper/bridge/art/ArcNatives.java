@@ -41,7 +41,7 @@ public final class ArcNatives {
      * @return the folder that has to be on the classpath, or {@code null} when the caller provided no library
      * at all
      */
-    public static File stage() {
+    public static void stage() {
         File folder = new File(Bridge.options.cacheFolder, STAGING_FOLDER);
         String arch = Bridge.options.arch == null || Bridge.options.arch.isEmpty()
                 ? "aarch64" : Bridge.options.arch;
@@ -50,7 +50,7 @@ public final class ArcNatives {
         if (libraries.isEmpty()) {
             Log.error("no native libraries under " + Bridge.options.arcLibPath
                     + "; arc's natives cannot be loaded");
-            return null;
+            return;
         }
 
         // Staged under the mapped spelling, not under the name it arrived with: renaming only
@@ -59,8 +59,11 @@ public final class ArcNatives {
         Map<String, File> wanted = new LinkedHashMap<>();
         String arcName = null;
         for (File library : libraries) {
-            library.setExecutable(true, false);
-            library.setReadOnly();
+            boolean success = true;
+            success &= library.setExecutable(true, true);
+            success &= library.setReadOnly();
+            if (!success)
+                Log.warn("failed to mark arc library executable and readonly: " + library.getAbsolutePath());
 
             String logical = library.getName();
             if (logical.endsWith(SUFFIX))
@@ -93,7 +96,6 @@ public final class ArcNatives {
                     + "; arc's own native cannot be loaded");
 
         Bridge.options.arcNativeFolder = folder;
-        return folder;
     }
 
     /**

@@ -64,21 +64,35 @@ public final class Archives implements Closeable {
      * at all. The result is left read-only, since a cached library that anything may write can be mapped half
      * written.
      */
-    public void extract(String name, File target) {
+    public void extractLibrary(String name, File target) {
         ZipEntry entry = found(name);
         target.getParentFile().mkdirs();
         File temporary = new File(target.getParentFile(), target.getName() + ".tmp");
         try {
-            try (InputStream in = jar.getInputStream(entry);
-                 OutputStream out = new FileOutputStream(temporary)) {
-                Streams.pipeStream(in, out, true);
+            boolean extract;
+            if (target.exists()) {
+                try (InputStream src = jar.getInputStream(entry);
+                     InputStream dst = new FileInputStream(target)) {
+                    extract = !Streams.contentEquals(src, dst);
+                }
+            } else {
+                extract = true;
             }
-            if (!temporary.setExecutable(true, false))
-                Log.warn("cannot mark " + temporary + " executable");
-            Files.move(temporary.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            if (!target.setReadOnly())
-                Log.warn("cannot mark " + target + " readonly");
-        } catch (IOException e) {
+
+            if (extract) {
+                target.delete();
+                temporary.delete();
+                try (InputStream in = jar.getInputStream(entry);
+                     OutputStream out = new FileOutputStream(temporary)) {
+                    Streams.pipeStream(in, out, true);
+                }
+                if (!temporary.setExecutable(true, true))
+                    Log.warn("cannot mark " + temporary + " executable");
+                Files.move(temporary.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                if (!target.setReadOnly())
+                    Log.warn("cannot mark " + target + " readonly");
+            }
+        } catch (Throwable e) {
             throw new RuntimeException("failed to extract " + name, e);
         } finally {
             if (temporary.exists())

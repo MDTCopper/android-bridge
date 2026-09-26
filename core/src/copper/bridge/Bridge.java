@@ -43,19 +43,11 @@ public final class Bridge {
         try (Archives archives = Archives.open(jar)) {
             Archives.Entry entry = archives.entry(entryName);
 
-            File cached = new File(options.cacheFolder,
-                    "native/bridge/" + options.abi + "/" + Long.toHexString(entry.crc()) + "/" + name);
-            options.bridgeLibrary = cached;
-
-            if (cached.isFile() && cached.length() == entry.size())
-                return cached;
-
-            cached.delete();
+            File cached = new File(options.cacheFolder, "native/bridge/" + name);
             Log.info("extracting the bridge native library (crc=0x"
                     + Long.toHexString(entry.crc()) + ", " + entry.size() + " bytes)");
-            archives.extract(entryName, cached);
-            cached.setExecutable(true, false);
-            cached.setReadOnly();
+            archives.extractLibrary(entryName, cached);
+            options.bridgeLibrary = cached;
             return cached;
         }
     }

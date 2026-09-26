@@ -33,13 +33,16 @@ public class Bootstrap {
 
         Log.info("starting the JVM: " + Bridge.options.javaExecutable);
 
-        setEnvironment(jre);
+        setEnvironment();
 
-        // Only some ROMs learn the JRE directory from this call, and it has to happen before the
+        // Only some ROMs learn the ld directory from this call, and it has to happen before the
         // libraries are loaded; the absolute-path loads below are what resolve on every ROM
-        for (File dir : searchDirs(jre)) {
+        for (File dir : searchDirs()) {
             if (dir.isDirectory())
                 updateLdPath(dir.getAbsolutePath());
+            // W^X limitation
+            if (Bridge.options.arcNativeFolder.isDirectory())
+                updateLdPath(Bridge.options.arcNativeFolder.getAbsolutePath());
         }
 
         Log.info("JRE", "loading JVM libraries from " + jre);
@@ -68,14 +71,14 @@ public class Bootstrap {
     }
 
     /** Sets the process environment the JVM and the game rely on. */
-    private static void setEnvironment(File jre) {
+    private static void setEnvironment() {
         Map<String, String> env = new LinkedHashMap<>();
-        env.put("JAVA_HOME", jre.getAbsolutePath());
+        env.put("JAVA_HOME", Bridge.options.javaHome.getAbsolutePath());
         env.put("HOME", Bridge.options.gameDataFolder.getAbsolutePath());
         env.put("MINDUSTRY_DATA_DIR", Bridge.options.gameDataFolder.getAbsolutePath());
         env.put("TMPDIR", new File(Bridge.options.cacheFolder, "tmp").getAbsolutePath());
-        env.put("PATH", new File(jre, "bin").getAbsolutePath() + ":" + System.getenv("PATH"));
-        env.put("LD_LIBRARY_PATH", joinLdPaths(jre));
+        env.put("PATH", new File(Bridge.options.javaHome, "bin").getAbsolutePath() + ":" + System.getenv("PATH"));
+        env.put("LD_LIBRARY_PATH", joinLdPaths());
 
         for (Map.Entry<String, String> entry : env.entrySet()) {
             if (entry.getValue() == null)
@@ -120,8 +123,8 @@ public class Bootstrap {
     private static native int launchJVM(String[] argv);
 
     /** The JRE directories the linker may have to look into. */
-    private static List<File> searchDirs(File jre) {
-        File lib = new File(jre, "lib");
+    private static List<File> searchDirs() {
+        File lib = new File(Bridge.options.javaHome, "lib");
         List<File> dirs = new ArrayList<>();
         dirs.add(new File(lib, "jli"));
         for (String arch : Device.archCandidates()) {
@@ -133,13 +136,19 @@ public class Bootstrap {
         return dirs;
     }
 
-    private static String joinLdPaths(File jre) {
+    private static String joinLdPaths() {
         StringBuilder builder = new StringBuilder();
-        for (File dir : searchDirs(jre)) {
+        for (File dir : searchDirs()) {
             if (builder.length() > 0)
                 builder.append(':');
             builder.append(dir.getAbsolutePath());
         }
+        // On desktop, the game extracts libraries without setting executable and readonly.
+        // So make OS.isAndroid = true, then the game uses `System.loadLibrary()`
+        // to load readonly libraries.
+        File nativeFolder = Bridge.options.arcNativeFolder;
+        if (nativeFolder != null && nativeFolder.exists())
+            builder.append(':').append(nativeFolder.getAbsolutePath());
         return builder.toString();
     }
 }

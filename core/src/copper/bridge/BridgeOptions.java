@@ -231,8 +231,6 @@ public class BridgeOptions {
         File bridgeJar = Bridge.jar();
         if (bridgeJar != null)
             path.add(bridgeJar.getAbsolutePath());
-        if (arcNativeFolder != null)
-            path.add(arcNativeFolder.getAbsolutePath());
         for (File jar : gameJars)
             path.add(jar.getAbsolutePath());
     }

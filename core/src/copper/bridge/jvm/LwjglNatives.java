@@ -34,40 +34,18 @@ public final class LwjglNatives {
         String arch = arch(Bridge.options.abi);
         File root = new File(Bridge.options.cacheFolder, "native/lwjgl/linux/" + arch);
 
-        for (String name : LWJGL_LIBRARIES) {
-            String resource = "native/lwjgl/linux/" + arch + "/" + name;
-            File target = new File(root, name);
-
-            boolean extract;
-            if (target.exists()) {
-                try (InputStream src = LwjglNatives.class.getClassLoader().getResourceAsStream(resource);
-                     InputStream dst = new FileInputStream(target)) {
-                    extract = !Streams.contentEquals(src, dst);
-                } catch (Throwable e) {
-                    extract = true;
-                }
-            } else {
-                extract = true;
+        try (Archives jar = Archives.open(Bridge.options.bridgeJar)) {
+            for (String name : LWJGL_LIBRARIES) {
+                String resource = "native/lwjgl/linux/" + arch + "/" + name;
+                Archives.Entry entry = jar.entry(resource);
+                File target = new File(root, name);
+                Log.info("extracting the lwjgl native library (crc=0x"
+                        + Long.toHexString(entry.crc()) + ", " + entry.size() + " bytes)");
+                jar.extractLibrary(resource, target);
             }
-
-            if (extract) {
-                try (InputStream in = LwjglNatives.class.getClassLoader().getResourceAsStream(resource)) {
-                    if (in == null) {
-                        Log.warn("GL", "lwjgl native not found in the bridge jar: " + resource);
-                        continue;
-                    }
-                    target.getParentFile().mkdirs();
-                    target.delete();
-                    try (OutputStream out = new FileOutputStream(target)) {
-                        Streams.pipeStream(in, out, true);
-                    }
-                    target.setExecutable(true, false);
-                    target.setReadOnly();
-                } catch (IOException e) {
-                    Log.error("GL", "failed to extract " + resource);
-                    Log.error("GL", e);
-                }
-            }
+        } catch (Throwable e) {
+            Log.warn("GL", "failed to extract lwjgl natives; GL will not be able to load");
+            return null;
         }
 
         if (!new File(root, LWJGL_LIBRARIES[0]).isFile()) {

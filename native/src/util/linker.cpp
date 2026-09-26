@@ -4,6 +4,7 @@
 #include "util/file.h"
 #include "util/log.h"
 
+#include <cerrno>
 #include <dlfcn.h>
 #include <sys/stat.h>
 
@@ -68,7 +69,6 @@ namespace copper::bridge::util {
                 // Not in this JRE, which for libc, libdl, libz and the rest of the platform's libraries is
                 // the normal case: they are already mapped in, and asking the linker is what tells those
                 // apart from a library that really is missing.
-                chmod(soname.c_str(), 0500);
                 if (dlopen(soname.c_str(), RTLD_LAZY) != nullptr)
                     continue;
 
@@ -106,7 +106,8 @@ namespace copper::bridge::util {
 
         // Dependencies are opened first: an entry has to be present before the library needing it is
         // opened, otherwise the linker would go looking for it on its own and fail.
-        chmod(path.c_str(), 0500);
+        if (!chmod(path.c_str(), 0500))
+            util::Log::WarnF("LINKER", "%*sfailed to chmod 0500: %d, %s", depth * 2, "", errno, path.c_str());
         void* handle = dlopen(path.c_str(), RTLD_NOW | RTLD_GLOBAL);
         if (handle == nullptr) {
             const char* reason = dlerror();

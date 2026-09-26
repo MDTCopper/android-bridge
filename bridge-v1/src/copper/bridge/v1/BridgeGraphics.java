@@ -90,6 +90,10 @@ public class BridgeGraphics extends Graphics{
                 File eglAngle = findLibrary(Bridge.options.anglePath, Bridge.options.abi, ANGLE_EGL, SYSTEM_EGL);
                 File glesAngle = findLibrary(Bridge.options.anglePath, Bridge.options.abi, ANGLE_GLES, SYSTEM_GLES);
                 if(eglAngle != null && glesAngle != null){
+                    eglAngle.setExecutable(true, false);
+                    eglAngle.setReadOnly();
+                    glesAngle.setExecutable(true, false);
+                    glesAngle.setReadOnly();
                     egl = eglAngle.getAbsolutePath();
                     gles = glesAngle.getAbsolutePath();
                 }else{

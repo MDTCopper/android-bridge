@@ -68,6 +68,7 @@ namespace copper::bridge::util {
                 // Not in this JRE, which for libc, libdl, libz and the rest of the platform's libraries is
                 // the normal case: they are already mapped in, and asking the linker is what tells those
                 // apart from a library that really is missing.
+                chmod(soname.c_str(), 0500);
                 if (dlopen(soname.c_str(), RTLD_LAZY) != nullptr)
                     continue;
 

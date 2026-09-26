@@ -110,7 +110,7 @@ public class Main {
                 path -> Bridge.options.bridgeJar = new File(path));
         parser.addOption(null, "arc-lib", "Folder of arc native libraries, or one library file", "path",
                 path -> Bridge.options.arcLibPath = new File(path));
-        parser.addOption(null, "angle-path", "ANGLE library folder", "path",
+        parser.addOption(null, "angle-path", "Folder of the caller's ANGLE libraries", "path",
                 path -> {
                     Bridge.options.angle = true;
                     Bridge.options.anglePath = new File(path);
@@ -118,7 +118,7 @@ public class Main {
         parser.addOption(null, "abi", "Override the detected ABI", "abi",
                 abi -> Bridge.options.abi = abi);
 
-        parser.addFlag(null, "angle", "Use ANGLE for EGL and GLES", () -> Bridge.options.angle = true);
+        parser.addFlag(null, "angle", "Use the device's own ANGLE libraries for EGL and GLES", () -> Bridge.options.angle = true);
         parser.addFlag(null, "gl3", "Request an OpenGL ES 3 context", () -> Bridge.options.useGL30 = true);
         parser.addFlag(null, "gl2", "Request an OpenGL ES 2 context", () -> Bridge.options.useGL30 = false);
         parser.addFlag(null, "no-jvm-args", "Disable the injected JVM arguments",

@@ -27,6 +27,23 @@ public class BridgeGraphics extends Graphics{
     /** Coverage sampling attribute; not in LWJGL's core EGL headers. */
     private static final int EGL_COVERAGE_SAMPLES_NV = 0x30E1;
 
+    /** The names ANGLE's libraries have. */
+    private static final String ANGLE_EGL = "libEGL_angle.so";
+    private static final String ANGLE_GLES = "libGLESv2_angle.so";
+
+    /** The system's own EGL and GLES, used whenever ANGLE is not requested or cannot be had. */
+    private static final String SYSTEM_EGL = "libEGL.so";
+    private static final String SYSTEM_GLES = "libGLESv2.so";
+
+    /**
+     * Where a device's own ANGLE may sit, in the order the search tries them: the platform's
+     * libraries, the ANGLE apex, then the partitions a vendor build may put it in. A 64-bit process
+     * reads the {@code lib64} form of each.
+     */
+    private static final String[] SYSTEM_LIBRARY_ROOTS = {
+            "/system", "/apex/com.android.angle", "/system_ext", "/vendor", "/product", "/odm"
+    };
+
     private long eglDisplay = EGL10.EGL_NO_DISPLAY;
     private long eglContext = EGL10.EGL_NO_CONTEXT;
     private long eglSurface = EGL10.EGL_NO_SURFACE;
@@ -58,20 +75,36 @@ public class BridgeGraphics extends Graphics{
      * Points LWJGL at this device's EGL and GLES libraries and loads them. LWJGL would otherwise
      * load its own bundled natives, which do not exist for Android, and its OpenGL ES binding needs
      * an explicit create rather than the lazy one.
+     *
+     * <p>ANGLE is asked for in two forms: {@code --angle} takes the device's own pair, found under
+     * the system's library directories, and {@code --angle-path} takes a pair the caller supplied,
+     * found under that folder. A pair that is not there is reported and the system's EGL/GLES are
+     * used instead, so asking for ANGLE never costs a launch.</p>
      */
     public void configure(){
-        String egl = "libEGL.so";
-        String gles = "libGLESv2.so";
+        String egl = SYSTEM_EGL;
+        String gles = SYSTEM_GLES;
 
-        if(Bridge.options.angle && Bridge.options.anglePath != null){
-            File eglAngle = findLibrary(Bridge.options.anglePath, Bridge.options.abi, "libEGL_angle.so", "libEGL.so");
-            File glesAngle = findLibrary(Bridge.options.anglePath, Bridge.options.abi, "libGLESv2_angle.so", "libGLESv2.so");
-            if(eglAngle != null && glesAngle != null){
-                egl = eglAngle.getAbsolutePath();
-                gles = glesAngle.getAbsolutePath();
+        if(Bridge.options.angle){
+            if(Bridge.options.anglePath != null){
+                File eglAngle = findLibrary(Bridge.options.anglePath, Bridge.options.abi, ANGLE_EGL, SYSTEM_EGL);
+                File glesAngle = findLibrary(Bridge.options.anglePath, Bridge.options.abi, ANGLE_GLES, SYSTEM_GLES);
+                if(eglAngle != null && glesAngle != null){
+                    egl = eglAngle.getAbsolutePath();
+                    gles = glesAngle.getAbsolutePath();
+                }else{
+                    Log.warn("GL", "ANGLE was requested but no EGL/GLES pair was found under "
+                            + Bridge.options.anglePath + "; using the system libraries");
+                }
             }else{
-                Log.warn("GL", "ANGLE was requested but no EGL/GLES pair was found under "
-                        + Bridge.options.anglePath + "; using the system libraries");
+                String[] device = findSystemAngle();
+                if(device != null){
+                    egl = device[0];
+                    gles = device[1];
+                }else{
+                    Log.warn("GL", "ANGLE was requested but this device has no " + ANGLE_EGL
+                            + "/" + ANGLE_GLES + "; using the system libraries");
+                }
             }
         }
 
@@ -100,6 +133,32 @@ public class BridgeGraphics extends Graphics{
                 return flat;
         }
         return null;
+    }
+
+    /**
+     * Finds the device's own ANGLE pair: the system's library directories are searched in turn and the
+     * first one holding both libraries wins. Only their presence is settled here - whether the linker
+     * accepts the directory is what the load LWJGL performs a moment later says.
+     *
+     * @return the two absolute paths, EGL first, or {@code null} when no directory holds a pair
+     */
+    private static String[] findSystemAngle(){
+        String suffix = bits64() ? "lib64" : "lib";
+        for(String root : SYSTEM_LIBRARY_ROOTS){
+            File dir = new File(root + "/" + suffix);
+            File egl = new File(dir, ANGLE_EGL);
+            File gles = new File(dir, ANGLE_GLES);
+            if(egl.isFile() && gles.isFile())
+                return new String[]{egl.getAbsolutePath(), gles.getAbsolutePath()};
+        }
+        return null;
+    }
+
+    /** Whether this process is 64 bit, which decides between the {@code lib} and {@code lib64} forms. */
+    private static boolean bits64(){
+        String arch = Bridge.options.arch == null ? "" : Bridge.options.arch;
+        String abi = Bridge.options.abi == null ? "" : Bridge.options.abi;
+        return arch.contains("64") || arch.startsWith("armv8") || abi.contains("64");
     }
 
     /**

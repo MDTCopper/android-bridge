@@ -55,9 +55,9 @@ public class BridgeOptions {
     /** The name arc asks for {@code libarc}, i.e. what staging wrote; {@code null} when it did not. */
     public String arcNativeName;
 
-    /** Whether ANGLE is requested. */
+    /** Whether ANGLE is requested: the device's own libraries when {@link #anglePath} is null. */
     public boolean angle = false;
-    /** Explicit ANGLE folder, or {@code null} to use the system EGL/GLES libraries. */
+    /** Folder the caller's ANGLE libraries are in, or {@code null} for the device's own. */
     public File anglePath;
 
     /** Whether an OpenGL ES 3 context should be requested (default) or ES 2. */

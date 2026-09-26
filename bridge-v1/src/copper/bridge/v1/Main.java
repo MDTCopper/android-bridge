@@ -1,11 +1,11 @@
 package copper.bridge.v1;
 
-import arc.util.ArcNativesLoader;
-
+import arc.util.*;
 import copper.bridge.*;
 import copper.bridge.jvm.Launch;
 import copper.bridge.jvm.LwjglNatives;
 import copper.bridge.util.*;
+import copper.bridge.util.Log;
 import mindustry.*;
 import org.lwjgl.system.*;
 
@@ -35,6 +35,7 @@ public class Main{
         prepareLwjglNatives();
         prepareArcNatives();
         prepareGameFolders();
+        setOsType();
 
         // The game wraps its logger while it sets itself up so that everything it prints also goes to
         // last_log.txt. The printed copy is the one this bridge wants - the native side turns the process's
@@ -108,5 +109,20 @@ public class Main{
         data.mkdirs();
         System.setProperty("mindustry.data.dir", data.getAbsolutePath());
         Log.info("game data: " + data);
+    }
+
+    private static void setOsType() {
+        // Make sure OS is loaded
+        boolean t = OS.isAndroid;
+
+        OS.isAndroid = true;
+        OS.isWindows = false;
+        OS.isLinux = false;
+        OS.isMac = false;
+        // Added in arc d825843
+        try {
+            Reflect.set(OS.class, "isMobile", true);
+            Reflect.set(OS.class, "isDesktop", false);
+        } catch (Throwable ignored) {}
     }
 }

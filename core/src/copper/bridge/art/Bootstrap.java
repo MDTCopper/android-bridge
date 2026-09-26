@@ -72,6 +72,7 @@ public class Bootstrap {
         Map<String, String> env = new LinkedHashMap<>();
         env.put("JAVA_HOME", jre.getAbsolutePath());
         env.put("HOME", Bridge.options.gameDataFolder.getAbsolutePath());
+        env.put("MINDUSTRY_DATA_DIR", Bridge.options.gameDataFolder.getAbsolutePath());
         env.put("TMPDIR", new File(Bridge.options.cacheFolder, "tmp").getAbsolutePath());
         env.put("PATH", new File(jre, "bin").getAbsolutePath() + ":" + System.getenv("PATH"));
         env.put("LD_LIBRARY_PATH", joinLdPaths(jre));

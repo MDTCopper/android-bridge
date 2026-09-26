@@ -31,8 +31,9 @@
 
 ## 获取
 
-1. **Releases**：从本仓库的 Releases 下载 `bridge-<version>.jar`（打 tag 会触发 CI 构建并附上产物）
-2. **从源码构建**：见下面的[构建](#构建)
+1. **Releases**：从本仓库的 Releases 下载 `bridge-<version>.jar`（推一个数字开头的版本 tag 会触发 CI 构建并附上产物）
+2. **快照**：`snapshot` 那个 release 在每次 push（`main` 或版本 tag）后重建并替换资产（Pre-release），产物是 `bridge-snapshot.jar`；不想自己构建又不想钉版本时用它
+3. **从源码构建**：见下面的[构建](#构建)
 
 ## 提供什么功能
 
@@ -73,7 +74,13 @@ cd android-bridge
 
 Windows 上用 `gradlew.bat`。
 
-产物在 `pack/build/libs/bridge-0.1.0.jar`。第一次构建会自己签出并编译 v159 的 Mindustry 与 Arc，需要几分钟和网络；之后就复用 `.mindustry/` 与 `.arc/` 里的结果。
+产物在 `pack/build/libs/bridge-snapshot.jar`：**不带 `-Prelease` 的构建，版本号就是 `snapshot`** —— `gradle.properties` 里的 `buildVersion` 属于一次发布，只有打了 tag 的构建才该用它。要出一份带版本号的产物就加 `-Prelease`（CI 只在 tag 构建里这么做）：
+
+```bash
+./gradlew :pack:bridgeJar -Prelease
+```
+
+第一次构建会自己签出并编译 v159 的 Mindustry 与 Arc，需要几分钟和网络；之后就复用 `.mindustry/` 与 `.arc/` 里的结果。
 
 ### 详细构建
 

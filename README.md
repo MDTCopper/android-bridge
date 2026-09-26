@@ -31,8 +31,9 @@
 
 ## Getting
 
-1. **Releases**: download `bridge-<version>.jar` from this repository's Releases (pushing a tag makes CI build it and attach the artifact)
-2. **Build from source**: see [Building](#building)
+1. **Releases**: download `bridge-<version>.jar` from this repository's Releases (pushing a version tag — they start with a digit — makes CI build it and attach the artifact)
+2. **Snapshots**: the `snapshot` release is rebuilt and its asset replaced on every push — to `main` or to a version tag (a pre-release) — and the artifact is `bridge-snapshot.jar`; use it when you want neither to build the bridge yourself nor to pin a version
+3. **Build from source**: see [Building](#building)
 
 ## Features
 
@@ -73,7 +74,13 @@ cd android-bridge
 
 On Windows use `gradlew.bat`.
 
-The jar lands in `pack/build/libs/bridge-0.1.0.jar`. The first build checks out and compiles Mindustry and Arc at v159 by itself, which takes a few minutes and a network connection; after that it reuses what is in `.mindustry/` and `.arc/`.
+The jar lands in `pack/build/libs/bridge-snapshot.jar`: **without `-Prelease` the version is `snapshot`** — `buildVersion` in `gradle.properties` belongs to a release, and only a tagged build should use it. Pass `-Prelease` for an artifact that carries a version number (which is what CI does for a tag build):
+
+```bash
+./gradlew :pack:bridgeJar -Prelease
+```
+
+The first build checks out and compiles Mindustry and Arc at v159 by itself, which takes a few minutes and a network connection; after that it reuses what is in `.mindustry/` and `.arc/`.
 
 ### Detailed build
 

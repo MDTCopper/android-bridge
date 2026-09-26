@@ -1,12 +1,21 @@
 
+// Only -Prelease uses the version in gradle.properties; every other build is "snapshot", so a jar
+// that was never tagged cannot claim a release number.
+def release = project.hasProperty('release')
+// read before the ext property below takes the name over
+def releaseVersion = project.property('buildVersion')
+def bridgeVersion = release ? releaseVersion : 'snapshot'
+
 // Repositories live in settings.gradle only: a project level declaration could resolve against a
 // repository the settings file does not know about.
 allprojects {
     ext {
-        buildVersion = property("buildVersion")
+        buildVersion = bridgeVersion
         lwjglVersion = property("lwjglVersion")
     }
 }
+
+logger.lifecycle("bridge ${bridgeVersion}")
 
 // :native is CMake, not Java: the Java plugin would only look for a src/ directory it does not have.
 configure(subprojects - project(':native')) {

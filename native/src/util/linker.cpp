@@ -5,6 +5,7 @@
 #include "util/log.h"
 
 #include <dlfcn.h>
+#include <sys/stat.h>
 
 #include <utility>
 
@@ -104,6 +105,7 @@ namespace copper::bridge::util {
 
         // Dependencies are opened first: an entry has to be present before the library needing it is
         // opened, otherwise the linker would go looking for it on its own and fail.
+        chmod(path.c_str(), 0500);
         void* handle = dlopen(path.c_str(), RTLD_NOW | RTLD_GLOBAL);
         if (handle == nullptr) {
             const char* reason = dlerror();

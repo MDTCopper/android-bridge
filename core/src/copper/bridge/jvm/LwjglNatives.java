@@ -23,12 +23,13 @@ public final class LwjglNatives {
     };
 
     /**
-     * Unpacks the LWJGL natives for this device out of the bridge jar, read through this class's own class
-     * loader rather than out of the jar file by name: a loader that put the bridge on its path without saying
-     * where the jar is can still answer this, and the archive's location is not something this side has to know.
+     * Unpacks the LWJGL natives for this device out of the bridge jar that the ART side recorded in the
+     * options. It uses {@link Archives#extractLibrary}, which leaves the file alone when its bytes already
+     * match the jar entry. So a launch that changes nothing does not rewrite a library an earlier launch may
+     * still have loaded.
      *
-     * @return the extracted {@code linux/<arch>} folder, or {@code null} when the bridge jar does not carry
-     * LWJGL natives at all
+     * @return the extracted {@code linux/<arch>} folder, or {@code null} when the natives could not be
+     * unpacked
      */
     public static File extract() {
         String arch = arch(Bridge.options.abi);

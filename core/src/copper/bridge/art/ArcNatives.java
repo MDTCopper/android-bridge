@@ -8,10 +8,10 @@ import java.nio.file.*;
 import java.util.*;
 
 /**
- * Puts the caller's native libraries on the classpath under the names arc's loader asks for: arc finds
- * each of its libraries itself, as a classpath resource rather than as a path. The naming rule is
- * reproduced from the injected system properties because nothing here touches arc, which is what makes
- * this file shared by every branch.
+ * Stages the caller's native libraries under the names arc's loader asks for. arc looks its libraries up by
+ * name, not by path, so each file has to exist under that name in a folder on the JVM's library search
+ * path; {@link Bootstrap} puts the staging folder there. The mapped name is computed from the injected
+ * system properties, because this class never touches arc. That is what lets every branch share this file.
  */
 public final class ArcNatives {
     private ArcNatives() {
@@ -33,13 +33,14 @@ public final class ArcNatives {
     private static final String SUFFIX = ".so";
 
     /**
-     * Puts the caller's native libraries on the classpath under the names their loaders ask for. Both layouts
-     * are accepted - the libraries directly in the folder, or one subfolder per Android ABI, the ABI this process
-     * runs searched first - and nothing is filtered by name beyond the {@code lib<name>.so} shape, because the
-     * bridge does not own the list of libraries arc may need.
+     * Stages the caller's native libraries under the names their loaders ask for, and stores the folder in
+     * {@link BridgeOptions#arcNativeFolder} for the JVM side. Two layouts are accepted: the libraries
+     * directly in the folder, or one subfolder per Android ABI. A subfolder for the ABI this process runs is
+     * searched first. Only the {@code lib<name>.so} shape is looked for, because the bridge does not know
+     * which libraries arc may need.
      *
-     * @return the folder that has to be on the classpath, or {@code null} when the caller provided no library
-     * at all
+     * <p>When the caller gave no library at all, no folder is stored, so callers have to check for
+     * {@code null}.</p>
      */
     public static void stage() {
         File folder = new File(Bridge.options.cacheFolder, STAGING_FOLDER);
@@ -134,8 +135,8 @@ public final class ArcNatives {
 
     /**
      * The file name arc's loader computes for a library, given its logical name: ARM gets an {@code arm}
-     * infix (arc counts {@code aarch64} as ARM) and 64 bit a {@code 64} suffix. Getting it wrong is
-     * silent: arc would not find the resource and would fail at the first use.
+     * infix (arc counts {@code aarch64} as ARM) and 64 bit a {@code 64} suffix. A wrong name fails with no
+     * message: arc would not find the library, and the game would fail the first time it needs it.
      *
      * @param logicalName the name arc asks for, e.g. {@code arc} or {@code arc-freetype}
      * @param arch        the same value the bridge injects as {@code os.arch}, i.e. {@link Device#arch()}

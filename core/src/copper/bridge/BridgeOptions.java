@@ -48,8 +48,9 @@ public class BridgeOptions {
     /** This bridge's own jar, as the host gave it: the JVM needs it on its classpath to find its main class. */
     public File bridgeJar;
     /**
-     * Folder the caller's libraries were staged in, or {@code null} when none was provided. Carried
-     * over so both VMs agree on the classpath: arc reads these libraries as resources from it.
+     * Folder the caller's libraries were staged in, or {@code null} when none was provided. Both VMs need
+     * it: the ART side adds the folder to the linker search path, and on the JVM side arc then loads the
+     * libraries by name with {@code System.loadLibrary}. See {@link copper.bridge.art.ArcNatives}.
      */
     public File arcNativeFolder;
     /** The name arc asks for {@code libarc}, i.e. what staging wrote; {@code null} when it did not. */
@@ -191,8 +192,9 @@ public class BridgeOptions {
      * passed, or, with an injected loader, the loader jars only - the game and the bridge itself go
      * over as {@code --bridge-class-path} so the loader owns the class loading order.
      *
-     * <p>{@link #arcNativeFolder} is a directory entry in both: arc's loader reads the caller's arc
-     * libraries from the classpath as resources, which is the only way it finds them.</p>
+     * <p>{@link #arcNativeFolder} is not a classpath entry in either mode. arc loads its libraries by name,
+     * so the staged folder belongs on the library search path the JVM builds from {@code LD_LIBRARY_PATH}
+     * ({@link copper.bridge.art.Bootstrap}), not on the classpath.</p>
      */
     public List<String> jvmClasspath() {
         List<String> path = new ArrayList<>();
@@ -223,9 +225,9 @@ public class BridgeOptions {
     }
 
     /**
-     * The three entries both classpaths share, in the order they must appear: the staged arc
-     * natives come <em>before</em> the game jars, because arc resolves its library by resource name
-     * and a release jar carries a desktop build of its own, which would be loaded on the device.
+     * The entries both classpaths share, in this order: the bridge jar, then the game jars. The staged arc
+     * natives are not here, because arc loads them by name. So a game jar that carries its own desktop build
+     * of them is never found by a class loader.
      */
     private void addBridgeEntries(List<String> path) {
         File bridgeJar = Bridge.jar();

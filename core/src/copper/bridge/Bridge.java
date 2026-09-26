@@ -26,11 +26,11 @@ public final class Bridge {
     }
 
     /**
-     * Makes sure this VM has a native library to load, extracting it when it does not, and returns the file the
-     * JVM side has to load as well. The cache entry is named by the jar entry's CRC32 - already in the zip
-     * central directory, so nothing hashes the payload - and the length that catches a cut-short write; naming
-     * the build matters because the kind ids both sides route by come from the jar, so a library left over from
-     * an earlier build would misroute calls without failing.
+     * Makes sure this VM has a native library to load, and returns the file the JVM side has to load too.
+     * The cached file always has the same path, {@code native/bridge/libcopperbridge.so}. That path says
+     * nothing about the build or the ABI, so {@link Archives#extractLibrary} compares the file with the jar
+     * by byte and writes it again only when the two differ. Without that check, an old library could be loaded
+     * with no error, even though the kind ids both sides use come from the jar.
      */
     public static File prepare() {
         String name = "libcopperbridge.so";

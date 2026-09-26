@@ -7,11 +7,11 @@ import java.util.zip.*;
 /**
  * One jar, open for reading: what its central directory says about an entry, and taking one out.
  *
- * <p>Every answer comes from the zip central directory, so nothing has to read the payload to know an entry's
- * size or which build it came from. It is a handle, not a set of static calls, because the questions come in a
- * row and the same file would otherwise be opened three times: three descriptors and three central-directory
- * parses for one answer. An entry is written under a temporary name and then moved into place, because a file
- * that exists and is half written is the failure a cache cannot see.</p>
+ * <p>The size and the build of an entry come from the zip central directory, so no payload has to be read
+ * for them. Only taking an entry out reads bytes, and it does that just to see whether the cached copy is
+ * already the same. This class is a handle, not a set of static calls, because the questions come one after
+ * another and the same file would otherwise be opened three times. An entry is written under a temporary
+ * name and then moved into place, because a file that is half written is a failure the cache cannot see.</p>
  */
 public final class Archives implements Closeable {
     private final ZipFile jar;
@@ -39,12 +39,12 @@ public final class Archives implements Closeable {
             this.size = size;
         }
 
-        /** The CRC32 of the entry, which is what a file extracted from it is named by. */
+        /** The CRC32 of the entry, for a caller's log line. It comes from the central directory. */
         public long crc() {
             return crc;
         }
 
-        /** The uncompressed size, which is what a cache's copy is checked against. */
+        /** The uncompressed size, for a caller's log line. */
         public long size() {
             return size;
         }
@@ -57,12 +57,15 @@ public final class Archives implements Closeable {
     }
 
     /**
-     * Writes one entry out as a file that can be mapped as a library. Two details make it one: the copy lands
-     * under a temporary name and is then moved into place, so a crash halfway leaves the temporary behind
-     * instead of a broken library under the name everything trusts; and the permissions are set before that,
-     * because Android refuses to map a library that is not executable and a zip entry carries no permissions
-     * at all. The result is left read-only, since a cached library that anything may write can be mapped half
-     * written.
+     * Writes one entry out as a file that can be mapped as a library. If the file already holds the jar
+     * entry's bytes, nothing is written. That check is what makes a fixed target name safe: the path holds no
+     * ABI and no build, so without it an old library could be loaded with no error.
+     *
+     * <p>When it writes, the copy first goes to a temporary name and is then moved into place. A crash in the
+     * middle leaves the temporary file behind, not a broken library under the real name. The permissions are
+     * set before the move, because Android will not map a library that is not executable and a zip entry
+     * carries no permissions. The file is left executable for the owner and read-only, because a library that
+     * anyone may write can be mapped half written.</p>
      */
     public void extractLibrary(String name, File target) {
         ZipEntry entry = found(name);

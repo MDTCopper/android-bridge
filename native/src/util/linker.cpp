@@ -106,6 +106,8 @@ namespace copper::bridge::util {
 
         // Dependencies are opened first: an entry has to be present before the library needing it is
         // opened, otherwise the linker would go looking for it on its own and fail.
+        // W^X: a mapped library must be executable and must not be writable. A JRE ships its libraries
+        // writable, so the mode is set here instead of being trusted.
         if (!chmod(path.c_str(), 0500))
             util::Log::WarnF("LINKER", "%*sfailed to chmod 0500: %d, %s", depth * 2, "", errno, path.c_str());
         void* handle = dlopen(path.c_str(), RTLD_NOW | RTLD_GLOBAL);

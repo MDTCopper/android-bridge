@@ -21,9 +21,10 @@ namespace copper::bridge::jre::Loader {
     // missing entry point is fatal.
     void LoadJreLibraries(JNIEnv* env, jclass, jstring jreDir);
 
-    // Appends a directory to the linker's search path, through `android_update_LD_LIBRARY_PATH`. It only
-    // takes effect on some ROMs, so it is a best effort companion to loading the JRE's libraries by absolute
-    // path; call it before LoadJreLibraries.
+    // Adds a directory to the linker search path, through `android_update_LD_LIBRARY_PATH`. Only some ROMs
+    // use it, so it is a best effort next to loading libraries by absolute path. Call it before the loads it
+    // should cover. The ART side calls it for the JRE directories and for the staged arc natives, which the
+    // game then asks for by name.
     void UpdateLinkerPath(JNIEnv* env, jclass, jstring path);
 
     // Sets a process environment variable, which the JVM that is started afterwards reads. The C string

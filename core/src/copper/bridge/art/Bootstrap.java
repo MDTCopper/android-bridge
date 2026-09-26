@@ -19,8 +19,8 @@ public class Bootstrap {
     public static void start() {
         File jre = Bridge.options.javaHome;
 
-        // Before the classpath is built: arc finds these as resources on it, and the folder written
-        // here is one of the things the JVM side is told. See ArcNatives.stage.
+        // Runs before the JVM starts: the folder set here has to be on the library search path below, and the
+        // JVM side is told about it too. See ArcNatives.stage.
         ArcNatives.stage();
 
         // The host is the only one that knows where this jar ended up, so it says so with
@@ -35,14 +35,17 @@ public class Bootstrap {
 
         setEnvironment();
 
-        // Only some ROMs learn the ld directory from this call, and it has to happen before the
-        // libraries are loaded; the absolute-path loads below are what resolve on every ROM
+        // Only some ROMs take the ld directory from this call. It has to run before the libraries are
+        // loaded. On the other ROMs, loading the JRE libraries by absolute path below is what works. The
+        // staged arc natives are added here for the same reason: arc asks for them by name, so their folder
+        // has to be in the linker search path and in LD_LIBRARY_PATH.
         for (File dir : searchDirs()) {
             if (dir.isDirectory())
                 updateLdPath(dir.getAbsolutePath());
-            // W^X limitation
-            if (Bridge.options.arcNativeFolder.isDirectory())
-                updateLdPath(Bridge.options.arcNativeFolder.getAbsolutePath());
+            // W^X: the staged libraries are read-only, so arc can only load them by name.
+            File nativeFolder = Bridge.options.arcNativeFolder;
+            if (nativeFolder != null && nativeFolder.isDirectory())
+                updateLdPath(nativeFolder.getAbsolutePath());
         }
 
         Log.info("JRE", "loading JVM libraries from " + jre);
@@ -143,9 +146,9 @@ public class Bootstrap {
                 builder.append(':');
             builder.append(dir.getAbsolutePath());
         }
-        // On desktop, the game extracts libraries without setting executable and readonly.
-        // So make OS.isAndroid = true, then the game uses `System.loadLibrary()`
-        // to load readonly libraries.
+        // W^X: the staged arc libraries are read-only, so arc loads them by name instead of extracting a
+        // writable copy. That is why the branch entry sets OS.isAndroid to true. The JVM builds its library
+        // search path from LD_LIBRARY_PATH while it starts, so this entry has to be here.
         File nativeFolder = Bridge.options.arcNativeFolder;
         if (nativeFolder != null && nativeFolder.exists())
             builder.append(':').append(nativeFolder.getAbsolutePath());

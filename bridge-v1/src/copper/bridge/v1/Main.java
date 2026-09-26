@@ -32,8 +32,10 @@ public class Main{
         Log.info("starting branch v1 for game " + Launch.gameVersion());
         Log.info("game arguments: " + (args.length == 0 ? "none" : String.join(" ", args)));
 
-        // On desktop, the game extracts libraries without setting executable and readonly
-        // and it uses appdata folder as data folder. Don't let these happen.
+        // Runs first, before anything touches arc. OS.isAndroid decides two things. First, whether arc's
+        // SharedLibraryLoader loads the staged libraries by name, or extracts its own copy from the classpath
+        // with no executable bit and no read-only bit. Second, where arc puts its data folder. Neither desktop
+        // answer may happen, so this comes before the preparations below.
         setOsType();
 
         prepareLwjglNatives();
@@ -82,10 +84,11 @@ public class Main{
     }
 
     /**
-     * Triggers arc's own native load, on the library the bridge staged: arc finds it as a classpath
-     * resource and loads its own extracted copy, so this side only triggers the load, which arc's backends
-     * would otherwise do during start-up. Without a staged library the native paths are disabled rather
-     * than left to fail at the first use.
+     * Starts arc's own native load, on the library the bridge staged. {@link #setOsType()} already made arc's
+     * loader ask for it by name, and the staged folder is on the library search path that {@code Bootstrap}
+     * gave the JVM. So this side only starts the load, which arc's backends would otherwise do during
+     * start-up. When no library was staged, the native paths are switched off instead of failing at the first
+     * use.
      */
     private static void prepareArcNatives(){
         String name = Bridge.options.arcNativeName;
@@ -115,7 +118,8 @@ public class Main{
     }
 
     private static void setOsType() {
-        // Make sure OS is loaded
+        // Read the field first, so the class initialises now. Its initialiser takes the platform from the
+        // system properties, which say Linux here. The lines below then override that.
         boolean t = OS.isAndroid;
 
         OS.isAndroid = true;

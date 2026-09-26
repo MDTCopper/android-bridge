@@ -80,6 +80,9 @@ public class BridgeGraphics extends Graphics{
      * the system's library directories, and {@code --angle-path} takes a pair the caller supplied,
      * found under that folder. A pair that is not there is reported and the system's EGL/GLES are
      * used instead, so asking for ANGLE never costs a launch.</p>
+     *
+     * <p>A pair from {@code --angle-path} is made executable for the owner and read-only before LWJGL gets
+     * it, the same W^X treatment the bridge's own libraries get. The device's own pair is not touched.</p>
      */
     public void configure(){
         String egl = SYSTEM_EGL;
@@ -90,6 +93,8 @@ public class BridgeGraphics extends Graphics{
                 File eglAngle = findLibrary(Bridge.options.anglePath, Bridge.options.abi, ANGLE_EGL, SYSTEM_EGL);
                 File glesAngle = findLibrary(Bridge.options.anglePath, Bridge.options.abi, ANGLE_GLES, SYSTEM_GLES);
                 if(eglAngle != null && glesAngle != null){
+                    // W^X: LWJGL opens these by absolute path, so they have to be executable and not
+                    // writable. A pair from --angle-path is the only one the bridge may touch.
                     boolean success = true;
                     success &= eglAngle.setExecutable(true, true);
                     success &= eglAngle.setReadOnly();

@@ -22,7 +22,7 @@ public class UriFiles {
 
     /**
      * Reads a whole document into memory, for the JVM side, which cannot open one itself. A document too
-     * large for that goes through {@link #copyToUri} instead, where ART does the streaming.
+     * large for that goes through {@link #copyToUri} instead.
      */
     @ArtDirectHandler
     public byte[] readUri(String uri) throws IOException {

@@ -83,11 +83,9 @@ public class Main {
     }
 
     /**
-     * Starts arc's own native load, on the library the bridge staged. {@link #setOsType()} already made arc's
-     * loader ask for it by name, and the staged folder is on the library search path that {@code Bootstrap}
-     * gave the JVM. So this side only starts the load, which arc's backends would otherwise do during
-     * start-up. When no library was staged, the native paths are switched off instead of failing at the first
-     * use.
+     * Starts arc's own native load. arc's own backends would do it during start-up and this branch replaces
+     * them, so the call is made here. When arc's own library was not among the ones staged, the native paths
+     * are switched off instead of failing at the first use.
      */
     private static void prepareArcNatives() {
         if(!Bridge.options.foundArcNative || Bridge.options.arcNativeFolder == null) {

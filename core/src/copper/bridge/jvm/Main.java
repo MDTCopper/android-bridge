@@ -9,8 +9,7 @@ import java.util.*;
  *
  * <p>{@code JLI_Launch} starts this class as its main class with the game classpath already set, so this is
  * the "start the game" entry the bridge was built around. It is a separate class from the ART side's
- * {@link copper.bridge.art.Main} because the two run in different virtual machines, are reached through
- * different mechanisms, and share no state.</p>
+ * {@link copper.bridge.art.Main}.</p>
  */
 public class Main {
 

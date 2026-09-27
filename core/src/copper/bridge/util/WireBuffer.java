@@ -4,10 +4,10 @@ package copper.bridge.util;
  * What every wire buffer shares: one byte array, a byte offset, an element count, and the cursor.
  *
  * <p>A port of {@code java.nio}'s little-endian buffers rather than a wrapper: a {@code java.nio}
- * buffer cannot be re-pointed, so a view of a new range would allocate every frame, while
- * {@link #bind} rewrites an instance allocated once. Only little-endian exists, and every bounds
- * check lives here and fails with a {@link BatchFormatException}, so a malformed frame is a value
- * the reader can catch and drop rather than an index out of bounds further along.</p>
+ * buffer cannot be re-pointed, so a view of a new range would allocate every frame - {@link #bind} is
+ * what avoids that. Only little-endian exists, and every bounds check lives here and fails with a
+ * {@link BatchFormatException}, so a malformed frame is a value the reader can catch and drop rather
+ * than an index out of bounds further along.</p>
  */
 abstract class WireBuffer {
     /** Bytes per element; the only difference between the concrete buffers. */

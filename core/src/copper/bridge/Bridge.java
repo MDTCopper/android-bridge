@@ -27,10 +27,9 @@ public final class Bridge {
 
     /**
      * Makes sure this VM has a native library to load, and returns the file the JVM side has to load too.
-     * The cached file always has the same path, {@code native/bridge/libcopperbridge.so}. That path says
-     * nothing about the build or the ABI, so {@link Archives#extractLibrary} compares the file with the jar
-     * by byte and writes it again only when the two differ. Without that check, an old library could be loaded
-     * with no error, even though the kind ids both sides use come from the jar.
+     * The cached file always has the same path, {@code native/bridge/libcopperbridge.so}, so an old library
+     * left there would be loaded with no error even though the kind ids both sides use come from the jar;
+     * {@link Archives#extractLibrary} is what rules that out.
      */
     public static File prepare() {
         String name = "libcopperbridge.so";
@@ -53,11 +52,10 @@ public final class Bridge {
     }
 
     /**
-     * Enters the native library for this VM. No path parameter: {@link #prepare()} left the file in
-     * the options on the ART side and the JVM side was handed the same path as a system property.
+     * Enters the native library for this VM. No path parameter: the file this side loads came over as an
+     * option, so the caller has nothing to choose.
      *
-     * @throws RuntimeException when no library was prepared for this side, or when the library that
-     *         loaded does not match the ABI the caller declared
+     * @throws RuntimeException when no library was prepared for this side
      */
     public static synchronized void load() {
         if (loaded)

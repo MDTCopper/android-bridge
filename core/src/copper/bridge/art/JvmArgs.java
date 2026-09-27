@@ -137,7 +137,10 @@ public class JvmArgs {
         return args;
     }
 
-    /** Logs the argument vector, the classpath and the override notes. */
+    /**
+     * Logs the classpath and the override notes. The whole argument vector is one debug line: it says the
+     * same thing as the lines above, one argument at a time, and is only wanted when a launch misbehaves.
+     */
     public void print(List<String> args, String jre, List<String> classpath) {
         Log.info("jre  = " + jre);
 

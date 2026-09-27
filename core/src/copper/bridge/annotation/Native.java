@@ -9,7 +9,7 @@ import java.lang.annotation.*;
  *
  * <p>The generator declares that function from this declaration before taking its address, so a
  * definition whose signature disagrees is a link error rather than a native method that silently
- * binds nothing. {@code CLASS} retention, like {@link UsedByNative}, for tooling rather than the VM.</p>
+ * binds nothing. {@code CLASS} retention, as on {@link UsedByNative}.</p>
  */
 @Documented
 @Retention(RetentionPolicy.CLASS)

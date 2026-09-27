@@ -3,11 +3,9 @@
 
 #include <jni.h>
 
-#include <string>
-
 namespace copper::bridge::jni::State {
 
-    // Process wide state: which VM is which, and what the Java side asked for at startup.
+    // Process wide state: which VM is which.
     //
     // Two VMs share this library, so an entry point has to know which one it is talking to; both are kept,
     // because the bus serves both directions. There is one of each per process, so the values live behind
@@ -23,17 +21,6 @@ namespace copper::bridge::jni::State {
     // environment - which is what the file chooser and text input callbacks need.
     JavaVM* Jvm();
     void SetJvm(JavaVM* vm);
-
-    /**
-     * Records what the Java side declared about this process, and reports whether the library that is
-     * already loaded was built for it.
-     *
-     * A mismatch means the wrong libcopperbridge.so was extracted for this device, which the caller wants as
-     * a value rather than as a crash in the middle of a load.
-     *
-     * @return 0 when the loaded library matches the declared ABI, 1 when it does not
-     */
-    int Init(JNIEnv* env, jclass, jstring cacheDir, jstring abi);
 
 } // namespace copper::bridge::jni::State
 

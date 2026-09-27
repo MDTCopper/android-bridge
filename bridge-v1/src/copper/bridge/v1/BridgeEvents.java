@@ -9,13 +9,12 @@ import copper.bridge.jvm.Surface;
 import copper.bridge.util.*;
 
 /**
- * The events ART posts, performed on the thread that owns the game.
+ * The branch side of {@link Events}: the handlers, performed on the thread that owns the game.
  *
  * <p>ART reports what happens to the activity - a surface appearing or going away, a pause, a resume, a back
  * press - and none of it may be applied anywhere but the game loop: the surface pointer has to reach the thread
  * that makes the EGL context current, and the listener callbacks belong to the same thread as everything else the
- * game touches. The declarations live in core, on {@link Events}, so the compiler guarantees that every event
- * ART can post has somewhere to land.</p>
+ * game touches.</p>
  */
 public class BridgeEvents implements Events {
     private final BridgeGraphics graphics;

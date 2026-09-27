@@ -289,7 +289,7 @@ public final class BindingProcessor extends AbstractProcessor {
         return sorted;
     }
 
-    /** Sorted for the same reason as {@link #forwards()}: a generated file that does not move. */
+    /** Sorted for the same reason as {@link #forwards()}. */
     List<Reverse> reverses() {
         List<Reverse> sorted = new ArrayList<>(reverses.values());
         sorted.sort(Comparator.comparing((Reverse member) -> member.owner).thenComparing(member -> member.entry));

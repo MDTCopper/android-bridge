@@ -9,9 +9,9 @@ import java.util.*;
 
 /**
  * Stages the caller's native libraries under the names arc's loader asks for. arc looks its libraries up by
- * name, not by path, so each file has to exist under that name in a folder on the JVM's library search
- * path; {@link Bootstrap} puts the staging folder there. The mapped name is computed from the injected
- * system properties, because this class never touches arc. That is what lets every branch share this file.
+ * name, not by path, so each file has to be in a folder on the JVM's library search path under the name arc
+ * computes for it. A file is staged under its own name, because this class never touches arc and does not
+ * reproduce arc's naming rule.
  */
 public final class ArcNatives {
     private ArcNatives() {
@@ -20,17 +20,22 @@ public final class ArcNatives {
     /** Cache subfolder the caller's libraries are staged in. */
     private static final String STAGING_FOLDER = "native/arc";
 
-    /** The logical name of arc's own library: the one {@code ArcNativesLoader} asks for. */
+    /** The file name arc's own library has to arrive under: the one {@code ArcNativesLoader} asks for. */
     private static final String ARC = "libarc.so";
 
     /**
-     * Stages the caller's native libraries under the names their loaders ask for, and stores the folder in
+     * Stages the caller's native libraries under the names they arrived with, and stores the folder in
      * {@link BridgeOptions#arcNativeFolder} for the JVM side. Two layouts are accepted: the libraries
      * directly in the folder, or one subfolder per Android ABI. A subfolder for the ABI this process runs is
-     * searched first. Only the {@code lib<name>.so} shape is looked for, because the bridge does not know
-     * which libraries arc may need.
+     * searched first. Out of a folder only the {@code .so} files are taken, and none of them is renamed: the
+     * bridge does not own the list of libraries arc may need, so it has no reason to rename one.
      *
-     * <p>When the caller gave no library at all, no folder is stored, so callers have to check for
+     * <p>The caller has to hand the files over already spelled the way arc asks, including the ABI infix:
+     * arc asks for {@code libarc-filedialogsarm64.so}, not for {@code libarc-filedialogs.so}. A wrong name is
+     * not corrected here, and arc reports nothing when it does not find a library.</p>
+     *
+     * <p>Whether arc's own library was among them is recorded in {@link BridgeOptions#foundArcNative}. When
+     * the caller gave no library at all, nothing is staged and {@link BridgeOptions#arcNativeFolder} stays
      * {@code null}.</p>
      */
     public static void stage() {
@@ -43,11 +48,9 @@ public final class ArcNatives {
             return;
         }
 
-        // Staged under the mapped spelling, not under the name it arrived with: renaming only
-        // libarc.so left libarc-filedialogs.so unfindable, because arc asks for
-        // libarc-filedialogsarm64.so. See PREFIX.
+        // Keyed by the file's own name, because that is the name arc will ask for later: the caller hands
+        // the libraries over already spelled the way arc computes, and nothing here renames them.
         Map<String, File> wanted = new LinkedHashMap<>();
-        String arcName = null;
         boolean foundArc = false;
         for (File library : libraries) {
             boolean success = true;
@@ -76,7 +79,7 @@ public final class ArcNatives {
         }
 
         if (!foundArc)
-            Log.error("no lib" + ARC + ".so under " + Bridge.options.arcLibPath
+            Log.error("no " + ARC + " under " + Bridge.options.arcLibPath
                     + "; arc's own native cannot be loaded");
 
         Bridge.options.foundArcNative = foundArc;
@@ -121,6 +124,10 @@ public final class ArcNatives {
      * Puts one library under the staging folder: a symbolic link first, since copying costs the whole
      * size again, and a copy where the file system has no links - Android's
      * {@code getExternalFilesDir} is the usual example.
+     *
+     * <p>A copy needs the mode set again: a link hands out the source's mode, while a copy is created with
+     * the default one, and Android will not map a library that is not executable. The copy is left read-only
+     * for the same reason the source is: a library anything may write can be mapped half written.</p>
      */
     private static boolean stage(File from, File to) {
         try {

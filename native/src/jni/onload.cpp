@@ -54,6 +54,9 @@ namespace copper::bridge::jni {
         if (!Log::OpenFile())
             return JNI_ERR;
 
+        // The native side's banner, in the same shape as the ART and JVM sides'. Only the ART load prints it,
+        // so the JVM's later load of this file does not repeat it. It sits here because the log file has to be
+        // open before anything can be written to it.
         if (loaded == 1)
             util::Log::Info(util::Log::NO_TAG, "CopperBridge (Native side)");
 

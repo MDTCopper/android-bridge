@@ -7,10 +7,10 @@ import java.util.*;
  * Everything the ART side has to hand over to the JVM side.
  *
  * <p>The two VMs share no object graph, so the resolved runtime facts (jars, folders, ABI, ANGLE
- * choice, allowed GL version, JVM arguments) cross as system properties:
- * {@link copper.bridge.art.JvmArgs} emits one {@code -Dcopper.bridge.<name>=<value>} per field, and
- * {@link #fromSystemProperties()} reads them back, so the sides cannot disagree about, for example,
- * which ABI was detected - and there is no file in the cache folder to go stale.</p>
+ * choice, allowed GL version, JVM arguments) cross as system properties -
+ * {@link copper.bridge.art.JvmArgs} and {@link #fromSystemProperties()} are the two ends of that. So the
+ * sides cannot disagree about, for example, which ABI was detected, and there is no file in the cache
+ * folder to go stale.</p>
  */
 public class BridgeOptions {
     /**
@@ -61,11 +61,13 @@ public class BridgeOptions {
     public File bridgeJar;
     /**
      * Folder the caller's libraries were staged in, or {@code null} when none was provided. Both VMs need
-     * it: the ART side adds the folder to the linker search path, and on the JVM side arc then loads the
-     * libraries by name with {@code System.loadLibrary}. See {@link copper.bridge.art.ArcNatives}.
+     * it: see {@link copper.bridge.art.ArcNatives}.
      */
     public File arcNativeFolder;
-    /** The name arc asks for {@code libarc}, i.e. what staging wrote; {@code null} when it did not. */
+    /**
+     * Whether staging found arc's own library, {@code libarc.so}. The other libraries the caller hands over
+     * are not a substitute for it: without this one, arc's native code paths cannot be used at all.
+     */
     public boolean foundArcNative;
 
     /** Whether ANGLE is requested: the device's own libraries when {@link #anglePath} is null. */
@@ -113,10 +115,9 @@ public class BridgeOptions {
     public boolean logcat = false;
 
     /**
-     * Where the ART side extracted the bridge's own native library. Recorded because both VMs load
-     * the very same file, and the path carries the build's identity: an older library left in the
-     * cache would otherwise be loaded silently, and the kind ids the JVM side routes by come from
-     * the jar.
+     * Where the ART side extracted the bridge's own native library. Recorded because both VMs load the very
+     * same file - a native method binds to the VM whose load registered it - so the JVM side is handed this
+     * path instead of looking for a library of its own.
      */
     public File bridgeLibrary;
 
@@ -225,9 +226,8 @@ public class BridgeOptions {
      * passed, or, with an injected loader, the loader jars only - the game and the bridge itself go
      * over as {@code --bridge-class-path} so the loader owns the class loading order.
      *
-     * <p>{@link #arcNativeFolder} is not a classpath entry in either mode. arc loads its libraries by name,
-     * so the staged folder belongs on the library search path the JVM builds from {@code LD_LIBRARY_PATH}
-     * ({@link copper.bridge.art.Bootstrap}), not on the classpath.</p>
+     * <p>{@link #arcNativeFolder} is not a classpath entry in either mode: the staged folder belongs on the
+     * library search path ({@link copper.bridge.art.Bootstrap}), not on the classpath.</p>
      */
     public List<String> jvmClasspath() {
         List<String> path = new ArrayList<>();

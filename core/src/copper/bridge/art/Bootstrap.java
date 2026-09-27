@@ -36,14 +36,14 @@ public class Bootstrap {
         setEnvironment();
 
         // Only some ROMs take the ld directory from this call. It has to run before the libraries are
-        // loaded. On the other ROMs, loading the JRE libraries by absolute path below is what works. The
-        // staged arc natives are added here for the same reason: arc asks for them by name, so their folder
-        // has to be in the linker search path and in LD_LIBRARY_PATH.
+        // loaded. On the other ROMs, loading the JRE libraries by absolute path below is what works.
         for (File dir : searchDirs()) {
             if (dir.isDirectory())
                 updateLdPath(dir.getAbsolutePath());
         }
-        // W^X: the staged libraries are read-only, so arc can only load them by name.
+        // The staged arc natives are added for the same reason, and once instead of once per JRE directory:
+        // the folder is not one of the JRE's. W^X: the staged libraries are read-only, so arc can only load
+        // them by name.
         File nativeFolder = Bridge.options.arcNativeFolder;
         if (nativeFolder != null && nativeFolder.isDirectory())
             updateLdPath(nativeFolder.getAbsolutePath());

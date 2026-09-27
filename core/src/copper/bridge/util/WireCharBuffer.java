@@ -6,8 +6,8 @@ import java.nio.CharBuffer;
  * A re-bindable view of a run of 16 bit characters, little-endian like every wire buffer: the low byte comes
  * first, and a {@code char} is unsigned on both sides, which is why the decoding masks rather than sign-extends.
  * It is also how a string travels inside a frame. It is a {@link CharSequence}, so a reader that needs no decoded
- * copy can hand the view itself to anything that takes one; only operations that produce a value
- * ({@link #text()}, {@link #toString()}) copy, and the sequence is valid only until the next poll rebinds it.
+ * copy can hand the view itself to anything that takes one, and the sequence is valid only until the next poll
+ * rebinds it.
  */
 public final class WireCharBuffer extends WireBuffer implements CharSequence {
     public WireCharBuffer() {

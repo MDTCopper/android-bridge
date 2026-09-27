@@ -23,10 +23,8 @@ public final class LwjglNatives {
     };
 
     /**
-     * Unpacks the LWJGL natives for this device out of the bridge jar that the ART side recorded in the
-     * options. It uses {@link Archives#extractLibrary}, which leaves the file alone when its bytes already
-     * match the jar entry. So a launch that changes nothing does not rewrite a library an earlier launch may
-     * still have loaded.
+     * Unpacks the LWJGL natives for this device out of the bridge jar {@link Bridge#jar()} names, through
+     * {@link Archives#extractLibrary}.
      *
      * @return the extracted {@code linux/<arch>} folder, or {@code null} when the natives could not be
      * unpacked

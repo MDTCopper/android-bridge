@@ -7,10 +7,9 @@ import java.util.*;
 
 /**
  * The entry point the launcher calls on the ART side; a separate class from the JVM side's
- * {@link copper.bridge.jvm.Main} because the two run in different virtual machines. {@link #main(String[])}
- * parses the arguments, reports the game version and loads the native library; {@link #launch()} builds the
- * activity and returns it. The version branch is not decided here - the JVM resolves it from its own classpath -
- * and this side reports only the game version it found, the one fact knowable before a JVM exists.
+ * {@link copper.bridge.jvm.Main} because the two run in different virtual machines. The version branch is not
+ * decided here - the JVM resolves it from its own classpath - and this side reports only the game version it
+ * found, the one fact knowable before a JVM exists.
  */
 public class Main {
 
@@ -207,7 +206,7 @@ public class Main {
         return bin == null ? javaExecutable.getAbsoluteFile() : bin;
     }
 
-    /** Fails unless {@link #main} has parsed the arguments, i.e. unless the one options instance exists. */
+    /** Fails unless {@link #main} has run, i.e. unless the one options instance exists. */
     private static void requireOptions() {
         if (Bridge.options == null)
             throw new RuntimeException("copper.bridge.art.Main.main has not run yet");

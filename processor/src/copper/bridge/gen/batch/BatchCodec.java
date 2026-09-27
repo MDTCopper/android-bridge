@@ -25,8 +25,8 @@ final class BatchCodec {
 
     /**
      * Writes one field at the cursor the caller has already bound and made room for: the room is asked
-     * for once per record rather than per field, because {@link #bytesOf} accounts for every field's
-     * width, and the bound limit then doubles as a check that the two agree.
+     * for once per record rather than per field, and the bound limit doubles as a check that the two
+     * agree.
      */
     static Template write(Field field) {
         // A sequence is a CharSequence, so the byte buffer writes its characters itself: no copy of

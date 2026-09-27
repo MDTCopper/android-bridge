@@ -15,8 +15,8 @@ namespace copper::bridge::jni::Log {
     using gen::Binding::Outcome;
 
     bool Setup() {
-        // The path and the logcat flag are ART's Java's to answer - that side owned the file until this
-        // library was loaded - so the whole of this runs in ART's environment.
+        // The path, the logcat flag and the level are ART's Java's to answer - that side owned the file until
+        // this library was loaded - so the whole of this runs in ART's environment.
         jni::Env art(jni::Side::Art);
         if (!art.Ok()) {
             util::Log::Error("LOG", "cannot reach ART to ask for the log file");
@@ -27,11 +27,12 @@ namespace copper::bridge::jni::Log {
         jstring path = nullptr;
         jboolean wanted = JNI_FALSE;
 
+        // A call that did not reach the member is the same answer as a missing file, for any of the three:
+        // this side has nothing to write through, and the caller in Java is the one that has to say what
+        // went wrong.
         if (VmCall::LogLevel(&level) != Outcome::Done)
             return false;
 
-        // A call that did not reach the member is the same answer as a missing file: this side has nothing
-        // to write through, and the caller in Java is the one that has to say what went wrong.
         if (VmCall::LogFilePath(&path) != Outcome::Done
                 || VmCall::LogcatEnabled(&wanted) != Outcome::Done) {
             if (path != nullptr)

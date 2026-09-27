@@ -35,7 +35,7 @@ public abstract class LogBackend {
         return letter(level) + "[" + side.letter() + "]" + (tag == null ? "" : " [" + tag + "]") + " " + message;
     }
 
-    /** The logcat priority of a level; logcat's own numbers, which the native side takes as they are. */
+    /** The logcat priority of a level: logcat's own numbers. */
     protected static int priority(Log.Level level) {
         switch (level) {
             case ERROR:   return PRIORITY_ERROR;

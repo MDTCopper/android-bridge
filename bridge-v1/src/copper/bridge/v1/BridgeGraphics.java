@@ -125,6 +125,8 @@ public class BridgeGraphics extends Graphics{
         Configuration.EGL_LIBRARY_NAME.set(egl);
         Configuration.OPENGLES_LIBRARY_NAME.set(gles);
         Configuration.OPENGLES_EXPLICIT_INIT.set(true);
+        // LWJGL's own debug output follows the two flags the same way arc's level does: either one is a
+        // request for everything a run can print.
         if(Bridge.options.debug || Bridge.options.verbose)
             Configuration.DEBUG.set(true);
 

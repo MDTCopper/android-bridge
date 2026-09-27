@@ -9,7 +9,7 @@ namespace copper::bridge::jni::Log {
     // turning a Java string into one of those lines is what this file is for.
 
     /** One line Java handed over: its level, its side's logcat tag, and the text the file holds. */
-    void LogLine(JNIEnv* env, jclass, jint priority, jstring logcatTag, jstring line);
+    void LogLine(JNIEnv* env, jclass, jint level, jstring logcatTag, jstring line);
 
 } // namespace copper::bridge::jni::Log
 

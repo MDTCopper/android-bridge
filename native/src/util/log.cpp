@@ -42,6 +42,8 @@ namespace copper::bridge::util::Log {
         bool logcat = false;
         std::mutex fileMutex;
 
+        // The level a line has to be at or below to reach the file or logcat. Java's, asked for when the log
+        // is set up; INFO until then, which is where Java's own logger starts too.
         Level logLevel = Level::INFO;
 
         // The length a log line is cut at. Long lines do not lose their tail: they become several lines. The
@@ -71,6 +73,7 @@ namespace copper::bridge::util::Log {
                 __android_log_write(priority, logcatTag, line.c_str());
         }
 
+        // The letter the file spells a level with.
         const char* LetterFor(Level level) {
             switch (level) {
                 case Level::VERBOSE: return "[V]";
@@ -82,6 +85,8 @@ namespace copper::bridge::util::Log {
             }
         }
 
+        // Between a level and logcat's own value for it: the one call that writes to Android's log needs
+        // that spelling, and a captured stream starts from it.
         android_LogPriority ConvertLevel(Level level) {
             switch (level) {
                 case Level::VERBOSE: return ANDROID_LOG_VERBOSE;
@@ -107,9 +112,10 @@ namespace copper::bridge::util::Log {
         // The length of the head arc writes in front of its own lines: `[I] `, `[W] `, `[E] `, `[D] `, `[V] `.
         constexpr size_t HEAD_LENGTH = 4;
 
-        // The level such a head declares, or -1 when the line has none. Exactly one upper case letter and the
-        // space that is part of the head: anything else - a bracket opened for another reason (`[Audio] ...`),
-        // a lower case letter, no space - is not a level, and that line keeps the stream's level and its bytes.
+        // The level such a head declares, or `UNKNOWN` when the line has none. Exactly one upper case letter
+        // and the space that is part of the head: anything else - a bracket opened for another reason
+        // (`[Audio] ...`), a lower case letter, no space - is not a level, and that line keeps the stream's
+        // level and its bytes.
         Level HeadLevel(const std::string& line) {
             if (line.size() < HEAD_LENGTH || line[0] != '[' || line[2] != ']' || line[3] != ' ')
                 return Level::UNKNOWN;
@@ -241,6 +247,7 @@ namespace copper::bridge::util::Log {
         // tag of the subsystem that produced it - or nothing, when the line names no subsystem. Logcat gets
         // that same text.
         void NativeLine(Level level, const char* tag, const std::string& message) {
+            // Asked here as well as in LogLine, so a dropped line is never built.
             if (level > logLevel)
                 return;
             const std::string brackets = tag == NO_TAG ? "" : std::string(" [") + tag + "]";

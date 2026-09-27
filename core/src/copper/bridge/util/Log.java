@@ -148,6 +148,10 @@ public class Log {
         return logcat;
     }
 
+    /**
+     * The level this side writes at, as {@link Level#ordinal()}: native's own level enum is in that same
+     * order, and native drops every line above it. Read by native.
+     */
     @UsedByNative(side = UsedByNative.Side.ART)
     @SuppressWarnings("unused")
     private static int logLevel() {

@@ -7,11 +7,11 @@ namespace copper::bridge::jni::Log {
     // asks for its answer.
 
     /**
-     * Asks Java where the log file is and whether Android's log is wanted, and hands both to the log. This is
-     * the one lookup that has to happen before the VM the library is being loaded into can report anything:
-     * a failure here is why JNI_OnLoad answers JNI_ERR.
+     * Asks Java where the log file is, whether Android's log is wanted, and at which level to write, and hands
+     * all three to the log. This is the one lookup that has to happen before the VM the library is being
+     * loaded into can report anything: a failure here is why JNI_OnLoad answers JNI_ERR.
      *
-     * It takes no environment because both answers come from ART's Java, and the call reaches ART's
+     * It takes no environment because all three answers come from ART's Java, and the call reaches ART's
      * environment itself. Returns false when the file itself is missing, which is also what an unanswered
      * call answers.
      */

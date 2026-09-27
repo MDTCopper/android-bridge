@@ -49,8 +49,9 @@ namespace copper::bridge::jni {
         // it was written from, and the one thing that could go wrong reports itself to Android's log.
         const int bound = gen::Binding::BindAll(env);
 
-        // Then the log file, because everything below - including a failure - has to end up somewhere: the ART
-        // side had it open until the moment before this load, and takes it back when this returns JNI_ERR.
+        // Then the log is set up, because everything below - including a failure - has to end up somewhere:
+        // the ART side had it open until the moment before this load, and takes it back when this returns
+        // JNI_ERR.
         if (!Log::Setup())
             return JNI_ERR;
 

@@ -6,6 +6,9 @@
 
 namespace copper::bridge::util::Log {
 
+    // The levels, most severe first: a line above the one the log was given is dropped, so this order is
+    // what that comparison reads, and it is Java's `Log.Level` order as well - Java hands its level over
+    // as an ordinal. `UNKNOWN` is for a line that declares no level, and sits below every real one.
     enum Level : int8_t {
         UNKNOWN = -1,
         ERROR = 0, WARN, INFO, DEBUG, VERBOSE
@@ -31,6 +34,8 @@ namespace copper::bridge::util::Log {
     // nothing to report through; whoever handed the path over says what went wrong.
     bool OpenFile(const std::string& path, bool wanted);
 
+    // The level the log writes at: a line above it is dropped, whether it is this library's own or one
+    // that arrived from Java or from a captured stream. Java's, asked for when the log is set up.
     void SetLevel(Level level);
 
     // Where the log file is: the path `OpenFile` was handed, and empty while there is none. The hooks that
@@ -38,12 +43,13 @@ namespace copper::bridge::util::Log {
     // disagree with the file that was actually opened.
     const std::string& Path();
 
-    // Hands bytes written to one of the process's own streams to the log, one line at a time: 0 is stdout, 1 is
-    // stderr, and a line that carries arc's own `[I] ` head is levelled by it. Safe from any thread.
+    // Hands bytes written to one of the process's own streams to the log, one line at a time: `STDOUT` or
+    // `STDERR`, and a line that carries arc's own `[I] ` head is levelled by it. Safe from any thread.
     void LogGameStream(StreamType type, const char* bytes, size_t length);
 
     // Writes one line that is already the file's text: into the file as it stands, and to Android's log when it
-    // was asked for. The tag names the side that produced the line, and the level is logcat's priority.
+    // was asked for. The tag names the side that produced the line, and the level is the log's own: a line
+    // above the one Java set is dropped.
     void LogLine(Level level, const char* logcatTag, const std::string& line);
 
     // Passed as the tag of a line that names no subsystem: the head is then the level and the side alone. The

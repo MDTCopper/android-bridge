@@ -125,7 +125,7 @@ public class BridgeGraphics extends Graphics{
         Configuration.EGL_LIBRARY_NAME.set(egl);
         Configuration.OPENGLES_LIBRARY_NAME.set(gles);
         Configuration.OPENGLES_EXPLICIT_INIT.set(true);
-        if(Bridge.options.debug)
+        if(Bridge.options.debug || Bridge.options.verbose)
             Configuration.DEBUG.set(true);
 
         Log.info("GL", "EGL library: " + egl);

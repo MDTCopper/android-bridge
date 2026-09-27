@@ -15,7 +15,7 @@ namespace copper::bridge::jni::Log {
      * environment itself. Returns false when the file itself is missing, which is also what an unanswered
      * call answers.
      */
-    bool OpenFile();
+    bool Setup();
 
 } // namespace copper::bridge::jni::Log
 

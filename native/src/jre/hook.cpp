@@ -25,10 +25,11 @@
 
 namespace copper::bridge::jre::Hook {
     namespace {
+        namespace Log = util::Log;
 
         /** The VM's exit: the process ends here, before its teardown can run. */
         void ExitFromJvm(int status) {
-            util::Log::InfoF("HOOK", "the VM's exit(%d) reached the hook", status);
+            Log::InfoF("HOOK", "the VM's exit(%d) reached the hook", status);
             Launcher::EndProcessNow(status);
         }
 
@@ -43,7 +44,7 @@ namespace copper::bridge::jre::Hook {
             if (status == BYTEHOOK_STATUS_CODE_NOSYM)
                 return;
 
-            util::Log::VerboseF("HOOK", "hook %s in %s: status %d", symName != nullptr ? symName : "?",
+            Log::VerboseF("HOOK", "hook %s in %s: status %d", symName != nullptr ? symName : "?",
                   callerPathName != nullptr ? callerPathName : "?", status);
         }
 
@@ -61,7 +62,15 @@ namespace copper::bridge::jre::Hook {
             return stream == stdout || stream == stderr;
         }
 
-        int FeedFormatted(int streamIndex, const char* format, va_list args) {
+        Log::StreamType StreamTypeFromStream(FILE* stream) {
+            return stream == stderr ? Log::StreamType::STDERR : Log::StreamType::STDOUT;
+        }
+
+        Log::StreamType StreamTypeFromFd(int fd) {
+            return fd == STDERR_FILENO ? Log::StreamType::STDERR : Log::StreamType::STDOUT;
+        }
+
+        int FeedFormatted(Log::StreamType streamType, const char* format, va_list args) {
             char buffer[MAX_FORMATTED_LENGTH];
             const int length = vsnprintf(buffer, sizeof(buffer), format, args);
             if (length <= 0)
@@ -69,13 +78,13 @@ namespace copper::bridge::jre::Hook {
 
             const size_t whole = static_cast<size_t>(length) < sizeof(buffer) ? static_cast<size_t>(length)
             : sizeof(buffer) - 1;
-            util::Log::FeedStream(streamIndex, buffer, whole);
+            Log::LogGameStream(streamType, buffer, whole);
             return length;
         }
 
         ssize_t WriteProxy(int fd, const void* buffer, size_t count) {
             if ((fd == STDOUT_FILENO || fd == STDERR_FILENO) && buffer != nullptr) {
-                util::Log::FeedStream(fd - STDOUT_FILENO, static_cast<const char*>(buffer), count);
+                Log::LogGameStream(StreamTypeFromFd(fd), static_cast<const char*>(buffer), count);
                 return static_cast<ssize_t>(count);
             }
             return ::write(fd, buffer, count);
@@ -83,7 +92,7 @@ namespace copper::bridge::jre::Hook {
 
         size_t FwriteProxy(const void* ptr, size_t size, size_t nmemb, FILE* stream) {
             if (IsOwnStream(stream) && ptr != nullptr) {
-                util::Log::FeedStream(stream == stdout ? 0 : 1, static_cast<const char*>(ptr), size * nmemb);
+                Log::LogGameStream(StreamTypeFromStream(stream), static_cast<const char*>(ptr), size * nmemb);
                 return nmemb;
             }
             return ::fwrite(ptr, size, nmemb, stream);
@@ -91,14 +100,14 @@ namespace copper::bridge::jre::Hook {
 
         int VfprintfProxy(FILE* stream, const char* format, va_list args) {
             if (IsOwnStream(stream) && format != nullptr)
-                return FeedFormatted(stream == stdout ? 0 : 1, format, args);
+                return FeedFormatted(StreamTypeFromStream(stream), format, args);
             return ::vfprintf(stream, format, args);
         }
 
         int PrintfProxy(const char* format, ...) {
             va_list args;
             va_start(args, format);
-            const int length = format != nullptr ? FeedFormatted(0, format, args) : 0;
+            const int length = format != nullptr ? FeedFormatted(Log::StreamType::STDOUT, format, args) : 0;
             va_end(args);
             return length;
         }
@@ -108,7 +117,7 @@ namespace copper::bridge::jre::Hook {
             va_start(args, format);
             // The pass-through goes through vfprintf: a va_list cannot be expanded into a variadic call again.
             const int length = IsOwnStream(stream) && format != nullptr
-            ? FeedFormatted(stream == stdout ? 0 : 1, format, args)
+            ? FeedFormatted(StreamTypeFromStream(stream), format, args)
             : ::vfprintf(stream, format, args);
             va_end(args);
             return length;
@@ -139,7 +148,7 @@ namespace copper::bridge::jre::Hook {
             if (path == nullptr)
                 return false;
 
-            const std::string& log = util::Log::Path();
+            const std::string& log = Log::Path();
             if (log.empty())
                 return false;
             if (log == path)
@@ -206,7 +215,7 @@ namespace copper::bridge::jre::Hook {
             if (memory >= 0)
                 return memory;
 
-            const std::string directory = util::File::DirName(util::Log::Path());
+            const std::string directory = util::File::DirName(Log::Path());
             return ::open(directory.c_str(), O_TMPFILE | O_RDWR | (flags & O_CLOEXEC), 0600);        }
 
         // The sink a read-write open is served from: an anonymous file holding the log's bytes as of this
@@ -219,7 +228,7 @@ namespace copper::bridge::jre::Hook {
             const int sink = AnonymousFile(flags);
             if (sink < 0) {
                 const int failure = errno;
-                util::Log::WarnF("HOOK", "no anonymous file for a read-write open of %s (memfd_create and O_TMPFILE "
+                Log::WarnF("HOOK", "no anonymous file for a read-write open of %s (memfd_create and O_TMPFILE "
                         "both failed), refusing it: errno %d", path, failure);
                 errno = failure;
                 return -1;
@@ -268,7 +277,7 @@ namespace copper::bridge::jre::Hook {
                 failure = errno;
 
             ::close(sink);
-            util::Log::WarnF("HOOK", "cannot fill the sink for a read-write open of %s, refusing it: errno %d", path,
+            Log::WarnF("HOOK", "cannot fill the sink for a read-write open of %s, refusing it: errno %d", path,
                     failure);
             errno = failure;
             return -1;
@@ -285,7 +294,7 @@ namespace copper::bridge::jre::Hook {
         // Verbose, because the file is what says whether the rule held, not Android's log; the path named is
         // the one asked for, since the sink is what came of it.
         void ReportDiscarded(const char* path, Where where) {
-            util::Log::VerboseF("HOOK", "open of %s for writing: writes are discarded and the log keeps its lines; "
+            Log::VerboseF("HOOK", "open of %s for writing: writes are discarded and the log keeps its lines; "
                     "the descriptor is %s", path != nullptr ? path : "?",
                     where == Where::NullDevice ? "/dev/null" : "an anonymous copy of the log");
         }
@@ -413,7 +422,7 @@ namespace copper::bridge::jre::Hook {
             return;
 
         if (bytehook_init(BYTEHOOK_MODE_MANUAL, false) != 0) {
-            util::Log::Warn("HOOK", "cannot initialize the hook library, so the VM keeps its exit and its streams "
+            Log::Warn("HOOK", "cannot initialize the hook library, so the VM keeps its exit and its streams "
                     "and any writer may write the log file");
             return;
         }
@@ -432,7 +441,7 @@ namespace copper::bridge::jre::Hook {
                 hooked++;
         }
 
-        util::Log::DebugF("HOOK", "asked for %d symbols in %s", hooked, name.c_str());
+        Log::DebugF("HOOK", "asked for %d symbols in %s", hooked, name.c_str());
     }
 
 } // namespace copper::bridge::jre::Hook

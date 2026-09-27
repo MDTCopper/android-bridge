@@ -1,9 +1,20 @@
 #ifndef COPPER_BRIDGE_LOG_H
 #define COPPER_BRIDGE_LOG_H
 
+#include <cstdint>
 #include <string>
 
 namespace copper::bridge::util::Log {
+
+    enum Level : int8_t {
+        UNKNOWN = -1,
+        ERROR = 0, WARN, INFO, DEBUG, VERBOSE
+    };
+
+    enum StreamType : uint8_t {
+        STDOUT = 0,
+        STDERR
+    };
 
     // The native side's log: the one file a run writes, and Android's log when it was asked for.
     //
@@ -20,6 +31,8 @@ namespace copper::bridge::util::Log {
     // nothing to report through; whoever handed the path over says what went wrong.
     bool OpenFile(const std::string& path, bool wanted);
 
+    void SetLevel(Level level);
+
     // Where the log file is: the path `OpenFile` was handed, and empty while there is none. The hooks that
     // guard the file recognise it by path, and they ask for it here rather than keeping a copy that could
     // disagree with the file that was actually opened.
@@ -27,11 +40,11 @@ namespace copper::bridge::util::Log {
 
     // Hands bytes written to one of the process's own streams to the log, one line at a time: 0 is stdout, 1 is
     // stderr, and a line that carries arc's own `[I] ` head is levelled by it. Safe from any thread.
-    void FeedStream(int streamIndex, const char* bytes, size_t length);
+    void LogGameStream(StreamType type, const char* bytes, size_t length);
 
     // Writes one line that is already the file's text: into the file as it stands, and to Android's log when it
     // was asked for. The tag names the side that produced the line, and the level is logcat's priority.
-    void At(int priority, const char* logcatTag, const std::string& line);
+    void LogLine(Level level, const char* logcatTag, const std::string& line);
 
     // Passed as the tag of a line that names no subsystem: the head is then the level and the side alone. The
     // side letter already says whose line it is, so a tag is only worth its brackets when it names something

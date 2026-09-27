@@ -56,7 +56,7 @@ public class Main {
         // The flags reach the game's own logger here: arc's level is what decides which of the
         // game's lines survive, and its ladder stops at debug, so both --debug and --verbose ask for
         // that one level. The bridge's own logger is set separately on each entry point.
-        if(Bridge.options.debug || Bridge.options.verbose)
+        if (Bridge.options.debug || Bridge.options.verbose)
             arc.util.Log.level = arc.util.Log.LogLevel.debug;
 
         BridgeApplication application = new BridgeApplication();

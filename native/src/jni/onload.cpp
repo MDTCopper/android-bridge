@@ -51,7 +51,7 @@ namespace copper::bridge::jni {
 
         // Then the log file, because everything below - including a failure - has to end up somewhere: the ART
         // side had it open until the moment before this load, and takes it back when this returns JNI_ERR.
-        if (!Log::OpenFile())
+        if (!Log::Setup())
             return JNI_ERR;
 
         // The native side's banner, in the same shape as the ART and JVM sides'. Only the ART load prints it,

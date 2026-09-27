@@ -148,6 +148,12 @@ public class Log {
         return logcat;
     }
 
+    @UsedByNative(side = UsedByNative.Side.ART)
+    @SuppressWarnings("unused")
+    private static int logLevel() {
+        return level.ordinal();
+    }
+
     /**
      * Logs a message at the given level, under the given tag.
      *
@@ -258,16 +264,4 @@ public class Log {
     public static void verbose(String tag, String format, Object... args) {
         log(Level.VERBOSE, tag, format, args);
     }
-
-    /**
-     * Hands one finished line to the native side, which appends it to the log file and, when logcat
-     * was asked for, writes that same text to Android's log.
-     *
-     * <p>This is the one thing a Java backend cannot do for itself: {@code android.util.Log} exists
-     * on ART only, and the file belongs to the native side once the library is loaded - so a line
-     * produced on a side that has it loaded goes through here, whether that side is ART or the JVM.
-     * The line is already the file's text, head included, and the tag names this side.</p>
-     */
-    @Native("jni::Log::LogLine")
-    static native void logLine(int priority, String logcatTag, String line);
 }

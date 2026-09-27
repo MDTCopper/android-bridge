@@ -10,8 +10,11 @@
 #include <string>
 
 namespace copper::bridge::jni::Log {
+    namespace Jni = util::Jni;
+    namespace VmCall = gen::VmCall;
+    using gen::Binding::Outcome;
 
-    bool OpenFile() {
+    bool Setup() {
         // The path and the logcat flag are ART's Java's to answer - that side owned the file until this
         // library was loaded - so the whole of this runs in ART's environment.
         jni::Env art(jni::Side::Art);
@@ -20,30 +23,35 @@ namespace copper::bridge::jni::Log {
             return false;
         }
 
+        jint level = util::Log::INFO;
         jstring path = nullptr;
         jboolean wanted = JNI_FALSE;
 
+        if (VmCall::LogLevel(&level) != Outcome::Done)
+            return false;
+
         // A call that did not reach the member is the same answer as a missing file: this side has nothing
         // to write through, and the caller in Java is the one that has to say what went wrong.
-        if (gen::VmCall::LogFilePath(&path) != gen::Binding::Outcome::Done
-                || gen::VmCall::LogcatEnabled(&wanted) != gen::Binding::Outcome::Done) {
+        if (VmCall::LogFilePath(&path) != Outcome::Done
+                || VmCall::LogcatEnabled(&wanted) != Outcome::Done) {
             if (path != nullptr)
                 art.Get()->DeleteLocalRef(path);
             return false;
         }
 
-        const std::string filePath = util::Jni::ToString(art.Get(), path);
+        const std::string filePath = Jni::ToString(art.Get(), path);
         if (path != nullptr)
             art.Get()->DeleteLocalRef(path);
 
+        util::Log::SetLevel(static_cast<util::Log::Level>(level));
         return util::Log::OpenFile(filePath, wanted == JNI_TRUE);
     }
 
-    void LogLine(JNIEnv* env, jclass, jint priority, jstring logcatTag, jstring line) {
+    void LogLine(JNIEnv* env, jclass, jint level, jstring logcatTag, jstring line) {
         // Reached by both VMs: a JVM has no android.util.Log at all. The line is the file's text already,
         // head included, and the tag names the side that produced it.
-        const std::string tagText = util::Jni::ToString(env, logcatTag);
-        util::Log::At(priority, tagText.c_str(), util::Jni::ToString(env, line));
+        const std::string tagText = Jni::ToString(env, logcatTag);
+        util::Log::LogLine(static_cast<util::Log::Level>(level), tagText.c_str(), Jni::ToString(env, line));
     }
 
 } // namespace copper::bridge::jni::Log

@@ -13,7 +13,7 @@
 
 namespace copper::bridge::util::Log {
 
-        namespace {
+    namespace {
 
         // One side of the process, as the log writes it: the letter the file names it with, and the tag its
         // lines carry in Android's log. Both come from one value, because the two are the same fact.
@@ -42,6 +42,8 @@ namespace copper::bridge::util::Log {
         bool logcat = false;
         std::mutex fileMutex;
 
+        Level logLevel = Level::INFO;
+
         // The length a log line is cut at. Long lines do not lose their tail: they become several lines. The
         // cut is below the logcat cap, so the characters straddling it are whole in one of the two.
         constexpr size_t LINE_BYTES = 1000;
@@ -49,7 +51,7 @@ namespace copper::bridge::util::Log {
         // One of the process's two output streams: the priority its lines carry unless a line declares one, and
         // the line being assembled from what was written to it. Neither carries a tag - both are the game's.
         struct Stream {
-            int priority = ANDROID_LOG_INFO;
+            android_LogPriority priority = ANDROID_LOG_INFO;
             std::string line;
 
             // Assembling a line is a read-modify-write of `line`, and any thread that called a hooked write
@@ -64,19 +66,41 @@ namespace copper::bridge::util::Log {
         // The logcat copy of one line, written when it was asked for or when the line says something is
         // broken: an error is worth seeing without reproducing the run with a flag. The line goes as it
         // stands - logcat caps an entry itself - and nothing here shortens one first.
-        void Logcat(int priority, const char* logcatTag, const std::string& line) {
+        void Logcat(android_LogPriority priority, const char* logcatTag, const std::string& line) {
             if (logcat || priority >= ANDROID_LOG_ERROR)
                 __android_log_write(priority, logcatTag, line.c_str());
         }
 
-        // The letter the file spells a priority with; logcat's own numbers are what both VMs send.
-        const char* LetterFor(int priority) {
+        const char* LetterFor(Level level) {
+            switch (level) {
+                case Level::VERBOSE: return "[V]";
+                case Level::DEBUG:   return "[D]";
+                case Level::WARN:    return "[W]";
+                case Level::ERROR:   return "[E]";
+                case Level::INFO:
+                default:             return "[I]";
+            }
+        }
+
+        android_LogPriority ConvertLevel(Level level) {
+            switch (level) {
+                case Level::VERBOSE: return ANDROID_LOG_VERBOSE;
+                case Level::DEBUG:   return ANDROID_LOG_DEBUG;
+                case Level::WARN:    return ANDROID_LOG_WARN;
+                case Level::ERROR:   return ANDROID_LOG_ERROR;
+                case Level::INFO:
+                default:             return ANDROID_LOG_INFO;
+            }
+        }
+
+        Level ConvertLevel(android_LogPriority priority) {
             switch (priority) {
-                case ANDROID_LOG_VERBOSE: return "[V]";
-                case ANDROID_LOG_DEBUG:   return "[D]";
-                case ANDROID_LOG_WARN:    return "[W]";
-                case ANDROID_LOG_ERROR:   return "[E]";
-                default:                  return "[I]";
+                case ANDROID_LOG_VERBOSE: return Level::VERBOSE;
+                case ANDROID_LOG_DEBUG:   return Level::DEBUG;
+                case ANDROID_LOG_WARN:    return Level::WARN;
+                case ANDROID_LOG_ERROR:   return Level::ERROR;
+                case ANDROID_LOG_INFO:
+                default:                  return Level::INFO;
             }
         }
 
@@ -86,16 +110,16 @@ namespace copper::bridge::util::Log {
         // The level such a head declares, or -1 when the line has none. Exactly one upper case letter and the
         // space that is part of the head: anything else - a bracket opened for another reason (`[Audio] ...`),
         // a lower case letter, no space - is not a level, and that line keeps the stream's level and its bytes.
-        int HeadLevel(const std::string& line) {
+        Level HeadLevel(const std::string& line) {
             if (line.size() < HEAD_LENGTH || line[0] != '[' || line[2] != ']' || line[3] != ' ')
-                return -1;
+                return Level::UNKNOWN;
             switch (line[1]) {
-                case 'V': return ANDROID_LOG_VERBOSE;
-                case 'D': return ANDROID_LOG_DEBUG;
-                case 'I': return ANDROID_LOG_INFO;
-                case 'W': return ANDROID_LOG_WARN;
-                case 'E': return ANDROID_LOG_ERROR;
-                default:  return -1;
+                case 'V': return Level::VERBOSE;
+                case 'D': return Level::DEBUG;
+                case 'I': return Level::INFO;
+                case 'W': return Level::WARN;
+                case 'E': return Level::ERROR;
+                default:  return Level::UNKNOWN;
             }
         }
 
@@ -137,16 +161,16 @@ namespace copper::bridge::util::Log {
             // A captured line may carry its own level, and then that level is the line's and comes out of the
             // message, so the file carries one and not two. Without one the stream's level stands and the bytes
             // go as they came. The side is the game's either way: these bytes are what the JVM's streams printed.
-            int priority = stream.priority;
+            Level level = ConvertLevel(stream.priority);
             std::string message = stream.line;
-            const int declared = HeadLevel(stream.line);
+            Level declared = HeadLevel(stream.line);
             if (declared >= 0 && &stream != &streams[1]) {
-                priority = declared;
+                level = declared;
                 message = stream.line.substr(HEAD_LENGTH);
             }
 
-            const std::string head = std::string(LetterFor(priority)) + "[" + GAME_SIDE.letter + "] ";
-            At(priority, GAME_SIDE.logcatTag, head + message);
+            const std::string head = std::string(LetterFor(level)) + "[" + GAME_SIDE.letter + "] ";
+            LogLine(level, GAME_SIDE.logcatTag, head + message);
             stream.line.clear();
         }
 
@@ -166,7 +190,7 @@ namespace copper::bridge::util::Log {
             stream.line.push_back(c);
         }
 
-        } // namespace
+    } // namespace
 
     bool OpenFile(const std::string& path, bool wanted) {
         std::lock_guard<std::mutex> guard(fileMutex);
@@ -187,22 +211,28 @@ namespace copper::bridge::util::Log {
 
         // The two streams are given their priorities here: the write hooks can feed them before a descriptor
         // is ever captured. stdout is ordinary output; stderr is where a VM says something is wrong.
-        streams[0].priority = ANDROID_LOG_INFO;
-        streams[1].priority = ANDROID_LOG_ERROR;
+        streams[StreamType::STDOUT].priority = ANDROID_LOG_INFO;
+        streams[StreamType::STDERR].priority = ANDROID_LOG_ERROR;
         return true;
+    }
+
+    void SetLevel(Level level) {
+        logLevel = level;
     }
 
     const std::string& Path() {
         return logPath;
     }
 
-    void At(int priority, const char* logcatTag, const std::string& line) {
+    void LogLine(Level level, const char* logcatTag, const std::string& line) {
+        if (level > logLevel)
+            return;
         // The line arrives finished - the file's text, head included - and logcat gets that same text.
-        Logcat(priority, logcatTag, line);
+        Logcat(ConvertLevel(level), logcatTag, line);
         AppendToFile(line);
     }
 
-        namespace {
+    namespace {
 
         // How long a formatted message may be: the formatting buffer, not a destination's limit.
         constexpr size_t MAX_MESSAGE_LENGTH = 4096;
@@ -210,10 +240,12 @@ namespace copper::bridge::util::Log {
         // This library's own line, the way the file spells it: the level letter, this library's side, then the
         // tag of the subsystem that produced it - or nothing, when the line names no subsystem. Logcat gets
         // that same text.
-        void NativeLine(int priority, const char* tag, const std::string& message) {
+        void NativeLine(Level level, const char* tag, const std::string& message) {
+            if (level > logLevel)
+                return;
             const std::string brackets = tag == NO_TAG ? "" : std::string(" [") + tag + "]";
-            At(priority, NATIVE_SIDE.logcatTag,
-                    std::string(LetterFor(priority)) + "[" + NATIVE_SIDE.letter + "]" + brackets + " " + message);
+            LogLine(level, NATIVE_SIDE.logcatTag,
+                    std::string(LetterFor(level)) + "[" + NATIVE_SIDE.letter + "]" + brackets + " " + message);
         }
 
         std::string FormatMessage(const char* format, va_list args) {
@@ -222,23 +254,23 @@ namespace copper::bridge::util::Log {
             return std::string(buffer);
         }
 
-        } // namespace
+    } // namespace
 
-    void FeedStream(int streamIndex, const char* bytes, size_t length) {
-        if (bytes == nullptr || streamIndex < 0 || streamIndex > 1)
+    void LogGameStream(StreamType type, const char* bytes, size_t length) {
+        if (bytes == nullptr || type < 0 || type > 1)
             return;
 
-        Stream& stream = streams[streamIndex];
+        Stream& stream = streams[type];
         std::lock_guard<std::mutex> guard(stream.mutex);
         for (size_t i = 0; i < length; i++)
             AddByteLocked(stream, bytes[i]);
     }
 
-    void Verbose(const char* tag, const std::string& message) { NativeLine(ANDROID_LOG_VERBOSE, tag, message); }
-    void Debug(const char* tag, const std::string& message) { NativeLine(ANDROID_LOG_DEBUG, tag, message); }
-    void Info(const char* tag, const std::string& message) { NativeLine(ANDROID_LOG_INFO, tag, message); }
-    void Warn(const char* tag, const std::string& message) { NativeLine(ANDROID_LOG_WARN, tag, message); }
-    void Error(const char* tag, const std::string& message) { NativeLine(ANDROID_LOG_ERROR, tag, message); }
+    void Verbose(const char* tag, const std::string& message) { NativeLine(Level::VERBOSE, tag, message); }
+    void Debug(const char* tag, const std::string& message) { NativeLine(Level::DEBUG, tag, message); }
+    void Info(const char* tag, const std::string& message) { NativeLine(Level::INFO, tag, message); }
+    void Warn(const char* tag, const std::string& message) { NativeLine(Level::WARN, tag, message); }
+    void Error(const char* tag, const std::string& message) { NativeLine(Level::ERROR, tag, message); }
 
     void VerboseF(const char* tag, const char* format, ...) {
         va_list args;
@@ -280,4 +312,4 @@ namespace copper::bridge::util::Log {
         Error(tag, message);
     }
 
-    } // namespace copper::bridge
+} // namespace copper::bridge

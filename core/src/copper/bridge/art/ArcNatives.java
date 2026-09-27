@@ -21,16 +21,7 @@ public final class ArcNatives {
     private static final String STAGING_FOLDER = "native/arc";
 
     /** The logical name of arc's own library: the one {@code ArcNativesLoader} asks for. */
-    private static final String ARC = "arc";
-
-    /**
-     * The two fixed pieces of the spelling every library handed over through {@code --arc-lib} uses, so
-     * the logical name is the file name with these taken off. Nothing validates the name: one ending in
-     * {@code arm} or {@code 64} is indistinguishable from one already carrying
-     * {@link #mappedLibraryName}'s infix, so the spelling is a contract the caller keeps.
-     */
-    private static final String PREFIX = "lib";
-    private static final String SUFFIX = ".so";
+    private static final String ARC = "libarc.so";
 
     /**
      * Stages the caller's native libraries under the names their loaders ask for, and stores the folder in
@@ -44,8 +35,6 @@ public final class ArcNatives {
      */
     public static void stage() {
         File folder = new File(Bridge.options.cacheFolder, STAGING_FOLDER);
-        String arch = Bridge.options.arch == null || Bridge.options.arch.isEmpty()
-                ? "aarch64" : Bridge.options.arch;
 
         List<File> libraries = libraries();
         if (libraries.isEmpty()) {
@@ -59,6 +48,7 @@ public final class ArcNatives {
         // libarc-filedialogsarm64.so. See PREFIX.
         Map<String, File> wanted = new LinkedHashMap<>();
         String arcName = null;
+        boolean foundArc = false;
         for (File library : libraries) {
             boolean success = true;
             success &= library.setExecutable(true, true);
@@ -66,15 +56,10 @@ public final class ArcNatives {
             if (!success)
                 Log.warn("failed to mark arc library executable and readonly: " + library.getAbsolutePath());
 
-            String logical = library.getName();
-            if (logical.endsWith(SUFFIX))
-                logical = logical.substring(0, logical.length() - SUFFIX.length());
-            if (logical.startsWith(PREFIX))
-                logical = logical.substring(PREFIX.length());
-            String name = mappedLibraryName(logical, arch);
+            String name = library.getName();
             wanted.put(name, library);
-            if (ARC.equals(logical))
-                arcName = name;
+            if (ARC.equals(name))
+                foundArc = true;
         }
 
         // Reconciled, not rebuilt: an entry already staged under the right name from the same file is
@@ -90,12 +75,11 @@ public final class ArcNatives {
             Log.verbose("staged " + entry.getValue().getName() + " as " + entry.getKey());
         }
 
-        if (arcName != null && new File(folder, arcName).exists())
-            Bridge.options.arcNativeName = arcName;
-        else
+        if (!foundArc)
             Log.error("no lib" + ARC + ".so under " + Bridge.options.arcLibPath
                     + "; arc's own native cannot be loaded");
 
+        Bridge.options.foundArcNative = foundArc;
         Bridge.options.arcNativeFolder = folder;
     }
 
@@ -134,20 +118,6 @@ public final class ArcNatives {
     }
 
     /**
-     * The file name arc's loader computes for a library, given its logical name: ARM gets an {@code arm}
-     * infix (arc counts {@code aarch64} as ARM) and 64 bit a {@code 64} suffix. A wrong name fails with no
-     * message: arc would not find the library, and the game would fail the first time it needs it.
-     *
-     * @param logicalName the name arc asks for, e.g. {@code arc} or {@code arc-freetype}
-     * @param arch        the same value the bridge injects as {@code os.arch}, i.e. {@link Device#arch()}
-     */
-    private static String mappedLibraryName(String logicalName, String arch) {
-        boolean arm = arch.startsWith("arm") || arch.startsWith("aarch64");
-        boolean bits64 = arch.contains("64") || arch.startsWith("armv8");
-        return PREFIX + logicalName + (arm ? "arm" : "") + (bits64 ? "64" : "") + SUFFIX;
-    }
-
-    /**
      * Puts one library under the staging folder: a symbolic link first, since copying costs the whole
      * size again, and a copy where the file system has no links - Android's
      * {@code getExternalFilesDir} is the usual example.
@@ -166,7 +136,12 @@ public final class ArcNatives {
             try (InputStream in = new FileInputStream(from); OutputStream out = new FileOutputStream(to)) {
                 Streams.pipeStream(in, out, true);
             }
-            to.setReadOnly();
+            boolean success = true;
+            success &= to.setExecutable(true, true);
+            success &= to.setReadOnly();
+            if (!success)
+                Log.warn("failed to mark arc native executable and readonly: " + to.getAbsolutePath());
+
             return true;
         } catch (IOException e) {
             Log.error("failed to stage " + from + " as " + to);

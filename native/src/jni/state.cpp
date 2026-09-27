@@ -16,9 +16,6 @@ namespace copper::bridge::jni::State {
         struct Storage {
             JavaVM* artVm = nullptr;
             JavaVM* jvm = nullptr;
-            std::string cacheDir;
-            std::string abi;
-            int abiCode = -1;
         };
 
         Storage values;
@@ -39,18 +36,6 @@ namespace copper::bridge::jni::State {
 
     void SetJvm(JavaVM* vm) {
         values.jvm = vm;
-    }
-
-    int Init(JNIEnv* env, jclass, jstring cacheDir, jstring abi) {
-        values.cacheDir = util::Jni::ToString(env, cacheDir);
-        values.abi = util::Jni::ToString(env, abi);
-        values.abiCode = util::Abi::CodeFromName(values.abi);
-
-        const int compiled = util::Abi::CompiledCode();
-        util::Log::InfoF(util::Log::NO_TAG, "init: cache=%s abi=%s compiledAbiCode=%d", values.cacheDir.c_str(), values.abi.c_str(),
-             compiled);
-
-        return values.abiCode == compiled ? 0 : 1;
     }
 
 } // namespace copper::bridge::jni::State

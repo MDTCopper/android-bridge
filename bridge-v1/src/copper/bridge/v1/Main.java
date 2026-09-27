@@ -4,7 +4,6 @@ import arc.util.*;
 import copper.bridge.*;
 import copper.bridge.jvm.Launch;
 import copper.bridge.jvm.LwjglNatives;
-import copper.bridge.util.*;
 import copper.bridge.util.Log;
 import mindustry.*;
 import org.lwjgl.system.*;
@@ -18,7 +17,7 @@ import java.io.*;
  * <p>It is the branch's only entry: both classpath rules reach it through {@link #main(String[])}, so
  * nothing here has to know which rule applied.</p>
  */
-public class Main{
+public class Main {
     /**
      * Starts the game with the bridge's own class loader. The parameter list is the entry contract
      * {@code copper.bridge.jvm.Launch} reflects on: {@code getDeclaredMethod("main", String[].class)}.
@@ -28,7 +27,7 @@ public class Main{
      * line - the desktop launcher is the only entry that does, and this branch replaces it - so they are
      * reported here, where a reader can see they arrived.</p>
      */
-    public static void main(String[] args){
+    public static void main(String[] args) {
         Log.info("starting branch v1 for game " + Launch.gameVersion());
         Log.info("game arguments: " + (args.length == 0 ? "none" : String.join(" ", args)));
 
@@ -71,7 +70,7 @@ public class Main{
      * search path. The hash check is off because the libraries were not shipped by LWJGL, so their hashes
      * are not in its manifest.
      */
-    private static void prepareLwjglNatives(){
+    private static void prepareLwjglNatives() {
         File lwjgl = LwjglNatives.extract();
         if(lwjgl != null){
             Configuration.DISABLE_HASH_CHECKS.set(true);
@@ -90,16 +89,14 @@ public class Main{
      * start-up. When no library was staged, the native paths are switched off instead of failing at the first
      * use.
      */
-    private static void prepareArcNatives(){
-        String name = Bridge.options.arcNativeName;
-        if(name == null || Bridge.options.arcNativeFolder == null
-                || !new File(Bridge.options.arcNativeFolder, name).isFile()){
+    private static void prepareArcNatives() {
+        if(!Bridge.options.foundArcNative || Bridge.options.arcNativeFolder == null) {
             ArcNativesLoader.disableNativesLoading = true;
             Log.warn("no arc natives were staged; arc will use its non-native code paths");
             return;
         }
 
-        Log.info("arc natives: " + name + " (staged in " + Bridge.options.arcNativeFolder + ")");
+        Log.info("loading arc natives");
         ArcNativesLoader.load();
     }
 
@@ -108,7 +105,7 @@ public class Main{
      * first, and without it arc would pick the user's home directory: a real JVM does not report itself as
      * Android, and the bridge injects {@code os.name=Linux} so the JRE behaves normally.
      */
-    private static void prepareGameFolders(){
+    private static void prepareGameFolders() {
         File data = Bridge.options.gameDataFolder;
         if(data == null)
             return;

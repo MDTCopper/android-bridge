@@ -125,10 +125,12 @@ namespace copper::bridge::jre::Loader {
         const std::vector<std::string> dirs = LayoutDirs(root);
         util::Linker linker(dirs);
 
-        Log::InfoF("LOADER", "JRE %s", root.c_str());
-        Log::Info("LOADER", "search path:");
+        Log::DebugF("LOADER", "JRE %s", root.c_str());
+        Log::Debug("LOADER", "search path:");
         for (const std::string& dir : dirs)
-            Log::InfoF("LOADER", "  %s", dir.c_str());
+            Log::DebugF("LOADER", "  %s", dir.c_str());
+
+        Log::Info("LOADER", "loading jre libraries");
 
         // libjli holds JLI_Launch, libjvm holds JNI_CreateJavaVM. Resolving both up front turns a broken JRE
         // layout into an immediate, clear report instead of a failure halfway through the launch.
@@ -181,17 +183,14 @@ namespace copper::bridge::jre::Loader {
                 seeded++;
             }
         }
-        Log::InfoF("LOADER", "seeded %d on demand libraries", seeded);
+        Log::DebugF("LOADER", "seeded %d on demand libraries", seeded);
 
         const util::Linker::Stats stats = linker.Statistics();
-        Log::InfoF("LOADER", "loaded %d libraries, skipped %d", stats.loaded, stats.skipped);
+        Log::DebugF("LOADER", "loaded %d libraries, skipped %d", stats.loaded, stats.skipped);
         if (!ok) {
             Log::Error("LOADER", "this JRE cannot be used to start the JVM");
             return;
         }
-
-        Log::InfoF("LOADER", "the JRE is %d of the %d libraries this loader opened",
-                 static_cast<int>(jreLibraries.size()), static_cast<int>(linker.LoadedPaths().size()));
 
         // Hooks last, and only now: the hook library takes its snapshot of what is loaded when it starts.
         Hook::PrepareHooks();
@@ -222,7 +221,7 @@ namespace copper::bridge::jre::Loader {
             Log::Warn("LOADER", "this ROM has no android_update_LD_LIBRARY_PATH, relying on absolute path loads");
         } else {
             update(value.c_str());
-            Log::InfoF("LOADER", "linker path updated: %s", value.c_str());
+            Log::VerboseF("LOADER", "linker path updated: %s", value.c_str());
         }
         dlclose(libdl);
     }

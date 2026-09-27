@@ -44,7 +44,7 @@ public final class Bridge {
             Archives.Entry entry = archives.entry(entryName);
 
             File cached = new File(options.cacheFolder, "native/bridge/" + name);
-            Log.info("extracting the bridge native library (crc=0x"
+            Log.verbose("extracting the bridge native library (crc=0x"
                     + Long.toHexString(entry.crc()) + ", " + entry.size() + " bytes)");
             archives.extractLibrary(entryName, cached);
             options.bridgeLibrary = cached;
@@ -69,12 +69,6 @@ public final class Bridge {
 
         System.load(options.bridgeLibrary.getAbsolutePath());
         loaded = true;
-
-        // A value rather than a crash later: a mismatch means the wrong .so was extracted.
-        int result = initNative(options.cacheFolder.getAbsolutePath(), options.abi);
-        if (result != 0)
-            throw new RuntimeException("failed to initialise the native bridge, code " + result
-                    + " (ABI " + options.abi + ")");
     }
 
     /**
@@ -104,11 +98,4 @@ public final class Bridge {
         Log.warn("no bridge jar: pass --bridge-jar <path>, bridge resources will be unreachable");
         return null;
     }
-
-    /**
-     * Native: records the cache folder and returns 0 when the library matches the declared ABI. The
-     * one native of this class, which both VMs load, so both sides get a table for it.
-     */
-    @Native("jni::State::Init")
-    private static native int initNative(String cacheDir, String abi);
 }

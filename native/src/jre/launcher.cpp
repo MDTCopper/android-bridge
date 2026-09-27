@@ -127,14 +127,14 @@ namespace copper::bridge::jre::Launcher {
         }
 
 
-        Log::InfoF("LAUNCHER", "calling JLI_Launch with %d arguments", static_cast<int>(argv.size()));
+        Log::InfoF("LAUNCHER", "launching jvm with %d arguments", static_cast<int>(argv.size()));
         jint result = launch(static_cast<int>(argv.size()), argv.data(), 0, nullptr, 0, nullptr,
                      FULL_VERSION, DOT_VERSION, argv[0], argv[0], JNI_FALSE, JNI_TRUE,
                      JNI_FALSE, 0);
 
         // What the VM printed is already in the log - the writes were taken over at the calls that made them
         // - so there is nothing left in a pipe to wait for.
-        Log::InfoF("LAUNCHER", "JLI_Launch returned %d", static_cast<int>(result));
+        Log::InfoF("LAUNCHER", "jvm returned %d", static_cast<int>(result));
 
         // The same ending the other path gets, so both leave the same way: the screen goes, and then the
         // process ends with the VM's status. Its teardown is safe here - the VM that shared this process's

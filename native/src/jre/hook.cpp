@@ -432,7 +432,7 @@ namespace copper::bridge::jre::Hook {
                 hooked++;
         }
 
-        util::Log::VerboseF("HOOK", "asked for %d symbols in %s", hooked, name.c_str());
+        util::Log::DebugF("HOOK", "asked for %d symbols in %s", hooked, name.c_str());
     }
 
 } // namespace copper::bridge::jre::Hook

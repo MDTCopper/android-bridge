@@ -42,11 +42,11 @@ public class Bootstrap {
         for (File dir : searchDirs()) {
             if (dir.isDirectory())
                 updateLdPath(dir.getAbsolutePath());
-            // W^X: the staged libraries are read-only, so arc can only load them by name.
-            File nativeFolder = Bridge.options.arcNativeFolder;
-            if (nativeFolder != null && nativeFolder.isDirectory())
-                updateLdPath(nativeFolder.getAbsolutePath());
         }
+        // W^X: the staged libraries are read-only, so arc can only load them by name.
+        File nativeFolder = Bridge.options.arcNativeFolder;
+        if (nativeFolder != null && nativeFolder.isDirectory())
+            updateLdPath(nativeFolder.getAbsolutePath());
 
         Log.info("JRE", "loading JVM libraries from " + jre);
         loadJvmLibs(jre.getAbsolutePath());

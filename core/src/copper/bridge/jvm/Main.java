@@ -33,10 +33,10 @@ public class Main {
         Log.setBackend(new NativeLogBackend());
         Log.setSide(Log.Side.JVM);
 
-        Log.info("CopperBridge " + Bridge.options.versionLabel() + " (JVM side)");
-        Log.info("java.home = " + Bridge.options.javaHome);
-        Log.info("classpath = " + System.getProperty("java.class.path"));
-        Log.info("class loader = " + Main.class.getClassLoader());
+        Log.info("CopperBridge (JVM side)");
+        Log.debug("java.home = " + Bridge.options.javaHome);
+        Log.debug("classpath = " + System.getProperty("java.class.path"));
+        Log.debug("class loader = " + Main.class.getClassLoader());
 
         Launch.start(gameArgs(args));
     }

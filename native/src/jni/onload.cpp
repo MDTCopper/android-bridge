@@ -54,6 +54,9 @@ namespace copper::bridge::jni {
         if (!Log::OpenFile())
             return JNI_ERR;
 
+        if (loaded == 1)
+            util::Log::Info(util::Log::NO_TAG, "CopperBridge (Native side)");
+
         if (bound == 0)
             util::Log::Warn(util::Log::NO_TAG, "no binding table resolved in this VM");
 

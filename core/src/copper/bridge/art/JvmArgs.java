@@ -47,9 +47,6 @@ public class JvmArgs {
         property("java.home", path(Bridge.options.javaHome));
         property("java.io.tmpdir", path(new File(Bridge.options.cacheFolder, "tmp")));
 
-        // where the JVM side finds the bridge jar
-        property("copper.bridge.bridgeJar", path(Bridge.jar()));
-
         // Everything else the JVM side needs. The keys already carry their prefix, so the option set is
         // literally the -D argument list. Values go into the map directly rather than through
         // property(...), which drops empty ones: the emission must match what the JVM reads back.
@@ -151,9 +148,9 @@ public class JvmArgs {
         for (String note : notes)
             Log.info("override: " + note);
 
-        Log.info("full argv:");
+        Log.debug("full argv:");
         for (String arg : args)
-            Log.info("  " + arg);
+            Log.debug("  " + arg);
     }
 
     /** The main class the JVM should run: the custom loader, or the bridge's JVM entry point. */

@@ -37,7 +37,8 @@ public class Main {
         Log.setOutputFile(logFile);
         Log.setBackend(new AndroidLogBackend());
 
-        Log.info("CopperBridge " + Bridge.options.versionLabel() + " (ART side)");
+        Log.info("CopperBridge " + Bridge.options.versionLabel());
+        Log.info("CopperBridge (ART side)");
         Log.info("cache = " + Bridge.options.cacheFolder);
         Log.info("game jars:");
         for (File jar : Bridge.options.gameJars)

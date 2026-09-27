@@ -72,7 +72,7 @@ namespace copper::bridge::util {
                 if (dlopen(soname.c_str(), RTLD_LAZY) != nullptr)
                     continue;
 
-                util::Log::InfoF("LINKER", "%*sskip %s: not found", depth * 2, "", soname.c_str());
+                util::Log::WarnF("LINKER", "skip %s: not found", soname.c_str());
                 counts.skipped++;
                 continue;
             }
@@ -86,7 +86,7 @@ namespace copper::bridge::util {
         if (visiting.count(path) > 0) {
             // A cycle in DT_NEEDED is legal; the linker breaks it at the first repeating edge, and so does
             // this.
-            util::Log::InfoF("LINKER", "%*scycle back to %s, ignored", depth * 2, "", path.c_str());
+            util::Log::VerboseF("LINKER", "cycle back to %s, ignored", path.c_str());
             return true;
         }
 
@@ -95,7 +95,7 @@ namespace copper::bridge::util {
         Elf::Deps deps;
         std::string error;
         if (!Elf::ReadDeps(path, deps, error)) {
-            util::Log::InfoF("LINKER", "%*scannot read %s: %s", depth * 2, "", path.c_str(), error.c_str());
+            util::Log::WarnF("LINKER", "cannot read %s: %s", path.c_str(), error.c_str());
             visiting.erase(path);
             visited.insert(path);
             counts.skipped++;
@@ -108,12 +108,12 @@ namespace copper::bridge::util {
         // opened, otherwise the linker would go looking for it on its own and fail.
         // W^X: a mapped library must be executable and must not be writable. A JRE ships its libraries
         // writable, so the mode is set here instead of being trusted.
-        if (!chmod(path.c_str(), 0500))
-            util::Log::WarnF("LINKER", "%*sfailed to chmod 0500: %d, %s", depth * 2, "", errno, path.c_str());
+        if (chmod(path.c_str(), 0500))
+            util::Log::WarnF("LINKER", "failed to chmod 0500: %d, %s", errno, path.c_str());
         void* handle = dlopen(path.c_str(), RTLD_NOW | RTLD_GLOBAL);
         if (handle == nullptr) {
             const char* reason = dlerror();
-            util::Log::InfoF("LINKER", "%*sfailed %s: %s", depth * 2, "", path.c_str(), reason == nullptr ? "unknown" : reason);
+            util::Log::InfoF("LINKER", "failed %s: %s", path.c_str(), reason == nullptr ? "unknown" : reason);
             visiting.erase(path);
             // Recorded as visited anyway: retrying the same failing library once per dependent would
             // only multiply the same message.
@@ -131,7 +131,7 @@ namespace copper::bridge::util {
         visiting.erase(path);
         visited.insert(path);
         counts.loaded++;
-        util::Log::InfoF("LINKER", "%*sloaded %s", depth * 2, "", path.c_str());
+        util::Log::VerboseF("LINKER", "%*sloaded %s", depth * 2, "", path.c_str());
         return true;
     }
 

@@ -16,7 +16,7 @@ import java.util.*;
  * can arrive twice when focus is lost mid press), and nothing is synchronized: batches are polled,
  * dispatched and read on the game loop thread alone.</p>
  */
-public class BridgeInput extends Input{
+public class BridgeInput extends Input {
     /** Pointer slots, matching arc's Android backend: indices 0 to 19 are available to fingers. */
     private static final int MAX_TOUCHES = 20;
 
@@ -32,11 +32,11 @@ public class BridgeInput extends Input{
          * what arc's Android backend derives, a touchscreen down having a zero button state.
          */
         @Override
-        public void pointerDown(int pointerId, float rawX, float rawY, float rawPressure){
+        public void pointerDown(int pointerId, float rawX, float rawY, float rawPressure) {
             // A down for an already tracked pointer keeps its slot: a second one would strand the first.
             int index = lookUpPointerIndex(pointerId);
-            if(index == -1) index = freePointerIndex();
-            if(index == -1) return;
+            if (index == -1) index = freePointerIndex();
+            if (index == -1) return;
 
             int x = (int)rawX;
             int y = Core.graphics.getHeight() - 1 - (int)rawY;
@@ -56,9 +56,9 @@ public class BridgeInput extends Input{
 
         /** Stops tracking a finger and delivers its release. */
         @Override
-        public void pointerUp(int pointerId, float rawX, float rawY){
+        public void pointerUp(int pointerId, float rawX, float rawY) {
             int index = lookUpPointerIndex(pointerId);
-            if(index == -1) return;
+            if (index == -1) return;
 
             int x = (int)rawX;
             int y = Core.graphics.getHeight() - 1 - (int)rawY;
@@ -73,7 +73,7 @@ public class BridgeInput extends Input{
             pressure[index] = 0f;
             touched[index] = false;
 
-            if(key != KeyCode.unknown){
+            if (key != KeyCode.unknown) {
                 inputMultiplexer.touchUp(x, y, index, key);
             }
         }
@@ -85,13 +85,13 @@ public class BridgeInput extends Input{
          * repeating the same coordinates cannot flood the processors.
          */
         @Override
-        public void pointerMove(int pointerId, float rawX, float rawY, float rawPressure){
+        public void pointerMove(int pointerId, float rawX, float rawY, float rawPressure) {
             int index = lookUpPointerIndex(pointerId);
             int x = (int)rawX;
             int y = Core.graphics.getHeight() - 1 - (int)rawY;
 
-            if(index == -1){
-                if(x == mouseLastX && (int)rawY == mouseLastY) return;
+            if (index == -1) {
+                if (x == mouseLastX && (int)rawY == mouseLastY) return;
 
                 inputMultiplexer.mouseMoved(x, y);
                 deltaX[0] = x - mouseLastX;
@@ -112,22 +112,22 @@ public class BridgeInput extends Input{
             touchY[index] = y;
             pressure[index] = rawPressure;
 
-            if(key != KeyCode.unknown){
+            if (key != KeyCode.unknown) {
                 inputMultiplexer.touchDragged(x, y, index);
-            }else{
+            } else {
                 inputMultiplexer.mouseMoved(x, y);
             }
         }
 
         @Override
-        public void pointerCancel(){
+        public void pointerCancel() {
             // The activity lost focus, so no up follows. No synthetic release: the game's tap handling
             // would turn a cancel into a click where the finger happened to be.
             clearPointers();
         }
 
         @Override
-        public void scroll(float scrollY){
+        public void scroll(float scrollY) {
             // The ART side already signed the amount the way arc expects it.
             inputMultiplexer.scrolled(0f, scrollY);
         }
@@ -140,12 +140,12 @@ public class BridgeInput extends Input{
          * device again would order the keyboard ahead of the processors the game registered.
          */
         @Override
-        public void keyDown(int deviceCode, int repeatCount){
-            if(repeatCount > 0) return;
+        public void keyDown(int deviceCode, int repeatCount) {
+            if (repeatCount > 0) return;
 
             KeyCode key = KeyMap.getKeyCode(deviceCode);
             int index = key.ordinal();
-            if(downState[index]) return;
+            if (downState[index]) return;
 
             downState[index] = true;
             inputMultiplexer.keyDown(key);
@@ -157,10 +157,10 @@ public class BridgeInput extends Input{
          * one re-triggered back handling in a loop in the launcher this bridge replaces.
          */
         @Override
-        public void keyUp(int deviceCode, WireCharBuffer chars){
+        public void keyUp(int deviceCode, WireCharBuffer chars) {
             KeyCode key = KeyMap.getKeyCode(deviceCode);
             int index = key.ordinal();
-            if(!downState[index]) return;
+            if (!downState[index]) return;
 
             downState[index] = false;
             inputMultiplexer.keyUp(key);
@@ -168,7 +168,7 @@ public class BridgeInput extends Input{
         }
 
         @Override
-        public void text(WireCharBuffer chars){
+        public void text(WireCharBuffer chars) {
             type(chars);
         }
 
@@ -176,8 +176,8 @@ public class BridgeInput extends Input{
          * Types every character of a text payload ART sent, straight out of the borrowed view: it is a
          * {@link CharSequence}, so nothing is decoded into a copy.
          */
-        private void type(WireCharBuffer chars){
-            for(int i = 0; i < chars.length(); i++){
+        private void type(WireCharBuffer chars) {
+            for (int i = 0; i < chars.length(); i++) {
                 inputMultiplexer.keyTyped(chars.charAt(i));
             }
         }
@@ -206,7 +206,7 @@ public class BridgeInput extends Input{
     private boolean justTouched;
     private long currentEventTimeStamp = System.nanoTime();
 
-    public BridgeInput(){
+    public BridgeInput() {
         Arrays.fill(realId, -1);
         JvmBatch.bind(schema);
     }
@@ -215,7 +215,7 @@ public class BridgeInput extends Input{
      * One back tap through the normal input path, used when no dialog is open: then the game's own
      * handling - the pause menu, or going to the background - is exactly what should happen.
      */
-    public void backTap(){
+    public void backTap() {
         inputMultiplexer.keyDown(arc.input.KeyCode.back);
         inputMultiplexer.keyUp(arc.input.KeyCode.back);
     }
@@ -225,11 +225,11 @@ public class BridgeInput extends Input{
      * takes the whole backlog rather than one frame per tick: a swipe sampled faster than the frame
      * rate has to reach the game whole.
      */
-    public void processEvents(){
+    public void processEvents() {
         justTouched = false;
 
         JvmBatch.input.poll();
-        while(JvmBatch.input.hasNext()){
+        while (JvmBatch.input.hasNext()) {
             JvmBatch.input.processHeader();
 
             // No record carries a timestamp, so the frame is stamped as it is replayed; the gesture
@@ -250,7 +250,7 @@ public class BridgeInput extends Input{
      * with {@code NoSuchFieldError} from there on. The keyboard is the only device arc puts in the list
      * unless a backend adds controllers, which this bridge does not support.</p>
      */
-    public void processDevices(){
+    public void processDevices() {
         keyboard.postUpdate();
     }
 
@@ -259,23 +259,23 @@ public class BridgeInput extends Input{
      * held when the activity stops gets no up, and a surviving down state would claim the key is held
      * after a resume, swallowing the next real up as unsolicited.
      */
-    public void onPause(){
+    public void onPause() {
         clearState();
     }
 
     /** Input resumes with the batches ART starts queueing again, so this only re-asserts a clean slate. */
-    public void onResume(){
+    public void onResume() {
         clearState();
     }
 
-    private void clearState(){
+    private void clearState() {
         Arrays.fill(downState, false);
         clearPointers();
     }
 
     /** Clears every pointer slot, exactly as arc's Android backend does for a cancel or a pause. */
-    private void clearPointers(){
-        for(int i = 0; i < MAX_TOUCHES; i++){
+    private void clearPointers() {
+        for (int i = 0; i < MAX_TOUCHES; i++) {
             realId[i] = -1;
             touchX[i] = 0;
             touchY[i] = 0;
@@ -292,17 +292,17 @@ public class BridgeInput extends Input{
     // pointers
 
     /** A free pointer slot, or -1 when every one of them is taken. */
-    private int freePointerIndex(){
-        for(int i = 0; i < MAX_TOUCHES; i++){
-            if(realId[i] == -1) return i;
+    private int freePointerIndex() {
+        for (int i = 0; i < MAX_TOUCHES; i++) {
+            if (realId[i] == -1) return i;
         }
         return -1;
     }
 
     /** The slot tracking an Android pointer id, or -1 when none is. */
-    private int lookUpPointerIndex(int pointerId){
-        for(int i = 0; i < MAX_TOUCHES; i++){
-            if(realId[i] == pointerId) return i;
+    private int lookUpPointerIndex(int pointerId) {
+        for (int i = 0; i < MAX_TOUCHES; i++) {
+            if (realId[i] == pointerId) return i;
         }
         return -1;
     }
@@ -315,7 +315,7 @@ public class BridgeInput extends Input{
      * loop, which is where the callbacks run.
      */
     @Override
-    public void getTextInput(TextInput info){
+    public void getTextInput(TextInput info) {
         JvmCall.textInput(info.title, info.message, info.text, info.numeric, info.multiline,
                 info.maxLength, info.allowEmpty)
                 .onResult(value -> info.accepted.get(value))
@@ -328,25 +328,25 @@ public class BridgeInput extends Input{
      * batches as a hardware keyboard.
      */
     @Override
-    public void setOnscreenKeyboardVisible(boolean visible){
+    public void setOnscreenKeyboardVisible(boolean visible) {
         JvmCall.onscreenKeyboard(visible);
     }
 
     /** Vibrates for the given number of milliseconds. */
     @Override
-    public void vibrate(int milliseconds){
+    public void vibrate(int milliseconds) {
         JvmCall.vibrate(milliseconds);
     }
 
     /** Vibrates a waveform; the timings alternate between on and off, as arc's own documentation says. */
     @Override
-    public void vibrate(long[] pattern, int repeat){
+    public void vibrate(long[] pattern, int repeat) {
         JvmCall.vibrate(pattern, repeat);
     }
 
     /** Stops the running vibration. */
     @Override
-    public void cancelVibrate(){
+    public void cancelVibrate() {
         JvmCall.cancelVibrate();
     }
 
@@ -357,10 +357,10 @@ public class BridgeInput extends Input{
      * bridged, and claiming it would hand the game a peripheral that never answers.
      */
     @Override
-    public boolean isPeripheralAvailable(Peripheral peripheral){
-        if(peripheral == Peripheral.onscreenKeyboard) return true;
-        if(peripheral == Peripheral.multitouchScreen) return true;
-        if(peripheral == Peripheral.vibrator) return JvmCall.isVibratorAvailable();
+    public boolean isPeripheralAvailable(Peripheral peripheral) {
+        if (peripheral == Peripheral.onscreenKeyboard) return true;
+        if (peripheral == Peripheral.multitouchScreen) return true;
+        if (peripheral == Peripheral.vibrator) return JvmCall.isVibratorAvailable();
         return peripheral == Peripheral.pressure;
     }
 
@@ -369,7 +369,7 @@ public class BridgeInput extends Input{
      * side, which owns them; this side just passes the answer along.
      */
     @Override
-    public int getRotation(){
+    public int getRotation() {
         return JvmCall.screenRotationDegrees();
     }
 
@@ -378,77 +378,77 @@ public class BridgeInput extends Input{
      * the display rather than of the current frame, and the answer costs one JNI transition.
      */
     @Override
-    public Orientation getNativeOrientation(){
+    public Orientation getNativeOrientation() {
         return JvmCall.isNativeLandscape() ? Orientation.landscape : Orientation.portrait;
     }
 
     // polling
 
     @Override
-    public int mouseX(){
+    public int mouseX() {
         return touchX[0];
     }
 
     @Override
-    public int mouseX(int pointer){
+    public int mouseX(int pointer) {
         return touchX[pointer];
     }
 
     @Override
-    public int mouseY(){
+    public int mouseY() {
         return touchY[0];
     }
 
     @Override
-    public int mouseY(int pointer){
+    public int mouseY(int pointer) {
         return touchY[pointer];
     }
 
     @Override
-    public int deltaX(){
+    public int deltaX() {
         return deltaX[0];
     }
 
     @Override
-    public int deltaX(int pointer){
+    public int deltaX(int pointer) {
         return deltaX[pointer];
     }
 
     @Override
-    public int deltaY(){
+    public int deltaY() {
         return deltaY[0];
     }
 
     @Override
-    public int deltaY(int pointer){
+    public int deltaY(int pointer) {
         return deltaY[pointer];
     }
 
     @Override
-    public boolean isTouched(){
-        for(int pointer = 0; pointer < MAX_TOUCHES; pointer++){
-            if(touched[pointer]) return true;
+    public boolean isTouched() {
+        for (int pointer = 0; pointer < MAX_TOUCHES; pointer++) {
+            if (touched[pointer]) return true;
         }
         return false;
     }
 
     @Override
-    public boolean isTouched(int pointer){
+    public boolean isTouched(int pointer) {
         return touched[pointer];
     }
 
     @Override
-    public boolean justTouched(){
+    public boolean justTouched() {
         return justTouched;
     }
 
     @Override
-    public float getPressure(int pointer){
+    public float getPressure(int pointer) {
         return pressure[pointer];
     }
 
     @Override
-    public long getCurrentEventTime(){
+    public long getCurrentEventTime() {
         return currentEventTimeStamp;
     }
 
@@ -457,9 +457,9 @@ public class BridgeInput extends Input{
      * platform list and the game has to see the same {@link KeyCode} that backend reports, so the table
      * is copied rather than reinvented. Unknown codes become {@link KeyCode#unknown}, as they do in arc.
      */
-    private static class KeyMap{
-        static KeyCode getKeyCode(int key){
-            switch(key){
+    private static class KeyMap {
+        static KeyCode getKeyCode(int key) {
+            switch (key) {
                 case -1: return KeyCode.anyKey;
                 case 7: return KeyCode.num0;
                 case 8: return KeyCode.num1;

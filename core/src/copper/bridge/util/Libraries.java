@@ -68,14 +68,14 @@ public class Libraries {
      * @return that file, or {@code null} when none of the names is there
      */
     public static File find(File searchPath, String abi, String ...alternativeNames) {
-        for(String name : alternativeNames){
-            if(abi != null && !abi.isEmpty()){
+        for (String name : alternativeNames) {
+            if (abi != null && !abi.isEmpty()) {
                 File byAbi = new File(new File(searchPath, abi), name);
-                if(byAbi.isFile())
+                if (byAbi.isFile())
                     return byAbi;
             }
             File flat = new File(searchPath, name);
-            if(flat.isFile())
+            if (flat.isFile())
                 return flat;
         }
         return null;

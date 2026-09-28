@@ -32,7 +32,7 @@ public class TextInput {
         if (multiline)
             field.setInputType(field.getInputType() | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
         if (maxLength > 0)
-            field.setFilters(new InputFilter[]{new InputFilter.LengthFilter(maxLength)});
+            field.setFilters(new InputFilter[] {new InputFilter.LengthFilter(maxLength)});
 
         AlertDialog.Builder builder = new AlertDialog.Builder(activity).setView(field)
                 .setPositiveButton(android.R.string.ok, null)

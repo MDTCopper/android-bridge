@@ -20,7 +20,7 @@ import copper.bridge.util.*;
  * Events are polled rather than pushed, which lands the surface pointer on the thread that makes
  * the context current and needs no lock around GL state; the handlers live in {@link BridgeEvents}.
  */
-public class BridgeApplication implements Application{
+public class BridgeApplication implements Application {
     /** How long to wait for ART to hand over a window before giving up. */
     private static final long SURFACE_TIMEOUT_MILLIS = 20000;
 
@@ -35,7 +35,7 @@ public class BridgeApplication implements Application{
 
     private Thread mainThread;
 
-    public BridgeApplication(){
+    public BridgeApplication() {
         this.graphics = new BridgeGraphics();
         this.input = new BridgeInput();
         this.files = new BridgeFiles();
@@ -49,7 +49,7 @@ public class BridgeApplication implements Application{
      * initialises, and LWJGL must be pointed at the right EGL and GLES libraries before anything
      * asks for a context.
      */
-    public void run(){
+    public void run() {
         // recorded first: this epoch's arc can ask which thread the game is on before the loop starts
         mainThread = Thread.currentThread();
 
@@ -62,21 +62,21 @@ public class BridgeApplication implements Application{
 
         graphics.configure();
 
-        if(!waitForWindow()){
+        if (!waitForWindow()) {
             Log.error("no surface arrived within " + SURFACE_TIMEOUT_MILLIS + "ms; the game cannot start");
             return;
         }
 
-        if(!graphics.createSurface(Surface.window(), Surface.width(), Surface.height())){
+        if (!graphics.createSurface(Surface.window(), Surface.width(), Surface.height())) {
             Log.error("failed to make the EGL context current; the game cannot start");
             return;
         }
         events.markSurfaceReady();
 
         // GL exists now, so this is the first point at which a listener may build graphics resources
-        for(ApplicationListener listener : listeners)
+        for (ApplicationListener listener : listeners)
             listener.init();
-        for(ApplicationListener listener : listeners)
+        for (ApplicationListener listener : listeners)
             listener.resize(graphics.getWidth(), graphics.getHeight());
 
         loop();
@@ -90,25 +90,25 @@ public class BridgeApplication implements Application{
      * <p>ART creates the surface once its main thread is free again, so this is a wait and not a
      * request; the events must be taken here because the window pointer arrives as one of them.
      */
-    private boolean waitForWindow(){
+    private boolean waitForWindow() {
         long deadline = System.currentTimeMillis() + SURFACE_TIMEOUT_MILLIS;
-        while(!Surface.ready()){
+        while (!Surface.ready()) {
             JvmBus.pump();
-            if(Surface.ready())
+            if (Surface.ready())
                 return true;
-            if(System.currentTimeMillis() >= deadline)
+            if (System.currentTimeMillis() >= deadline)
                 return false;
             Threads.sleep(2);
         }
         return true;
     }
 
-    private void loop(){
-        while(events.running()){
+    private void loop() {
+        while (events.running()) {
             JvmBus.pump();
             runPosted();
 
-            if(events.paused() || !events.surfaceReady()){
+            if (events.paused() || !events.surfaceReady()) {
                 // nothing may be drawn without a current surface, but events must keep flowing
                 Threads.sleep(4);
                 continue;
@@ -117,26 +117,26 @@ public class BridgeApplication implements Application{
             graphics.beginFrame();
             input.processEvents();
             defaultUpdate();
-            for(ApplicationListener listener : listeners)
+            for (ApplicationListener listener : listeners)
                 listener.update();
             input.processDevices();
             graphics.swapBuffers();
         }
     }
 
-    private void teardown(){
-        for(ApplicationListener listener : listeners){
-            try{
+    private void teardown() {
+        for (ApplicationListener listener : listeners) {
+            try {
                 listener.pause();
-            }catch(Throwable t){
+            } catch (Throwable t) {
                 Log.error(t);
             }
         }
-        for(ApplicationListener listener : listeners){
-            try{
+        for (ApplicationListener listener : listeners) {
+            try {
                 listener.exit();
                 listener.dispose();
-            }catch(Throwable t){
+            } catch (Throwable t) {
                 // a failing dispose must not stop the rest of the shutdown
                 Log.error(t);
             }
@@ -147,28 +147,28 @@ public class BridgeApplication implements Application{
         Log.info("game loop ended");
     }
 
-    private void runPosted(){
-        synchronized(runnables){
+    private void runPosted() {
+        synchronized (runnables) {
             executedRunnables.clear();
             executedRunnables.addAll(runnables);
             runnables.clear();
         }
-        for(int i = 0; i < executedRunnables.size; i++){
-            try{
+        for (int i = 0; i < executedRunnables.size; i++) {
+            try {
                 executedRunnables.get(i).run();
-            }catch(Throwable t){
+            } catch (Throwable t) {
                 Log.error(t);
             }
         }
     }
 
     @Override
-    public Seq<ApplicationListener> getListeners(){
+    public Seq<ApplicationListener> getListeners() {
         return listeners;
     }
 
     @Override
-    public ApplicationType getType(){
+    public ApplicationType getType() {
         return ApplicationType.android;
     }
 
@@ -181,51 +181,51 @@ public class BridgeApplication implements Application{
      * compiles against the older ones, where it is simply an extra method - one branch, whole range.
      */
     @Override
-    public Thread getMainThread(){
+    public Thread getMainThread() {
         return mainThread;
     }
 
     @Override
-    public int getVersion(){
+    public int getVersion() {
         return JvmCall.getOsVersion();
     }
 
     @Override
-    public long getNativeHeap(){
+    public long getNativeHeap() {
         return JvmCall.getNativeHeap();
     }
 
     @Override
-    public String getClipboardText(){
+    public String getClipboardText() {
         return JvmCall.getClipboardText();
     }
 
     @Override
-    public void setClipboardText(String text){
+    public void setClipboardText(String text) {
         JvmCall.setClipboardText(text);
     }
 
     @Override
-    public boolean openURI(String uri){
+    public boolean openURI(String uri) {
         return JvmCall.openUri(uri);
     }
 
     @Override
-    public boolean openFolder(String folder){
+    public boolean openFolder(String folder) {
         return JvmCall.openFolder(folder);
     }
 
     /** Queues work for the loop thread, which is the only thread allowed to touch the game. */
     @Override
-    public void post(Runnable runnable){
-        synchronized(runnables){
+    public void post(Runnable runnable) {
+        synchronized (runnables) {
             runnables.add(runnable);
         }
     }
 
     /** Asks ART to finish the activity; the loop stops when the destroy event comes back. */
     @Override
-    public void exit(){
+    public void exit() {
         JvmCall.finishActivity();
         events.destroy();
     }

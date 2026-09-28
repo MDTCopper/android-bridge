@@ -11,30 +11,30 @@ import copper.bridge.annotation.*;
  */
 public interface Events {
     @JvmEventHandler
-    default void surfaceCreated(int width, int height, long window){
+    default void surfaceCreated(int width, int height, long window) {
     }
 
     @JvmEventHandler
-    default void surfaceResized(int width, int height){
+    default void surfaceResized(int width, int height) {
     }
 
     @JvmEventHandler
-    default void surfaceDestroyed(){
+    default void surfaceDestroyed() {
     }
 
     @JvmEventHandler
-    default void pause(){
+    default void pause() {
     }
 
     @JvmEventHandler
-    default void resume(){
+    default void resume() {
     }
 
     @JvmEventHandler
-    default void destroy(){
+    default void destroy() {
     }
 
     @JvmEventHandler
-    default void back(){
+    default void back() {
     }
 }

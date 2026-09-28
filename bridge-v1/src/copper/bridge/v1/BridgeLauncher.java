@@ -16,17 +16,17 @@ import mindustry.core.*;
  * the older half must load cannot name that type - hence the {@link BridgeLauncherLegacy} /
  * {@link BridgeLauncherParams} split, picked by {@link BridgeLaunchers} at run time.
  */
-public abstract class BridgeLauncher extends ClientLauncher implements Platform{
+public abstract class BridgeLauncher extends ClientLauncher implements Platform {
     /**
      * Sends one file-picker request and hands the raw answer to the shape-specific caller: only the
      * request and the failure policy are shared, because the two chooser shapes disagree about what an
      * answer means and how many files it may return. The error line lives here so they cannot drift.
      */
     protected final void requestFiles(boolean open, boolean allowMultiple, String title, String fileName,
-                                      String[] extensions, Cons<String[]> onPicked){
+                                      String[] extensions, Cons<String[]> onPicked) {
         JvmCall.showFileChooser(open, allowMultiple, title, fileName, extensions)
                 .onResult(paths -> {
-                    if(paths == null)
+                    if (paths == null)
                         return;
                     onPicked.get(paths);
                 })
@@ -35,7 +35,7 @@ public abstract class BridgeLauncher extends ClientLauncher implements Platform{
 
     /** Moves the task to the background; the activity stays alive so the game can resume. */
     @Override
-    public void hide(){
+    public void hide() {
         JvmCall.hide();
     }
 
@@ -46,12 +46,12 @@ public abstract class BridgeLauncher extends ClientLauncher implements Platform{
      * preference and can end up portrait.
      */
     @Override
-    public void beginForceLandscape(){
+    public void beginForceLandscape() {
         JvmCall.orientation(true);
     }
 
     @Override
-    public void endForceLandscape(){
+    public void endForceLandscape() {
         JvmCall.orientation(false);
     }
 
@@ -61,6 +61,6 @@ public abstract class BridgeLauncher extends ClientLauncher implements Platform{
      * declare.
      */
     @Override
-    public void shareFile(Fi file){
+    public void shareFile(Fi file) {
     }
 }

@@ -13,7 +13,7 @@ import arc.func.*;
  * name and descriptor alone. Living in a class that never mentions {@code FileChooserParams} is what
  * keeps those epochs loadable.
  */
-public class BridgeLauncherLegacy extends BridgeLauncher{
+public class BridgeLauncherLegacy extends BridgeLauncher {
 
     /**
      * Opens the system file picker. The answer arrives later on the request queue, so only the
@@ -21,11 +21,11 @@ public class BridgeLauncherLegacy extends BridgeLauncher{
      * has already copied the documents into the bridge cache), a save request the URIs the game writes
      * through {@link UriFi} when it is ready.
      */
-    public void showFileChooser(boolean open, String title, String extension, Cons<Fi> cons){
+    public void showFileChooser(boolean open, String title, String extension, Cons<Fi> cons) {
         showFileChooser(open, title, cons, extension);
     }
 
-    public void showMultiFileChooser(Cons<Fi> cons, String... extensions){
+    public void showMultiFileChooser(Cons<Fi> cons, String... extensions) {
         showFileChooser(true, "@open", cons, extensions);
     }
 
@@ -33,16 +33,16 @@ public class BridgeLauncherLegacy extends BridgeLauncher{
      * Redirected to the bridge picker: the base implementation would look for a native dialog library
      * that only ships with the desktop build.
      */
-    public void showNativeFileChooser(boolean open, String title, Cons<Fi> cons, String... extensions){
+    public void showNativeFileChooser(boolean open, String title, Cons<Fi> cons, String... extensions) {
         showFileChooser(open, title, cons, extensions);
     }
 
-    private void showFileChooser(boolean open, String title, Cons<Fi> cons, String... extensions){
-        String[] filter = extensions == null || extensions.length == 0 ? new String[]{""} : extensions;
+    private void showFileChooser(boolean open, String title, Cons<Fi> cons, String... extensions) {
+        String[] filter = extensions == null || extensions.length == 0 ? new String[] {""} : extensions;
 
         requestFiles(open, false, title, null, filter, paths -> {
-            for(String path : paths){
-                if(path == null || path.isEmpty())
+            for (String path : paths) {
+                if (path == null || path.isEmpty())
                     continue;
                 cons.get(open ? Core.files.absolute(path) : new UriFi(path, "export." + filter[0]));
             }

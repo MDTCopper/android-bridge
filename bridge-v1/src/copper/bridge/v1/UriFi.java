@@ -15,10 +15,10 @@ import java.io.*;
  * {@code copyToUri} when too large for the heap. Reads pull the whole document through the heap, which is fine
  * because a document read back is one just written.
  */
-public class UriFi extends Fi{
+public class UriFi extends Fi {
     private final String uri;
 
-    public UriFi(String uri, String displayName){
+    public UriFi(String uri, String displayName) {
         this.uri = uri;
         // there is no real path behind a document, so the name is only what dialogs display
         this.file = new File(displayName);
@@ -26,38 +26,38 @@ public class UriFi extends Fi{
     }
 
     @Override
-    public InputStream read(){
+    public InputStream read() {
         byte[] data = JvmCall.readUri(uri);
         return new ByteArrayInputStream(data == null ? new byte[0] : data);
     }
 
     @Override
-    public OutputStream write(boolean append){
+    public OutputStream write(boolean append) {
         // a document is one write: appending would mean reading it back and rewriting it, and doing
         // that silently is worse than refusing it where the caller can see it
-        if(append)
+        if (append)
             throw new ArcRuntimeException("Cannot append to a picked document: " + uri);
         return new DocumentOutputStream(uri);
     }
 
     @Override
-    public boolean exists(){
+    public boolean exists() {
         return true;
     }
 
     @Override
-    public long length(){
+    public long length() {
         byte[] data = JvmCall.readUri(uri);
         return data == null ? 0 : data.length;
     }
 
     @Override
-    public String name(){
+    public String name() {
         return file.getName();
     }
 
     @Override
-    public String extension(){
+    public String extension() {
         String name = file.getName();
         int dot = name.lastIndexOf('.');
         return dot == -1 ? "" : name.substring(dot + 1);
@@ -69,7 +69,7 @@ public class UriFi extends Fi{
      * {@link #MEMORY_LIMIT}, then a file in the bridge's tmp folder handed over through {@code copyToUri},
      * where ART streams it into the document instead of this VM holding it.
      */
-    private static class DocumentOutputStream extends OutputStream{
+    private static class DocumentOutputStream extends OutputStream {
         /**
          * How much of a document may sit in the JVM heap before it spills to a file. Saves, maps and
          * screenshots are single digit megabytes, so they never spill; a document that does is one the heap
@@ -86,48 +86,48 @@ public class UriFi extends Fi{
         private File spilled;
         private boolean closed;
 
-        DocumentOutputStream(String uri){
+        DocumentOutputStream(String uri) {
             this.uri = uri;
             this.folder = new File(System.getProperty("java.io.tmpdir", "."));
         }
 
         @Override
-        public void write(int value) throws IOException{
+        public void write(int value) throws IOException {
             ensureRoom(1);
             target.write(value);
         }
 
         @Override
-        public void write(byte[] data, int offset, int length) throws IOException{
+        public void write(byte[] data, int offset, int length) throws IOException {
             ensureRoom(length);
             target.write(data, offset, length);
         }
 
         @Override
-        public void close() throws IOException{
-            if(closed)
+        public void close() throws IOException {
+            if (closed)
                 return;
             closed = true;
 
-            try{
-                if(spilled == null){
-                    if(!JvmCall.writeUri(uri, memory.toByteArray()))
+            try {
+                if (spilled == null) {
+                    if (!JvmCall.writeUri(uri, memory.toByteArray()))
                         throw new IOException("failed to write the document: " + uri);
-                }else{
+                } else {
                     target.close();
-                    if(!JvmCall.copyToUri(uri, spilled.getAbsolutePath()))
+                    if (!JvmCall.copyToUri(uri, spilled.getAbsolutePath()))
                         throw new IOException("failed to copy the file into the document: " + uri);
                 }
-            }finally{
+            } finally {
                 // the document has the bytes now, or never will; the staged copy is dead either way
-                if(spilled != null)
+                if (spilled != null)
                     spilled.delete();
             }
         }
 
         /** Moves the document to a file once keeping it in memory would be the larger mistake. */
-        private void ensureRoom(int extra) throws IOException{
-            if(spilled != null || memory.size() + extra <= MEMORY_LIMIT)
+        private void ensureRoom(int extra) throws IOException {
+            if (spilled != null || memory.size() + extra <= MEMORY_LIMIT)
                 return;
 
             folder.mkdirs();

@@ -72,7 +72,7 @@ public class Main {
      */
     private static void prepareLwjglNatives() {
         File lwjgl = LwjglNatives.extract();
-        if(lwjgl != null){
+        if (lwjgl != null) {
             Configuration.DISABLE_HASH_CHECKS.set(true);
             Configuration.LIBRARY_PATH.set(
                     new File(lwjgl, "org" + File.separator + "lwjgl").getAbsolutePath()
@@ -88,7 +88,7 @@ public class Main {
      * are switched off instead of failing at the first use.
      */
     private static void prepareArcNatives() {
-        if(!Bridge.options.foundArcNative || Bridge.options.arcNativeFolder == null) {
+        if (!Bridge.options.foundArcNative || Bridge.options.arcNativeFolder == null) {
             ArcNativesLoader.disableNativesLoading = true;
             Log.warn("no arc natives were staged; arc will use its non-native code paths");
             return;
@@ -105,7 +105,7 @@ public class Main {
      */
     private static void prepareGameFolders() {
         File data = Bridge.options.gameDataFolder;
-        if(data == null)
+        if (data == null)
             return;
         data.mkdirs();
         System.setProperty("mindustry.data.dir", data.getAbsolutePath());

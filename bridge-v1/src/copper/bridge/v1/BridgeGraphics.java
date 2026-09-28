@@ -345,7 +345,7 @@ public class BridgeGraphics extends Graphics {
     }
 
     /** Records the new surface size; the caller already resized the viewport if needed. */
-    public void surfaceResized(int surfaceWidth, int surfaceHeight){
+    public void surfaceResized(int surfaceWidth, int surfaceHeight) {
         width = surfaceWidth;
         height = surfaceHeight;
         if (gl20 != null)
@@ -385,7 +385,7 @@ public class BridgeGraphics extends Graphics {
         frameId++;
     }
 
-    public void swapBuffers(){
+    public void swapBuffers() {
         if (eglSurface != EGL10.EGL_NO_SURFACE)
             EGL10.eglSwapBuffers(eglDisplay, eglSurface);
     }

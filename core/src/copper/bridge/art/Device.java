@@ -94,13 +94,13 @@ public class Device {
         List<String> candidates = new ArrayList<>();
         String arch = System.getProperty("os.arch", "");
         String abi = cpuAbi();
-        for (String candidate : new String[]{arch, abi}) {
+        for (String candidate : new String[] {arch, abi}) {
             if (candidate == null || candidate.isEmpty() || candidates.contains(candidate))
                 continue;
             candidates.add(candidate);
         }
         // the names OpenJDK derived Android builds use
-        for (String extra : new String[]{"aarch64", "arm", "arm64", "amd64", "x86_64", "i386", "i486", "i586"}) {
+        for (String extra : new String[] {"aarch64", "arm", "arm64", "amd64", "x86_64", "i386", "i486", "i586"}) {
             if (!candidates.contains(extra))
                 candidates.add(extra);
         }

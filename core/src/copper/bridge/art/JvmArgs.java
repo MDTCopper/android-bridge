@@ -172,7 +172,7 @@ public class JvmArgs {
             int eq = arg.indexOf('=');
             return eq < 0 ? arg : arg.substring(0, eq);
         }
-        for (String prefix : new String[]{"-Xmx", "-Xms", "-Xss", "-Xmn"}) {
+        for (String prefix : new String[] {"-Xmx", "-Xms", "-Xss", "-Xmn"}) {
             if (arg.startsWith(prefix))
                 return prefix;
         }

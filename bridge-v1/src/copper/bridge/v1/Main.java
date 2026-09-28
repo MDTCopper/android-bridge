@@ -61,7 +61,23 @@ public class Main {
 
         BridgeApplication application = new BridgeApplication();
         application.addListener(BridgeLaunchers.create());
-        application.run();
+
+        // Only a thread that dies of its own exception consults the default handler, and this throw
+        // happens on the calling thread, so the exception is handed to that handler here, and is
+        // reported and stops the process the same way as one from inside the game. With none
+        // installed, the bridge reports the exception itself and rethrows.
+        try {
+            application.run();
+        } catch (Throwable e) {
+            Thread.UncaughtExceptionHandler handler = Thread.getDefaultUncaughtExceptionHandler();
+            if (handler != null) {
+                handler.uncaughtException(Thread.currentThread(), e);
+            } else {
+                Log.error("the game crashed");
+                Log.error(e);
+                throw e;
+            }
+        }
     }
 
     /**

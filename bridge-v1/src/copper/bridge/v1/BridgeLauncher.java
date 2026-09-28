@@ -17,6 +17,51 @@ import mindustry.core.*;
  * {@link BridgeLauncherParams} split, picked by {@link BridgeLaunchers} at run time.
  */
 public abstract class BridgeLauncher extends ClientLauncher implements Platform {
+
+    /**
+     * Installs the game's crash reporting: {@code AndroidLauncher.onCreate} installs it for the stock
+     * launcher, which this branch replaces, so it is installed here instead. The handler already in
+     * place is kept and called after the report, because the host app owns the activity and the
+     * process.
+     */
+    public BridgeLauncher() {
+        Thread.UncaughtExceptionHandler handler = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
+            handleCrash(error);
+            if (handler != null) {
+                handler.uncaughtException(thread, error);
+            } else {
+                arc.util.Log.err(error);
+                System.exit(1);
+            }
+        });
+    }
+
+    /**
+     * Writes the crash report through whichever type the running game declares: 146 has
+     * {@code CrashSender}, whose {@code log} became {@code CrashHandler}'s before 147, and this
+     * branch covers both. Reached by name, like {@link BridgeLaunchers}' probe, because a plain call
+     * would put one of the two names into this class's constant pool and stop every epoch that lacks
+     * it from loading the launcher at all. Neither type present is a game the bridge cannot report
+     * for, so the exception and the exit fall back to the bridge's own log line.
+     */
+    private void handleCrash(Throwable cause) {
+        try {
+            Class.forName("mindustry.net.CrashHandler")
+                    .getDeclaredMethod("log", Throwable.class)
+                    .invoke(null, cause);
+        } catch (Throwable e) {
+            try {
+                Class.forName("mindustry.net.CrashSender")
+                        .getDeclaredMethod("log", Throwable.class)
+                        .invoke(null, cause);
+            } catch (Throwable E) {
+                arc.util.Log.err(cause);
+                System.exit(1);
+            }
+        }
+    }
+
     /**
      * Sends one file-picker request and hands the raw answer to the shape-specific caller: only the
      * request and the failure policy are shared, because the two chooser shapes disagree about what an

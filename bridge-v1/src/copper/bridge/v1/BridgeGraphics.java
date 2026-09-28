@@ -23,9 +23,11 @@ import java.nio.*;
  * pointer, which is exactly what {@code eglCreateWindowSurface} wants. A pause destroys only the
  * window surface, so the context and its textures and shaders survive a resume.</p>
  */
-public class BridgeGraphics extends Graphics{
+public class BridgeGraphics extends Graphics {
     /** Coverage sampling attribute; not in LWJGL's core EGL headers. */
     private static final int EGL_COVERAGE_SAMPLES_NV = 0x30E1;
+
+    private static final String STAGING_FOLDER = "native/angle";
 
     /** The names ANGLE's libraries have. */
     private static final String ANGLE_EGL = "libEGL_angle.so";
@@ -68,7 +70,7 @@ public class BridgeGraphics extends Graphics{
 
     private BufferFormat bufferFormat = new BufferFormat(8, 8, 8, 0, 16, 0, 0, false);
 
-    public BridgeGraphics(){
+    public BridgeGraphics() {
     }
 
     /**
@@ -84,39 +86,36 @@ public class BridgeGraphics extends Graphics{
      * <p>A pair from {@code --angle-path} is made executable for the owner and read-only before LWJGL gets
      * it, the same W^X treatment the bridge's own libraries get. The device's own pair is not touched.</p>
      */
-    public void configure(){
+    public void configure() {
         String egl = SYSTEM_EGL;
         String gles = SYSTEM_GLES;
 
-        if(Bridge.options.angle){
-            if(Bridge.options.anglePath != null){
-                File eglAngle = findLibrary(Bridge.options.anglePath, Bridge.options.abi, ANGLE_EGL, SYSTEM_EGL);
-                File glesAngle = findLibrary(Bridge.options.anglePath, Bridge.options.abi, ANGLE_GLES, SYSTEM_GLES);
-                if(eglAngle != null && glesAngle != null){
+        if (Bridge.options.angle) {
+            if (Bridge.options.anglePath != null) {
+                Log.verbose("GL", "using angle provided by user");
+                File eglAngle = Libraries.find(Bridge.options.anglePath, Bridge.options.abi, ANGLE_EGL, SYSTEM_EGL);
+                File glesAngle = Libraries.find(Bridge.options.anglePath, Bridge.options.abi, ANGLE_GLES, SYSTEM_GLES);
+                if (eglAngle != null && glesAngle != null) {
                     // W^X: LWJGL opens these by absolute path, so they have to be executable and not
                     // writable. A pair from --angle-path is the only one the bridge may touch.
-                    boolean success = true;
-                    success &= eglAngle.setExecutable(true, true);
-                    success &= eglAngle.setReadOnly();
-                    success &= glesAngle.setExecutable(true, true);
-                    success &= glesAngle.setReadOnly();
-                    if (!success)
-                        Log.warn("failed to mark angle executable and readonly");
+                    Libraries.ensureLoadable(eglAngle);
+                    Libraries.ensureLoadable(glesAngle);
 
                     egl = eglAngle.getAbsolutePath();
                     gles = glesAngle.getAbsolutePath();
-                }else{
+                } else {
                     Log.warn("GL", "ANGLE was requested but no EGL/GLES pair was found under "
-                            + Bridge.options.anglePath + "; using the system libraries");
+                            + Bridge.options.anglePath + "; using the non-angle libraries");
                 }
-            }else{
-                String[] device = findSystemAngle();
-                if(device != null){
-                    egl = device[0];
-                    gles = device[1];
-                }else{
+            } else {
+                Log.verbose("GL", "using system angle");
+                File[] device = findSystemAngle();
+                if (device != null) {
+                    egl = stageAngle(device[0]).getAbsolutePath();
+                    gles = stageAngle(device[1]).getAbsolutePath();
+                } else {
                     Log.warn("GL", "ANGLE was requested but this device has no " + ANGLE_EGL
-                            + "/" + ANGLE_GLES + "; using the system libraries");
+                            + "/" + ANGLE_GLES + "; using the non-angle libraries");
                 }
             }
         }
@@ -127,27 +126,12 @@ public class BridgeGraphics extends Graphics{
         Configuration.OPENGLES_EXPLICIT_INIT.set(true);
         // LWJGL's own debug output follows the two flags the same way arc's level does: either one is a
         // request for everything a run can print.
-        if(Bridge.options.debug || Bridge.options.verbose)
+        if (Bridge.options.debug || Bridge.options.verbose)
             Configuration.DEBUG.set(true);
 
         Log.info("GL", "EGL library: " + egl);
         Log.info("GL", "GLES library: " + gles);
         GLES.create();
-    }
-
-    /** Looks in the ABI subfolder first, then flat; the caller may pass either layout. */
-    private static File findLibrary(File root, String abi, String... names){
-        for(String name : names){
-            if(abi != null && !abi.isEmpty()){
-                File byAbi = new File(new File(root, abi), name);
-                if(byAbi.isFile())
-                    return byAbi;
-            }
-            File flat = new File(root, name);
-            if(flat.isFile())
-                return flat;
-        }
-        return null;
     }
 
     /**
@@ -157,20 +141,28 @@ public class BridgeGraphics extends Graphics{
      *
      * @return the two absolute paths, EGL first, or {@code null} when no directory holds a pair
      */
-    private static String[] findSystemAngle(){
+    private static File[] findSystemAngle() {
         String suffix = bits64() ? "lib64" : "lib";
-        for(String root : SYSTEM_LIBRARY_ROOTS){
+        for (String root : SYSTEM_LIBRARY_ROOTS) {
             File dir = new File(root + "/" + suffix);
             File egl = new File(dir, ANGLE_EGL);
             File gles = new File(dir, ANGLE_GLES);
-            if(egl.isFile() && gles.isFile())
-                return new String[]{egl.getAbsolutePath(), gles.getAbsolutePath()};
+            if (egl.isFile() && gles.isFile())
+                return new File[] {egl, gles};
         }
         return null;
     }
 
+    private static File stageAngle(File source) {
+        File stageFolder = new File(Bridge.options.cacheFolder, STAGING_FOLDER);
+        File target = new File(stageFolder, source.getName());
+        Libraries.extract(() -> new FileInputStream(source), target);
+        Log.verbose("GL", "staged " + target.getName());
+        return target;
+    }
+
     /** Whether this process is 64 bit, which decides between the {@code lib} and {@code lib64} forms. */
-    private static boolean bits64(){
+    private static boolean bits64() {
         String arch = Bridge.options.arch == null ? "" : Bridge.options.arch;
         String abi = Bridge.options.abi == null ? "" : Bridge.options.abi;
         return arch.contains("64") || arch.startsWith("armv8") || abi.contains("64");
@@ -180,14 +172,14 @@ public class BridgeGraphics extends Graphics{
      * Creates the context and window surface for a window ART handed over, or replaces only the
      * surface when that is all that was lost. {@code window} is the {@code ANativeWindow*} pointer.
      */
-    public boolean createSurface(long window, int surfaceWidth, int surfaceHeight){
-        if(eglDisplay == EGL10.EGL_NO_DISPLAY || eglContext == EGL10.EGL_NO_CONTEXT){
+    public boolean createSurface(long window, int surfaceWidth, int surfaceHeight) {
+        if (eglDisplay == EGL10.EGL_NO_DISPLAY || eglContext == EGL10.EGL_NO_CONTEXT) {
             fullInit(window);
-        }else{
+        } else {
             createWindowSurface(window);
         }
 
-        if(!EGL10.eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext)){
+        if (!EGL10.eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext)) {
             Log.error("GL", "eglMakeCurrent failed: 0x" + Integer.toHexString(EGL10.eglGetError()));
             return false;
         }
@@ -195,7 +187,7 @@ public class BridgeGraphics extends Graphics{
         width = surfaceWidth;
         height = surfaceHeight;
 
-        if(gl20 == null)
+        if (gl20 == null)
             setupGL();
 
         GLES20.glViewport(0, 0, width, height);
@@ -206,43 +198,43 @@ public class BridgeGraphics extends Graphics{
     }
 
     /** Creates the display, config and context; the window surface is made afterwards. */
-    private void fullInit(long window){
+    private void fullInit(long window) {
         eglDisplay = EGL10.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY);
-        if(eglDisplay == EGL10.EGL_NO_DISPLAY)
+        if (eglDisplay == EGL10.EGL_NO_DISPLAY)
             throw new IllegalStateException("eglGetDisplay failed");
 
-        try(MemoryStack stack = MemoryStack.stackPush()){
-            if(!EGL10.eglInitialize(eglDisplay, stack.mallocInt(1), stack.mallocInt(1)))
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            if (!EGL10.eglInitialize(eglDisplay, stack.mallocInt(1), stack.mallocInt(1)))
                 throw new IllegalStateException("eglInitialize failed: 0x" + Integer.toHexString(EGL10.eglGetError()));
         }
 
         long config = chooseConfig();
         logConfig(config);
 
-        try(MemoryStack stack = MemoryStack.stackPush()){
+        try (MemoryStack stack = MemoryStack.stackPush()) {
             // ES2 is requested even for an ES3 context: every driver that can give an ES3 context
             // reports the ES2 bit, and asking for an ES3 bit is not portable.
             int[] attribs = {EGL13.EGL_CONTEXT_CLIENT_VERSION, Bridge.options.useGL30 ? 3 : 2, EGL10.EGL_NONE};
             eglContext = EGL10.eglCreateContext(eglDisplay, config, EGL10.EGL_NO_CONTEXT, stack.ints(attribs));
         }
-        if(eglContext == EGL10.EGL_NO_CONTEXT)
+        if (eglContext == EGL10.EGL_NO_CONTEXT)
             throw new IllegalStateException("eglCreateContext failed: 0x" + Integer.toHexString(EGL10.eglGetError()));
 
         createWindowSurface(window);
     }
 
-    private void createWindowSurface(long window){
+    private void createWindowSurface(long window) {
         long config = chooseConfig();
-        try(MemoryStack stack = MemoryStack.stackPush()){
+        try (MemoryStack stack = MemoryStack.stackPush()) {
             eglSurface = EGL10.eglCreateWindowSurface(eglDisplay, config, window, stack.ints(EGL10.EGL_NONE));
         }
-        if(eglSurface == EGL10.EGL_NO_SURFACE)
+        if (eglSurface == EGL10.EGL_NO_SURFACE)
             throw new IllegalStateException("eglCreateWindowSurface failed: 0x" + Integer.toHexString(EGL10.eglGetError()));
     }
 
     /** Picks a window-renderable ES2 config matching the requested channel sizes. */
-    private long chooseConfig(){
-        try(MemoryStack stack = MemoryStack.stackPush()){
+    private long chooseConfig() {
+        try (MemoryStack stack = MemoryStack.stackPush()) {
             int[] attribs = {
                     EGL12.EGL_RENDERABLE_TYPE, EGL13.EGL_OPENGL_ES2_BIT,
                     EGL10.EGL_RED_SIZE, 8,
@@ -256,16 +248,16 @@ public class BridgeGraphics extends Graphics{
             };
             PointerBuffer configs = stack.mallocPointer(1);
             IntBuffer count = stack.mallocInt(1);
-            if(!EGL10.eglChooseConfig(eglDisplay, stack.ints(attribs), configs, count))
+            if (!EGL10.eglChooseConfig(eglDisplay, stack.ints(attribs), configs, count))
                 throw new IllegalStateException("eglChooseConfig failed: 0x" + Integer.toHexString(EGL10.eglGetError()));
-            if(count.get(0) <= 0)
+            if (count.get(0) <= 0)
                 throw new IllegalStateException("no EGL config supports an OpenGL ES window");
             return configs.get(0);
         }
     }
 
     /** Records what the chosen config actually delivered, for the game's own GL log. */
-    private void logConfig(long config){
+    private void logConfig(long config) {
         int r = attrib(config, EGL10.EGL_RED_SIZE);
         int g = attrib(config, EGL10.EGL_GREEN_SIZE);
         int b = attrib(config, EGL10.EGL_BLUE_SIZE);
@@ -280,8 +272,8 @@ public class BridgeGraphics extends Graphics{
                 + " stencil " + s + " samples " + samples);
     }
 
-    private int attrib(long config, int attribute){
-        try(MemoryStack stack = MemoryStack.stackPush()){
+    private int attrib(long config, int attribute) {
+        try (MemoryStack stack = MemoryStack.stackPush()) {
             IntBuffer value = stack.mallocInt(1);
             return EGL10.eglGetConfigAttrib(eglDisplay, config, attribute, value) ? value.get(0) : 0;
         }
@@ -291,7 +283,7 @@ public class BridgeGraphics extends Graphics{
      * Builds the GL wrappers once the context is current: the ES3 one must not be installed on a
      * device that only offers ES2, so the choice needs the live version string.
      */
-    private void setupGL(){
+    private void setupGL() {
         GLES.createCapabilities();
 
         gl20 = new BridgeGL20();
@@ -303,7 +295,7 @@ public class BridgeGraphics extends Graphics{
         String renderer = gl20.glGetString(GL20.GL_RENDERER);
         glVersion = new GLVersion(Application.ApplicationType.android, version, vendor, renderer);
 
-        if(Bridge.options.useGL30 && glVersion.atLeast(3, 0) && glVersion.majorVersion > 2){
+        if (Bridge.options.useGL30 && glVersion.atLeast(3, 0) && glVersion.majorVersion > 2) {
             gl30 = new BridgeGL30();
             gl20 = gl30;
             Core.gl = gl30;
@@ -319,24 +311,24 @@ public class BridgeGraphics extends Graphics{
     }
 
     /** Releases the window surface but keeps the context, so a resume does not rebuild its objects. */
-    public void destroySurface(){
-        if(eglDisplay == EGL10.EGL_NO_DISPLAY)
+    public void destroySurface() {
+        if (eglDisplay == EGL10.EGL_NO_DISPLAY)
             return;
 
         EGL10.eglMakeCurrent(eglDisplay, EGL10.EGL_NO_SURFACE, EGL10.EGL_NO_SURFACE, EGL10.EGL_NO_CONTEXT);
-        if(eglSurface != EGL10.EGL_NO_SURFACE){
+        if (eglSurface != EGL10.EGL_NO_SURFACE) {
             EGL10.eglDestroySurface(eglDisplay, eglSurface);
             eglSurface = EGL10.EGL_NO_SURFACE;
         }
     }
 
     /** Tears the context down for good; only the destroy path needs this. */
-    public void disposeContext(){
+    public void disposeContext() {
         destroySurface();
-        if(eglDisplay == EGL10.EGL_NO_DISPLAY)
+        if (eglDisplay == EGL10.EGL_NO_DISPLAY)
             return;
 
-        if(eglContext != EGL10.EGL_NO_CONTEXT){
+        if (eglContext != EGL10.EGL_NO_CONTEXT) {
             EGL10.eglDestroyContext(eglDisplay, eglContext);
             eglContext = EGL10.EGL_NO_CONTEXT;
         }
@@ -348,7 +340,7 @@ public class BridgeGraphics extends Graphics{
     public void surfaceResized(int surfaceWidth, int surfaceHeight){
         width = surfaceWidth;
         height = surfaceHeight;
-        if(gl20 != null)
+        if (gl20 != null)
             GLES20.glViewport(0, 0, width, height);
     }
 
@@ -356,27 +348,27 @@ public class BridgeGraphics extends Graphics{
      * Marks the next frame as the first after a resume: a pause can last minutes, and its time would
      * otherwise reach the game as one delta and step its physics in one jump.
      */
-    public void markResumed(){
+    public void markResumed() {
         resumed = true;
     }
 
     /** Advances the frame clock. Called once per loop iteration, before the game updates. */
-    public void beginFrame(){
+    public void beginFrame() {
         long time = System.nanoTime();
-        if(lastFrameTime == -1)
+        if (lastFrameTime == -1)
             lastFrameTime = time;
 
         deltaTime = (time - lastFrameTime) / 1000000000.0f;
         lastFrameTime = time;
 
-        if(resumed){
+        if (resumed) {
             deltaTime = 0f;
             resumed = false;
         }
-        if(deltaTime == 0f)
+        if (deltaTime == 0f)
             deltaTime = 1f / 60f;
 
-        if(time - frameCounterStart >= 1000000000L){
+        if (time - frameCounterStart >= 1000000000L) {
             fps = frames;
             frames = 0;
             frameCounterStart = time;
@@ -386,33 +378,33 @@ public class BridgeGraphics extends Graphics{
     }
 
     public void swapBuffers(){
-        if(eglSurface != EGL10.EGL_NO_SURFACE)
+        if (eglSurface != EGL10.EGL_NO_SURFACE)
             EGL10.eglSwapBuffers(eglDisplay, eglSurface);
     }
 
     @Override
-    public GL20 getGL20(){
+    public GL20 getGL20() {
         return gl20;
     }
 
     @Override
-    public void setGL20(GL20 gl20){
+    public void setGL20(GL20 gl20) {
         this.gl20 = gl20;
-        if(gl30 == null){
+        if (gl30 == null) {
             Core.gl = gl20;
             Core.gl20 = gl20;
         }
     }
 
     @Override
-    public GL30 getGL30(){
+    public GL30 getGL30() {
         return gl30;
     }
 
     @Override
-    public void setGL30(GL30 gl30){
+    public void setGL30(GL30 gl30) {
         this.gl30 = gl30;
-        if(gl30 != null){
+        if (gl30 != null) {
             this.gl20 = gl30;
             Core.gl = gl30;
             Core.gl20 = gl30;
@@ -421,68 +413,68 @@ public class BridgeGraphics extends Graphics{
     }
 
     @Override
-    public int getWidth(){
+    public int getWidth() {
         return width;
     }
 
     @Override
-    public int getHeight(){
+    public int getHeight() {
         return height;
     }
 
     @Override
-    public int getBackBufferWidth(){
+    public int getBackBufferWidth() {
         return width;
     }
 
     @Override
-    public int getBackBufferHeight(){
+    public int getBackBufferHeight() {
         return height;
     }
 
     @Override
-    public long getFrameId(){
+    public long getFrameId() {
         return frameId;
     }
 
     @Override
-    public float getDeltaTime(){
+    public float getDeltaTime() {
         return deltaTime;
     }
 
     @Override
-    public int getFramesPerSecond(){
+    public int getFramesPerSecond() {
         return fps;
     }
 
     @Override
-    public GLVersion getGLVersion(){
+    public GLVersion getGLVersion() {
         return glVersion;
     }
 
     @Override
-    public float getPpiX(){
+    public float getPpiX() {
         return Bridge.options.xdpi;
     }
 
     @Override
-    public float getPpiY(){
+    public float getPpiY() {
         return Bridge.options.ydpi;
     }
 
     @Override
-    public float getPpcX(){
+    public float getPpcX() {
         return Bridge.options.xdpi / 2.54f;
     }
 
     @Override
-    public float getPpcY(){
+    public float getPpcY() {
         return Bridge.options.ydpi / 2.54f;
     }
 
     /** ART's display density; arc scales the whole mobile UI by it, so it cannot be a constant. */
     @Override
-    public float getDensity(){
+    public float getDensity() {
         return Bridge.options.density;
     }
 
@@ -493,59 +485,60 @@ public class BridgeGraphics extends Graphics{
      * v157, so with one epoch compiled and all of them run, the annotation cannot be present and
      * the method cannot be dropped - v156 would be left with an unimplemented abstract method.</p>
      */
-    public boolean setWindowedMode(int width, int height){
+    @SuppressWarnings("unused")
+    public boolean setWindowedMode(int width, int height) {
         return false;
     }
 
     @Override
-    public void setTitle(String title){
+    public void setTitle(String title) {
     }
 
     @Override
-    public void setVSync(boolean vsync){
+    public void setVSync(boolean vsync) {
     }
 
     @Override
-    public BufferFormat getBufferFormat(){
+    public BufferFormat getBufferFormat() {
         return bufferFormat;
     }
 
     @Override
-    public boolean supportsExtension(String extension){
-        if(extensions == null && gl20 != null)
+    public boolean supportsExtension(String extension) {
+        if (extensions == null && gl20 != null)
             extensions = gl20.glGetString(GL20.GL_EXTENSIONS);
         return extensions != null && extensions.contains(extension);
     }
 
     @Override
-    public boolean isContinuousRendering(){
+    public boolean isContinuousRendering() {
         return true;
     }
 
     @Override
-    public void setContinuousRendering(boolean isContinuous){
+    public void setContinuousRendering(boolean isContinuous) {
     }
 
     /** The loop renders every frame, so there is never anything to wake up. */
     @Override
-    public void requestRendering(){
+    public void requestRendering() {
     }
 
     @Override
-    public boolean isFullscreen(){
+    public boolean isFullscreen() {
         return true;
     }
 
     @Override
-    public Cursor newCursor(Pixmap pixmap, int xHotspot, int yHotspot){
+    public Cursor newCursor(Pixmap pixmap, int xHotspot, int yHotspot) {
         return null;
     }
 
     @Override
-    protected void setCursor(Cursor cursor){
+    protected void setCursor(Cursor cursor) {
     }
 
     @Override
-    protected void setSystemCursor(SystemCursor systemCursor){
+    protected void setSystemCursor(SystemCursor systemCursor) {
     }
 }

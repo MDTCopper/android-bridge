@@ -41,7 +41,7 @@ public final class ArcNatives {
     public static void stage() {
         File folder = new File(Bridge.options.cacheFolder, STAGING_FOLDER);
 
-        List<File> libraries = libraries();
+        List<File> libraries = Libraries.list(Bridge.options.arcLibPath, Bridge.options.abi);
         if (libraries.isEmpty()) {
             Log.error("no native libraries under " + Bridge.options.arcLibPath
                     + "; arc's natives cannot be loaded");
@@ -53,12 +53,7 @@ public final class ArcNatives {
         Map<String, File> wanted = new LinkedHashMap<>();
         boolean foundArc = false;
         for (File library : libraries) {
-            boolean success = true;
-            success &= library.setExecutable(true, true);
-            success &= library.setReadOnly();
-            if (!success)
-                Log.warn("failed to mark arc library executable and readonly: " + library.getAbsolutePath());
-
+            Libraries.ensureLoadable(library);
             String name = library.getName();
             wanted.put(name, library);
             if (ARC.equals(name))
@@ -75,7 +70,7 @@ public final class ArcNatives {
                 continue;
             if (!stage(entry.getValue(), staged))
                 continue;
-            Log.verbose("staged " + entry.getValue().getName() + " as " + entry.getKey());
+            Log.verbose("staged " + entry.getKey());
         }
 
         if (!foundArc)
@@ -84,40 +79,6 @@ public final class ArcNatives {
 
         Bridge.options.foundArcNative = foundArc;
         Bridge.options.arcNativeFolder = folder;
-    }
-
-    /**
-     * Every library the caller handed over, this device's architecture first: inside a folder the ABI
-     * subfolder wins over the files directly in it, because it is the one certainly for this process.
-     */
-    private static List<File> libraries() {
-        File path = Bridge.options.arcLibPath;
-        List<File> found = new ArrayList<>();
-        if (path == null)
-            return found;
-        if (path.isFile()) {
-            found.add(path);
-            return found;
-        }
-
-        File byAbi = new File(path, Bridge.options.abi);
-        if (byAbi.isDirectory())
-            addFiles(byAbi, found);
-        if (found.isEmpty())
-            addFiles(path, found);
-        return found;
-    }
-
-    private static void addFiles(File directory, List<File> found) {
-        File[] children = directory.listFiles();
-        if (children == null)
-            return;
-        // a stable order, so a lock line says the same thing on every launch
-        Arrays.sort(children, Comparator.comparing(File::getName));
-        for (File child : children) {
-            if (child.isFile() && child.getName().endsWith(".so"))
-                found.add(child);
-        }
     }
 
     /**
@@ -143,12 +104,7 @@ public final class ArcNatives {
             try (InputStream in = new FileInputStream(from); OutputStream out = new FileOutputStream(to)) {
                 Streams.pipeStream(in, out, true);
             }
-            boolean success = true;
-            success &= to.setExecutable(true, true);
-            success &= to.setReadOnly();
-            if (!success)
-                Log.warn("failed to mark arc native executable and readonly: " + to.getAbsolutePath());
-
+            Libraries.ensureLoadable(to);
             return true;
         } catch (IOException e) {
             Log.error("failed to stage " + from + " as " + to);

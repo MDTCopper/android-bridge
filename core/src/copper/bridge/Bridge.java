@@ -1,6 +1,5 @@
 package copper.bridge;
 
-import copper.bridge.annotation.*;
 import copper.bridge.util.*;
 import java.io.*;
 
@@ -29,7 +28,7 @@ public final class Bridge {
      * Makes sure this VM has a native library to load, and returns the file the JVM side has to load too.
      * The cached file always has the same path, {@code native/bridge/libcopperbridge.so}, so an old library
      * left there would be loaded with no error even though the kind ids both sides use come from the jar;
-     * {@link Archives#extractLibrary} is what rules that out.
+     * {@link Libraries#extract} is what rules that out.
      */
     public static File prepare() {
         String name = "libcopperbridge.so";
@@ -39,13 +38,13 @@ public final class Bridge {
         if (jar == null)
             throw new RuntimeException("cannot locate the bridge jar; pass --bridge-jar <path>");
 
-        try (Archives archives = Archives.open(jar)) {
-            Archives.Entry entry = archives.entry(entryName);
+        try (Archive archive = Archive.open(jar)) {
+            Archive.Entry entry = archive.entry(entryName);
 
             File cached = new File(options.cacheFolder, "native/bridge/" + name);
             Log.verbose("extracting the bridge native library (crc=0x"
                     + Long.toHexString(entry.crc()) + ", " + entry.size() + " bytes)");
-            archives.extractLibrary(entryName, cached);
+            Libraries.extract(entry::read, cached);
             options.bridgeLibrary = cached;
             return cached;
         }

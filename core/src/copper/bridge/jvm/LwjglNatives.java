@@ -24,7 +24,7 @@ public final class LwjglNatives {
 
     /**
      * Unpacks the LWJGL natives for this device out of the bridge jar {@link Bridge#jar()} names, through
-     * {@link Archives#extractLibrary}.
+     * {@link Libraries#extract}.
      *
      * @return the extracted {@code linux/<arch>} folder, or {@code null} when the natives could not be
      * unpacked
@@ -33,14 +33,13 @@ public final class LwjglNatives {
         String arch = arch(Bridge.options.abi);
         File root = new File(Bridge.options.cacheFolder, "native/lwjgl/linux/" + arch);
 
-        try (Archives jar = Archives.open(Bridge.jar())) {
+        try (Archive jar = Archive.open(Bridge.jar())) {
             for (String name : LWJGL_LIBRARIES) {
-                String resource = "native/lwjgl/linux/" + arch + "/" + name;
-                Archives.Entry entry = jar.entry(resource);
+                Archive.Entry entry = jar.entry("native/lwjgl/linux/" + arch + "/" + name);
                 File target = new File(root, name);
                 Log.verbose("extracting the lwjgl native library (name=" + name + ", crc=0x"
                         + Long.toHexString(entry.crc()) + ", " + entry.size() + " bytes)");
-                jar.extractLibrary(resource, target);
+                Libraries.extract(entry::read, target);
             }
         } catch (Throwable e) {
             Log.warn("GL", "failed to extract lwjgl natives; GL will not be able to load");

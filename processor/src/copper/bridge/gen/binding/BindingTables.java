@@ -8,11 +8,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Writes {@code gen/binding.cpp}: the table of classes that declare natives, the slots the reverse calls
- * are resolved into, and the walk that fills both.
- *
- * <p>The entries the tables point at are declared here rather than included, so a signature that
- * disagrees with one of them is a link error and a table cannot point at a function that is not there.</p>
+ * Writes {@code gen/binding.cpp}: the table of classes that declare natives, the slots the reverse calls are
+ * resolved into, and the walk that fills both.
  */
 final class BindingTables {
     private BindingTables() {
@@ -95,8 +92,8 @@ final class BindingTables {
                 #include <string>
 
                 // The entries the tables below point at, declared from the same declarations the tables are built
-                // from. None of their headers is included: a definition whose signature disagrees with one of
-                // these is a link error, which is what keeps a table from pointing at a function that is not there.
+                // from. None of their headers is included: a definition whose signature disagrees with one of these
+                // is a link error, which is what keeps a table from pointing at a function that is not there.
 
                 {{forwards}}
 
@@ -126,9 +123,8 @@ final class BindingTables {
 
                         /** Resolves one handle, if it is not resolved yet and this VM can see the class.
                          *
-                         *  <p>A class this VM cannot see is not an error: the bridge's classes are on both
-                         *  classpaths, but a class the other VM owns is not visible to this VM's loader, and the
-                         *  load that can see it is the one that resolves it.</p> */
+                         *  <p>A class this VM cannot see is not an error: a class the other VM owns is not visible to
+                         *  this VM's loader, and the load that can see it is the one that resolves it.</p> */
                         void ResolveInto(Reverse::Handle& slot, JNIEnv* env, const char* className,
                                 const char* methodName, const char* descriptor) {
                             if (slot.Ready() || env == nullptr)
@@ -157,9 +153,8 @@ final class BindingTables {
 
                     } // namespace
 
-                    // One slot per member that needs a handle, and the row the walk resolves it from. The two are in
-                    // the same order: slot i belongs to row i, and the call that reads slot i is the one whose
-                    // declaration produced that row. A member of both VMs has no slot - each VM has its own class,
+                    // One slot per member that needs a handle, and the row the walk resolves it from, in the same
+                    // order: slot i belongs to row i. A member of both VMs has no slot - each VM has its own class,
                     // and its call looks its own up when it is made.
                     Reverse REVERSE_HANDLES[] = {
                         {{handles}}
@@ -222,7 +217,6 @@ final class BindingTables {
                 .render();
     }
 
-    /** Each entry declared once, grouped by the namespace it lives in. */
     private static Map<String, List<Forward>> byNamespace(BindingProcessor processor) {
         Map<String, List<Forward>> grouped = new java.util.TreeMap<>();
         Set<String> declared = new LinkedHashSet<>();

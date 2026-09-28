@@ -5,10 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Writes {@code gen/vmcall.cpp}: one function per member native reaches for.
- *
- * <p>A pending exception is answered here, because it would otherwise surface much later at an unrelated
- * call.</p>
+ * Writes {@code gen/vmcall.cpp}: one function per member native reaches for. A pending exception is answered here,
+ * because it would otherwise surface much later at an unrelated call.
  */
 final class VmCallSource {
     private VmCallSource() {
@@ -72,7 +70,6 @@ final class VmCallSource {
                     """)
                     .with("side", member.cppSide())
                     .with("detaches", member.detaches));
-        // A pending exception would surface much later, at an unrelated call, so it is answered here.
         parts.add(Template.of("""
                 {{call}}
                 if (env->ExceptionCheck()) {
@@ -95,7 +92,6 @@ final class VmCallSource {
                 .with("body", Template.join(parts, "\n\n"));
     }
 
-    /** The call itself, which has one shape per return kind. */
     private static String jniCall(Reverse member) {
         StringBuilder text = new StringBuilder("env->").append(member.callMethod())
                 .append("(slot.clazz, slot.method");

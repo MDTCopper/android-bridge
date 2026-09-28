@@ -8,8 +8,8 @@ import android.view.*;
 import copper.bridge.annotation.*;
 
 /**
- * The read-only facts about Android and about this process: the JVM side has no Android types at
- * all, so the API level, the display rotation and the native heap can only be answered here.
+ * The read-only facts about Android and about this process: the JVM side has no Android types at all, so the
+ * API level, the display rotation and the native heap can only be answered here.
  */
 public class OsInfo {
     private final Context context;
@@ -18,16 +18,15 @@ public class OsInfo {
         this.context = context;
     }
 
-    /** The Android API level, which the game reports and uses for behaviour switches. */
     @ArtDirectHandler
     public int getOsVersion() {
         return Build.VERSION.SDK_INT;
     }
 
     /**
-     * The display's rotation in degrees, as arc's {@code Input.getRotation()} wants it rather than as
-     * Android's four rotation constants: the translation happens here because the JVM side has no
-     * Android types to translate with.
+     * The display's rotation in degrees, as arc's {@code Input.getRotation()} wants it rather than as Android's
+     * four rotation constants: the translation happens here because the JVM side has no Android types to
+     * translate with.
      */
     @ArtDirectHandler
     @SuppressWarnings("deprecation")
@@ -44,9 +43,9 @@ public class OsInfo {
     }
 
     /**
-     * Whether the display is natively landscape: the rotation decides whether the reported size is
-     * read as-is or swapped, and the wider of the two is the native orientation, so the answer does
-     * not depend on how the device is being held.
+     * Whether the display is natively landscape: the rotation decides whether the reported size is read as-is
+     * or swapped, and the wider of the two is the native orientation, so the answer does not depend on how the
+     * device is being held.
      */
     @ArtDirectHandler
     @SuppressWarnings("deprecation")
@@ -72,7 +71,6 @@ public class OsInfo {
         return manager == null ? null : manager.getDefaultDisplay();
     }
 
-    /** The native heap size, shown in the game's own memory display. */
     @ArtDirectHandler
     public long getNativeHeap() {
         return Debug.getNativeHeapAllocatedSize();

@@ -3,13 +3,11 @@
 
 #include "bus/waiters.h"
 
-// Finishing one waiter, which is what the pump does for every synchronous call it performs. Releasing them
-// all is private to waiters.cpp.
+// Finishing one waiter, which is what the pump does for every synchronous call it performs.
 
 namespace copper::bridge::bus::Waiters {
 
-    /** Completes the waiter registered under this id. An answer nobody waits for any more is released
-     *  here, because only the environment it was created in can release it. */
+    /** Completes the waiter registered under this id; an answer nobody waits for is released here. */
     void Complete(int64_t id, const jvalue& value, bool object, JNIEnv* callerEnv);
 
 } // namespace copper::bridge::bus::Waiters

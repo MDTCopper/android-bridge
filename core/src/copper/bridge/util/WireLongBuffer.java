@@ -4,8 +4,8 @@ import java.nio.LongBuffer;
 
 /**
  * A re-bindable view of a run of 64 bit signed integers, little-endian byte by byte. Also the type a native
- * window pointer travels as: it is 64 bit on every ABI this bridge supports, which is why it never goes
- * through an int.
+ * window pointer travels as: it is 64 bit on every ABI this bridge supports, which is why a pointer never
+ * goes through an int.
  */
 public final class WireLongBuffer extends WireBuffer {
     public WireLongBuffer() {
@@ -30,7 +30,6 @@ public final class WireLongBuffer extends WireBuffer {
         return this;
     }
 
-    /** The element at an index. */
     public long get(int element) {
         final int at = index(element);
         long value = 0;
@@ -39,12 +38,10 @@ public final class WireLongBuffer extends WireBuffer {
         return value;
     }
 
-    /** The element at the cursor, which then advances. */
     public long get() {
         return get(position++);
     }
 
-    /** Writes one element. */
     public WireLongBuffer put(int element, long value) {
         final int at = index(element);
         for (int i = 0; i < 8; i++)
@@ -52,12 +49,10 @@ public final class WireLongBuffer extends WireBuffer {
         return this;
     }
 
-    /** Writes one element at the cursor, which then advances. */
     public WireLongBuffer put(long value) {
         return put(position++, value);
     }
 
-    /** Takes the whole array as this buffer's content, copying it. */
     public WireLongBuffer set(long[] values) {
         final int count = values == null ? 0 : values.length;
         bind(new byte[count * 8], 0, count);
@@ -66,7 +61,6 @@ public final class WireLongBuffer extends WireBuffer {
         return this;
     }
 
-    /** Takes what is left of a {@code java.nio} buffer. */
     public WireLongBuffer set(LongBuffer values) {
         final int count = values == null ? 0 : values.remaining();
         bind(new byte[count * 8], 0, count);
@@ -75,7 +69,6 @@ public final class WireLongBuffer extends WireBuffer {
         return this;
     }
 
-    /** Takes another wire buffer's content, copying it. */
     public WireLongBuffer set(WireLongBuffer values) {
         if (values == null)
             return set((long[]) null);

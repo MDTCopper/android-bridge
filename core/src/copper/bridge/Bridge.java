@@ -4,19 +4,13 @@ import copper.bridge.util.*;
 import java.io.*;
 
 /**
- * The shared half of the bridge: the facts both virtual machines work from, and entering the native library.
- *
- * <p>A native method binds to the VM whose {@code JNI_OnLoad} registered it, so the same file is opened once
- * per side, and the per-class-loader flag is the right scope on both. Binding is deliberately not here: each
- * subsystem owns its door, because a shared entry point could not know which half an object declared, and
- * guessing wrong drops the frames of a channel whose receiver was not asked.</p>
+ * The shared half of the bridge: the facts both virtual machines work from, and entering the native library. A
+ * native method binds to the VM whose {@code JNI_OnLoad} registered it, so the same file is opened once per side.
+ * Binding is deliberately not here: each subsystem owns its door.
  */
 public final class Bridge {
 
-    /**
-     * The one options instance of this VM: the ART side parses its command line into it, the JVM
-     * side reads it back from the passed system properties.
-     */
+    /** The one options instance: ART parses into it, the JVM reads it back from the system properties. */
     public static BridgeOptions options;
 
     private static boolean loaded;
@@ -25,10 +19,8 @@ public final class Bridge {
     }
 
     /**
-     * Makes sure this VM has a native library to load, and returns the file the JVM side has to load too.
-     * The cached file always has the same path, {@code native/bridge/libcopperbridge.so}, so an old library
-     * left there would be loaded with no error even though the kind ids both sides use come from the jar;
-     * {@link Libraries#extract} is what rules that out.
+     * Makes sure this VM has a native library to load, and returns the file the JVM side has to load too. The cache
+     * path is fixed, so an old library left there would load with no error; {@link Libraries#extract} rules that out.
      */
     public static File prepare() {
         String name = "libcopperbridge.so";
@@ -50,12 +42,7 @@ public final class Bridge {
         }
     }
 
-    /**
-     * Enters the native library for this VM. No path parameter: the file this side loads came over as an
-     * option, so the caller has nothing to choose.
-     *
-     * @throws RuntimeException when no library was prepared for this side
-     */
+    /** Enters the native library for this VM; throws when no library was prepared for this side. */
     public static synchronized void load() {
         if (loaded)
             return;
@@ -68,11 +55,7 @@ public final class Bridge {
         loaded = true;
     }
 
-    /**
-     * The bridge jar, or {@code null} when neither the host nor a class loader can name it:
-     * {@code --bridge-jar} first, because the host knows where the jar ended up, then this class's own
-     * resource URL, which is the one answer that cannot be stale.
-     */
+    /** The bridge jar, or {@code null} when neither the host nor a class loader can name it. */
     public static File jar() {
         if (options != null && options.bridgeJar != null && options.bridgeJar.isFile())
             return options.bridgeJar;

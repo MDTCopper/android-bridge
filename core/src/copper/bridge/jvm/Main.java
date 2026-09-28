@@ -5,19 +5,13 @@ import copper.bridge.util.*;
 import java.util.*;
 
 /**
- * The entry point the JVM runs.
- *
- * <p>{@code JLI_Launch} starts this class as its main class with the game classpath already set, so this is
- * the "start the game" entry the bridge was built around. It is a separate class from the ART side's
- * {@link copper.bridge.art.Main}.</p>
+ * The entry point the JVM runs: {@code JLI_Launch} starts this class as its main class with the classpath set.
  */
 public class Main {
 
     /**
-     * Runs on the JVM side, launched by {@code JLI_Launch} as the main class. The ART side passed everything
-     * it resolved as {@code -Dcopper.bridge.*} system properties, so this does not re-parse the command line:
-     * one parse means the two sides cannot disagree about what was requested. What is left of the command
-     * line - the caller's positional arguments - is the game's and goes to the branch untouched.
+     * Runs on the JVM side, launched by {@code JLI_Launch}. The ART side passed everything as {@code -Dcopper.bridge.*}
+     * properties, so this does not re-parse; what is left of the command line is the game's and goes to the branch.
      */
     public static void main(String[] args) {
         Bridge.options = BridgeOptions.fromSystemProperties();
@@ -26,8 +20,7 @@ public class Main {
         else if (Bridge.options.debug)
             Log.setLevel(Log.Level.DEBUG);
 
-        // The library is loaded first: registering this VM's tables is what binds `logLine`, and from
-        // that point this side's lines are handed over like ART's, under this side's own logcat tag.
+        // The library is loaded first: registering this VM's tables binds `logLine`, which hands the lines over.
         Bridge.load();
         Log.setBackend(new NativeLogBackend());
         Log.setSide(Log.Side.JVM);
@@ -41,9 +34,8 @@ public class Main {
     }
 
     /**
-     * The game's arguments: this command line without the bridge's own option. An injected loader is told its
-     * classpath with {@code --bridge-class-path=<paths>}, and a loader that hands its whole command line on
-     * would otherwise have that option arrive as a game argument. Everything else is the caller's, in order.
+     * The game's arguments: this command line without the bridge's own option, which a loader forwarding its whole
+     * command line would otherwise hand to the game. Everything else is the caller's, in order.
      */
     private static String[] gameArgs(String[] args) {
         List<String> game = new ArrayList<>();

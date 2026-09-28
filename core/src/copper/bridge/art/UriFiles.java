@@ -7,11 +7,10 @@ import copper.bridge.util.*;
 import java.io.*;
 
 /**
- * Reads and writes documents the game was handed as a {@code content://} URI. A picked document is not a
- * file, and the JVM side has no content resolver, so the bytes either travel as an array or are streamed
- * here. {@link #readUri} keeps its checked exception on purpose: a direct call that throws is reported in the
- * native log and answered with the neutral value, so the caller sees a null array rather than a broken game
- * loop.
+ * Reads and writes documents the game was handed as a {@code content://} URI. A picked document is not a file,
+ * and the JVM side has no content resolver, so the bytes either travel as an array or are streamed here.
+ * {@link #readUri} keeps its checked exception on purpose: a direct call that throws is reported in the native
+ * log and answered with the neutral value, so the caller sees a null array rather than a broken game loop.
  */
 public class UriFiles {
     private final Context context;
@@ -21,8 +20,8 @@ public class UriFiles {
     }
 
     /**
-     * Reads a whole document into memory, for the JVM side, which cannot open one itself. A document too
-     * large for that goes through {@link #copyToUri} instead.
+     * Reads a whole document into memory, for the JVM side, which cannot open one itself. A document too large
+     * for that goes through {@link #copyToUri} instead.
      */
     @ArtDirectHandler
     public byte[] readUri(String uri) throws IOException {
@@ -33,7 +32,6 @@ public class UriFiles {
         }
     }
 
-    /** Writes a whole document from memory. */
     @ArtDirectHandler
     public boolean writeUri(String uri, byte[] data) {
         try (OutputStream out = context.getContentResolver()

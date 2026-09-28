@@ -7,34 +7,22 @@
 
 namespace copper::bridge::jni {
 
-    /**
-     * One thread's environment for one virtual machine, attached for as long as this object lives.
-     *
-     * <p>Two VMs share this library, so every crossing has to name the side it is about to touch. A thread
-     * that comes back keeps its attachment until it ends, released from a key destructor on that thread; a
-     * thread that parks for good never reaches its own end, so it asks for {@code detaches} and gives the
-     * record back before it stops.</p>
-     */
+    /** One thread's environment for one virtual machine, attached for as long as this object lives; every crossing
+     *  names the side it touches. A thread that parks for good gives the record back before it stops. */
     class Env {
     public:
-        /** The other side: the owner of a row's handler is the side the pump performs it on. */
         static Side Other(Side side) {
             return side == Side::Art ? Side::Jvm : Side::Art;
         }
 
-        /**
-         * Attaches this thread to `side`, unless it is attached already.
-         *
-         * @param detaches whether to give the attachment back when this object dies, rather than leaving
-         *                 it for the thread's own end
-         */
+        /** Attaches this thread to `side`, unless it is attached already. {@code detaches} gives it back on death. */
         Env(Side side, bool detaches = false);
         ~Env();
 
         Env(const Env&) = delete;
         Env& operator=(const Env&) = delete;
 
-        /** The environment, or nullptr when this thread could not be attached to that side. */
+        /** The environment, or nullptr when this thread could not be attached. */
         JNIEnv* Get() const {
             return env;
         }

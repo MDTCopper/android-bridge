@@ -6,16 +6,11 @@ import org.lwjgl.opengles.*;
 import org.lwjgl.system.*;
 
 /**
- * JVM-side implementation of arc's OpenGL ES 2.0 interface.
- *
- * <p>The engine runs in a JVM hosted by ART, so {@code android.opengl} is unreachable and LWJGL's
- * OpenGL ES bindings are the only route to GL. Where arc passes an explicit element count or array
- * offset, the {@code ngl*} entry points are used so those values reach GL verbatim instead of being
- * recomputed from a buffer's remaining elements.</p>
+ * JVM-side implementation of arc's OpenGL ES 2.0 interface. The engine runs in a JVM hosted by ART, so {@code
+ * android.opengl} is unreachable and LWJGL's OpenGL ES bindings are the only route to GL.
  */
 public class BridgeGL20 implements GL20 {
 
-    /** Resolves the address of a client-memory buffer; null stands for a NULL pointer, as GL expects. */
     protected static long bufferAddress(Buffer buffer) {
         if (buffer == null) {
             return 0L;

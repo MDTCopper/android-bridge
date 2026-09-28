@@ -6,11 +6,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * An ART-side handler of an event the JVM side posts.
- *
- * <p>Reserved: nothing is declared with it yet. The six handler annotations are the two sides
- * crossed with the three channels; leaving one out would mean the generator knew only part of that
- * grid, so a later declaration would need the mechanism changed as well as written.</p>
+ * An ART-side handler of an event the JVM side posts. Reserved: nothing is declared with it, kept because the
+ * two sides crossed with the three channels is the generator's whole grid - a missing cell would cost a
+ * mechanism change later, not just a declaration.
  */
 @Retention(RetentionPolicy.CLASS)
 @Target(ElementType.METHOD)

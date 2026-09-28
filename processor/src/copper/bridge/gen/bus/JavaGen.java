@@ -8,8 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Writes the Java half of the bus: the kind ids, one call class per side, and the holders of an
- * asynchronous call's outcomes.
+ * Writes the Java half of the bus: the kind ids, one call class per side, and the holders of an asynchronous call's
+ * outcomes.
  */
 final class JavaGen {
     private JavaGen() {
@@ -23,7 +23,6 @@ final class JavaGen {
         processor.writeJava(Packages.GENERATED, "JvmBus", JavaBus.of(processor, Side.JVM));
     }
 
-    /** The rows one side's class holds: what it calls, and the answers it delivers. */
     static List<Row> rowsFor(BusProcessor processor, Side side) {
         List<Row> rows = new ArrayList<>();
         for (Row row : processor.rows()) {
@@ -33,7 +32,6 @@ final class JavaGen {
         return rows;
     }
 
-    /** One generated import line, which every generated file names one by one. */
     static Template importLine(String type) {
         return Template.of("""
                 import {{type}};

@@ -6,8 +6,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Labels a generated call that is queued to the peer's main thread. Reading it on a generated
- * method is how a caller tells which channel a call takes without looking anything up.
+ * Labels a generated call queued to the peer's main thread; reading it on a generated method tells the caller
+ * which channel a call takes.
  */
 @Retention(RetentionPolicy.CLASS)
 @Target(ElementType.METHOD)

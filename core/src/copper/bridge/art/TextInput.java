@@ -9,8 +9,8 @@ import copper.bridge.annotation.*;
 import copper.bridge.gen.*;
 
 /**
- * The text input dialog. Runs on the main thread and keeps nothing: everything the answer needs is captured by
- * the dialog's own listeners, so two dialogs cannot answer for each other. Only the dialog lives here -
+ * The text input dialog. Runs on the main thread and keeps nothing: everything the answer needs is captured
+ * by the dialog's own listeners, so two dialogs cannot answer for each other. Only the dialog lives here -
  * raising the system keyboard belongs to the activity, because it hangs off the activity's view.
  */
 public class TextInput {
@@ -20,7 +20,6 @@ public class TextInput {
         this.activity = activity;
     }
 
-    /** Shows the text input dialog. */
     @ArtPostHandler(callbacks = {"result(String)", "canceled()"})
     public void textInput(long request, String title, String message, String text, boolean numeric,
                           boolean multiline, int maxLength, boolean allowEmpty) {
@@ -64,7 +63,6 @@ public class TextInput {
         });
     }
 
-    /** Reports a text input outcome once, whichever way the dialog ended. */
     private void reportTextInput(boolean[] reported, long request, String value) {
         if (reported[0])
             return;

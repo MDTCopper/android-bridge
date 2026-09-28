@@ -6,13 +6,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Writes the per-side binding: the instances an accessor holds, and how a bound object is matched to
- * one.
- *
- * <p>An accessor holds only the channels it receives; the writing side has nowhere to put an instance
- * and its {@code bind} answers false.</p>
- *
- * <p>Classes are held by name: the other virtual machine's classes do not resolve here.</p>
+ * Writes the per-side binding: the instances an accessor holds, and how a bound object is matched to one. An
+ * accessor holds only the channels it receives; Classes are held by name, because the other virtual machine's
+ * classes do not resolve here.
  */
 final class BatchRegistry {
     private BatchRegistry() {
@@ -58,10 +54,9 @@ final class BatchRegistry {
                     {{bounds}}
 
                     /**
-                     * Binds the instance this side's channels are served by.
-                     *
-                     * <p>The bus half is not consulted here: a type that declares no channel of this side
-                     * simply does not match, and whether it has bus handlers is native's business.</p>
+                     * Binds the instance this side's channels are served by. The bus half is not consulted here: a
+                     * type that declares no channel of this side simply does not match, and whether it has bus
+                     * handlers is native's business.
                      *
                      * @return whether the object declares one of this side's schemas
                      */

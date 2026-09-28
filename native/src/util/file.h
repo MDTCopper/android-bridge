@@ -5,11 +5,8 @@
 
 namespace copper::bridge::util::File {
 
-    // Path and file questions, and nothing else. They live together because more than one module asks them -
-    // the JRE loader, the ELF reader, the hook - and a second copy of "where does the directory end" is not
-    // worth having. Nothing here opens anything.
+    // Path and file questions, and nothing else: more than one module asks them, and a second copy is not worth having.
 
-    // Whether a path is an existing regular file.
     bool IsRegular(const std::string& path);
 
     // Directory part of a path, without a trailing slash. Returns "." when there is no separator.

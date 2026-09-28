@@ -6,15 +6,11 @@ import java.nio.charset.*;
 import java.util.*;
 
 /**
- * The version table shipped inside the bridge jar.
- *
- * <p>Each {@code bridge-vN} subproject emits one block while the jar is packed, so the table describes exactly
- * the branches present in this jar, and both VMs read that same file: ART to decide which dex to extract, the
- * JVM to decide which branch class to load. There is no table object - the jar carries one, so it is read when
- * first asked rather than held as a second copy of a fact that is already a file.</p>
+ * The version table shipped inside the bridge jar. Each {@code bridge-vN} subproject emits one block while
+ * the jar is packed, so the table describes exactly the branches present in this jar, and both VMs read that
+ * same file: ART to decide which dex to extract, the JVM to decide which branch class to load.
  */
 public class VersionTable {
-    /** Resource name inside the bridge jar. */
     public static final String RESOURCE = "bridge-versions.properties";
 
     private static List<VersionEntry> entries;
@@ -22,23 +18,17 @@ public class VersionTable {
     private VersionTable() {
     }
 
-    /**
-     * The branches this jar declares, in the order the selector walks them.
-     *
-     * <p>Read once and kept: the table cannot change while the process runs.</p>
-     */
+    /** Read once and kept: the table cannot change while the process runs. */
     public static List<VersionEntry> entries() {
         if (entries == null)
             entries = load();
         return entries;
     }
 
-    /** Whether any branch is declared at all. */
     public static boolean isEmpty() {
         return entries().isEmpty();
     }
 
-    /** Looks up one entry by branch name, or returns {@code null}. */
     public static VersionEntry byBranch(String branch) {
         for (VersionEntry entry : entries()) {
             if (entry.branch.equals(branch))
@@ -47,7 +37,6 @@ public class VersionTable {
         return null;
     }
 
-    /** Reads the table from the classpath. */
     private static List<VersionEntry> load() {
         try (InputStream in = VersionTable.class.getClassLoader().getResourceAsStream(RESOURCE)) {
             if (in == null) {
@@ -60,7 +49,6 @@ public class VersionTable {
         }
     }
 
-    /** Parses the table from a properties payload. */
     private static List<VersionEntry> parse(String text) {
         Properties props = new Properties();
         try {
@@ -97,7 +85,6 @@ public class VersionTable {
         return found;
     }
 
-    /** Returns the first key that is present, so older tables keep loading. */
     private static String first(Properties props, String prefix, String primary, String fallback) {
         String value = props.getProperty(prefix + primary);
         return value != null ? value : props.getProperty(prefix + fallback);

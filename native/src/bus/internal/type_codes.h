@@ -3,11 +3,8 @@
 
 #include "gen/bus.h"
 
-// What a type code means.
-//
-// A row describes its parameters and its return value as one character each, and those characters are the
-// whole description of a payload: which of them travel by reference and how many jint slots the others
-// take.
+// What a type code means: a row describes its parameters and return value as one character each, and those
+// characters are the whole description of a payload - which travel by reference, how many jint slots the rest take.
 
 namespace copper::bridge::bus::TypeCodes {
 
@@ -17,7 +14,6 @@ namespace copper::bridge::bus::TypeCodes {
                 || code == 'i' || code == 'j' || code == 'f' || code == 'd';
     }
 
-    /** How many of a row's parameters are objects, which is how many the message has to carry. */
     constexpr int ObjectCount(const char* codes) {
         int count = 0;
         for (int i = 0; codes[i] != '\0'; i++) {

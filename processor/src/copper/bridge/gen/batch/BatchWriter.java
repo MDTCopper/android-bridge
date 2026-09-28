@@ -6,10 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Writes the sending half of one channel: the class a caller writes a frame through. The wire form is
- * the receiving side's own signature, and every other source form the declaration listed becomes an
- * overload of the same name. The staging buffer is shared by this side's channels, so the control calls
- * carry the channel's suffix.
+ * Writes the sending half of one channel: the class a caller writes a frame through. The staging buffer is
+ * shared by this side's channels, so the control calls carry the channel's suffix.
  */
 final class BatchWriter {
     private BatchWriter() {
@@ -22,7 +20,7 @@ final class BatchWriter {
         for (Field header : schema.headers) {
             if (header.isSequence())
                 headers.add(Template.of("""
-                        /** Allocated once, here: a declaration never allocates. */
+                        /** Allocated once, here: a call never allocates. */
                         public final {{type}} {{name}} = new {{type}}();
                         """).with("type", header.java()).with("name", header.name));
             else
@@ -66,12 +64,10 @@ final class BatchWriter {
                         {{records}}
 
                         /**
-                         * Writes this frame's header, once, in front of its first record.
-                         *
-                         * <p>The header has to be laid down before the records, and the records are
-                         * written as the caller produces them, so this is called from every record method
-                         * and does its work only while the frame is still empty. Submitting only rewinds the
-                         * cursor, and a frame with no records is never sent at all.</p>
+                         * Writes this frame's header, once, in front of its first record. The header has to be laid
+                         * down before the records, and the records are written as the caller produces them, so this
+                         * is called from every record method and does its work only while the frame is still empty.
+                         * Submitting only rewinds the cursor, and a frame with no records is never sent at all.
                          */
                         private void beginFrame() {
                             if (used != 0)
@@ -114,7 +110,6 @@ final class BatchWriter {
                 .with("lock", schema.withLock ? lock(accessor).render() : "");
     }
 
-    /** The header write of a frame, once the room for it has been made. */
     private static Template header(Schema schema) {
         List<Template> writes = new ArrayList<>();
         for (Field field : schema.headers)
@@ -131,15 +126,12 @@ final class BatchWriter {
                 .with("writes", Template.join(writes, "\n"));
     }
 
-    /** The lock a writer that is not alone takes, for one channel. */
     private static Template lock(String accessor) {
         return Template.of("""
                 /**
-                 * Takes the staging lock, for a writer that is not alone on this side.
-                 *
-                 * <p>Hold it across the records of one frame and the submit that sends it: the
-                 * staging buffer is shared by this side's channels, and the ring a frame is pushed
-                 * to has one producer.</p>
+                 * Takes the staging lock, for a writer that is not alone on this side. Hold it across the records of
+                 * one frame and the submit that sends it: the staging buffer is shared by this side's channels, and
+                 * the ring a frame is pushed to has one producer.
                  */
                 public static void lock{{Accessor}}() {
                     LOCK.lock();
@@ -153,7 +145,6 @@ final class BatchWriter {
                 """).with("Accessor", accessor);
     }
 
-    /** One record's write methods. */
     private static Template record(Record record) {
         List<Template> writes = new ArrayList<>();
         for (Field param : record.params)

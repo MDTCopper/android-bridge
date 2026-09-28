@@ -7,22 +7,17 @@
 
 namespace copper::bridge::jni {
 
-    // The two environments of this process, kept beside this file; a side that has not been recorded yet is
-    // reported once rather than on every call.
+    // The two environments of this process: a side that has not been recorded yet is reported once, not per call.
 
     namespace {
 
-        /** Gives back one thread's attachment when that thread ends. `value` is the VM it was attached to. */
         void DetachAtExit(void* value) {
             auto vm = static_cast<JavaVM*>(value);
             if (vm != nullptr)
                 vm->DetachCurrentThread();
         }
 
-        /** The keys that remember which side a thread attached to. One per side, because a thread can be
-         *  attached to both - the thread that starts the JVM is a thread of ART's and becomes the JVM's main
-         *  thread. Both are created with this library: a thread that attached before a key existed would
-         *  leave a record no key can release. */
+        /** The keys remembering which side a thread attached to; one per side, a thread being attachable to both. */
         struct AttachedKeys {
             pthread_key_t keys[2] = {0, 0};
 
@@ -34,12 +29,10 @@ namespace copper::bridge::jni {
 
         AttachedKeys attachedKeys;
 
-        /** The key of one side, for the thread that recorded its attachment under it. */
         pthread_key_t AttachedKey(Side side) {
             return attachedKeys.keys[side == Side::Art ? 0 : 1];
         }
 
-        // Whether the line about a missing VM has been written: reported once.
         bool missingVmReported = false;
 
     } // namespace
@@ -58,8 +51,7 @@ namespace copper::bridge::jni {
         if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6) == JNI_OK && env != nullptr)
             return;
 
-        // Attached once and left attached while the thread lives: re-attaching on every call would pay the
-        // cost over and over. The record goes in a key whose destructor gives it back when the thread ends.
+        // Attached once and left attached while the thread lives; the record goes in a key whose destructor returns it.
         if (vm->AttachCurrentThread(&env, nullptr) != JNI_OK || env == nullptr) {
             env = nullptr;
             util::Log::Error("JNI", "cannot attach this thread to the other VM");

@@ -7,11 +7,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Writes one side's accessor class: the half of every channel that side takes part in.
- *
- * <p>Which half a side holds comes from the channel's own direction rather than from the side, so the
- * same class carries writers and readers for different channels. The two JNI entry points are one
- * declaration each rather than one per channel, because what crosses is the channel id plus the frame.</p>
+ * Writes one side's accessor class: the half of every channel that side takes part in. Which half a side
+ * holds comes from the channel's own direction rather than from the side, so the same class carries writers
+ * and readers for different channels.
  */
 final class BatchAccessor {
     private BatchAccessor() {
@@ -96,13 +94,11 @@ final class BatchAccessor {
                 .render();
     }
 
-    /** The staging buffer every channel of one side is assembled in, and the room check for it. */
     private static Template staging(List<Schema> writes) {
         List<Template> parts = new ArrayList<>();
         parts.add(Template.of("""
                 /** The staging buffer a frame is assembled in; it grows by doubling. */
                 private static byte[] buffer = new byte[1 << 12];
-                /** How much of it is written. */
                 private static int used;
                 """));
         if (locked(writes))
@@ -113,7 +109,6 @@ final class BatchAccessor {
 
                     """));
         parts.add(Template.of("""
-                /** Makes room for one more frame of at least this many bytes. */
                 private static void ensure(int bytes) {
                     if ((long) used + bytes <= buffer.length)
                         return;
@@ -132,12 +127,10 @@ final class BatchAccessor {
                 {{parts}}""").with("parts", Template.join(parts, "\n\n"));
     }
 
-    /** The channels one side receives. */
     private static List<Schema> received(BatchProcessor processor, Side side) {
         return channels(processor, side);
     }
 
-    /** The channels one side writes: the ones the other side receives. */
     private static List<Schema> sent(BatchProcessor processor, Side side) {
         return channels(processor, side.caller());
     }
@@ -151,7 +144,6 @@ final class BatchAccessor {
         return found;
     }
 
-    /** Whether any channel of one side is declared withLock, which is what needs the staging lock. */
     private static boolean locked(List<Schema> writes) {
         for (Schema schema : writes) {
             if (schema.withLock)

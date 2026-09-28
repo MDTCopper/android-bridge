@@ -18,13 +18,10 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
 
 /**
- * Reads the bridge's stream declarations and writes both sides of every batch channel from them.
- *
- * <p>A channel is one annotated abstract class: its fields are the header of a frame, each abstract
- * method is one kind of record, and the annotation carries both bounds a batch needs because it has no
- * wake-up of its own. The declarations are the only source, so the writer's methods and the reader's
- * switch cannot disagree about a record id, a field order or a width; a declaration this processor
- * cannot honour is a compile error here.</p>
+ * Reads the bridge's stream declarations and writes both sides of every batch channel from them. A channel is one
+ * annotated abstract class: its fields are the header of a frame, each abstract method is one kind of record, and
+ * the annotation carries both bounds a batch needs because it has no wake-up of its own. The declarations are the
+ * only source, so the writer's methods and the reader's switch cannot disagree.
  */
 @SupportedAnnotationTypes({BatchProcessor.ART_BATCH, BatchProcessor.JVM_BATCH})
 @SupportedOptions({Output.OUTPUT_OPTION})
@@ -36,7 +33,6 @@ public final class BatchProcessor extends AbstractProcessor {
     private final List<Schema> schemas = new ArrayList<>();
     private boolean generated;
 
-    /** The batch channels, in the order their ids are assigned. */
     List<Schema> schemas() {
         return schemas;
     }
@@ -82,15 +78,14 @@ public final class BatchProcessor extends AbstractProcessor {
         return true;
     }
 
-    // --- collecting ---------------------------------------------------------
+    //region collecting
 
     private void collectSchema(TypeElement type, Side receiver, TypeElement annotation) {
         Schema schema = new Schema();
         schema.owner = type.getQualifiedName().toString();
         schema.receiver = receiver;
 
-        // A channel has no wake-up of its own, so its receiver must be the side that already turns
-        // every frame - nothing else would drain it.
+        // A channel has no wake-up of its own, so its receiver must be the side that already turns every frame.
         if (receiver != Side.JVM) {
             error(type, "a batch channel can only be received on the side that is already turning every"
                     + " frame, which is the JVM side; the annotation names the side that writes the"
@@ -196,9 +191,8 @@ public final class BatchProcessor extends AbstractProcessor {
             record.params.add(param);
         }
 
-        // A record of scalars needs no @SenderSignature: the receiving side's signature is the wire
-        // form. A sequence does - an array and a wire buffer are the same run of elements but not the
-        // same type - so it lists the forms its callers may write it from, one overload each.
+        // A record of scalars needs no @SenderSignature: the wire form is the signature. A sequence does - an
+        // array and a wire buffer are the same run of elements but not the same type - so it lists its callers' forms.
         List<List<String>> signatures = senderSignatures(method);
         if (signatures.isEmpty() && !record.scalarsOnly()) {
             error(method, "'" + record.name + "' has a sequence parameter but no @SenderSignature: a caller"
@@ -234,7 +228,6 @@ public final class BatchProcessor extends AbstractProcessor {
         schema.records.add(record);
     }
 
-    /** Describes one parameter or header field, scalar or sequence. */
     private boolean fillField(TypeElement type, Field field, TypeMirror mirror, Element where) {
         WireType sequence = WireType.of(mirror.toString());
         if (sequence != null) {
@@ -253,9 +246,8 @@ public final class BatchProcessor extends AbstractProcessor {
     }
 
     /**
-     * Whether one listed source form describes the same wire shape as the parameter it fills: an
-     * {@code int[]} and a {@code WireIntBuffer} are the same run of 32 bit integers, a {@code long[]}
-     * is not.
+     * Whether one listed source form describes the same wire shape as the parameter it fills: an {@code int[]} and
+     * a {@code WireIntBuffer} are the same run of 32 bit integers, a {@code long[]} is not.
      */
     private boolean wireCompatible(Field param, String form) {
         if (!param.isSequence())
@@ -263,7 +255,6 @@ public final class BatchProcessor extends AbstractProcessor {
         return param.sequence.code.equals(sourceCode(form));
     }
 
-    /** The type code a source form describes, or {@code "?"} when it is not a form at all. */
     private static String sourceCode(String form) {
         switch (simpleName(form)) {
             case "byte[]":
@@ -291,13 +282,11 @@ public final class BatchProcessor extends AbstractProcessor {
         return dot < 0 ? type : type.substring(dot + 1);
     }
 
-    /** The forms one {@code @SenderSignature} lists, or an empty list when there is none. */
     private List<String> senderForms(Element element) {
         List<List<String>> all = senderSignatures(element);
         return all.isEmpty() ? new ArrayList<>() : all.get(0);
     }
 
-    /** Every {@code @SenderSignature} of an element, each one a complete parameter list. */
     private List<List<String>> senderSignatures(Element element) {
         List<List<String>> found = new ArrayList<>();
         for (AnnotationMirror mirror : element.getAnnotationMirrors()) {
@@ -327,7 +316,6 @@ public final class BatchProcessor extends AbstractProcessor {
         return (Boolean) annotationValue(type, annotation, name, fallback);
     }
 
-    /** One member of an annotation on a type, read by name because the processor has no class for it. */
     private Object annotationValue(TypeElement type, TypeElement annotation, String name, Object fallback) {
         for (AnnotationMirror mirror : type.getAnnotationMirrors()) {
             if (!mirror.getAnnotationType().toString().equals(annotation.getQualifiedName().toString()))
@@ -340,8 +328,9 @@ public final class BatchProcessor extends AbstractProcessor {
         }
         return fallback;
     }
+    //endregion
 
-    // --- helpers ------------------------------------------------------------
+    //region helpers
 
     private TypeElement annotation(String name) {
         return processingEnv.getElementUtils().getTypeElement(name);
@@ -350,8 +339,9 @@ public final class BatchProcessor extends AbstractProcessor {
     void error(Element element, String message) {
         Output.error(processingEnv, element, message);
     }
+    //endregion
 
-    // --- output -------------------------------------------------------------
+    //region output
 
     void writeJava(String packageName, String simpleName, String content) throws IOException {
         Output.writeJava(processingEnv, packageName, simpleName, content);
@@ -360,4 +350,5 @@ public final class BatchProcessor extends AbstractProcessor {
     void writeCpp(String name, String content) throws IOException {
         Output.writeCpp(processingEnv, name, content);
     }
+    //endregion
 }

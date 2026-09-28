@@ -7,10 +7,9 @@ import org.lwjgl.opengles.*;
 import org.lwjgl.system.*;
 
 /**
- * JVM-side implementation of arc's OpenGL ES 3.0 interface, layered on top of {@link BridgeGL20}.
- *
- * <p>Only the ES 3.0 additions live here; the reason every call has to travel through LWJGL's
- * OpenGL ES bindings is the one given there.</p>
+ * JVM-side implementation of arc's OpenGL ES 3.0 interface, layered on top of {@link BridgeGL20}: only the ES
+ * 3.0 additions live here, and every call travels through LWJGL's OpenGL ES bindings for the reason given
+ * there.
  */
 public class BridgeGL30 extends BridgeGL20 implements GL30 {
 

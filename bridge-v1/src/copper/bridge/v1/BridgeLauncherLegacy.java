@@ -5,21 +5,16 @@ import arc.files.*;
 import arc.func.*;
 
 /**
- * The file chooser as every epoch before 159 declared it: four separate entry points for open, save,
- * multiple and native.
- *
- * <p>No {@code @Override} on purpose: compiled against the newest epoch, none of these exists to
- * override, while the older epochs this jar runs on declare them and the JVM matches an override by
- * name and descriptor alone. Living in a class that never mentions {@code FileChooserParams} is what
- * keeps those epochs loadable.
+ * The file chooser as every epoch before 159 declared it: four separate entry points for open, save, multiple
+ * and native. Living in a class that never mentions {@code FileChooserParams} is what keeps those epochs
+ * loadable.
  */
 public class BridgeLauncherLegacy extends BridgeLauncher {
 
     /**
-     * Opens the system file picker. The answer arrives later on the request queue, so only the
-     * caller's listener crosses to ART: an open request yields paths the game can read at once (ART
-     * has already copied the documents into the bridge cache), a save request the URIs the game writes
-     * through {@link UriFi} when it is ready.
+     * Opens the system file picker. The answer arrives later on the request queue, so only the caller's listener
+     * crosses to ART: an open request yields paths the game can read at once (ART has already copied the documents
+     * into the bridge cache), a save request the URIs the game writes through {@link UriFi} when it is ready.
      */
     public void showFileChooser(boolean open, String title, String extension, Cons<Fi> cons) {
         showFileChooser(open, title, cons, extension);
@@ -30,8 +25,8 @@ public class BridgeLauncherLegacy extends BridgeLauncher {
     }
 
     /**
-     * Redirected to the bridge picker: the base implementation would look for a native dialog library
-     * that only ships with the desktop build.
+     * Redirected to the bridge picker: the base implementation would look for a native dialog library that only
+     * ships with the desktop build.
      */
     public void showNativeFileChooser(boolean open, String title, Cons<Fi> cons, String... extensions) {
         showFileChooser(open, title, cons, extensions);

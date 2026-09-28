@@ -4,10 +4,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * The buffer types a schema may declare a sequence as.
- *
- * <p>They are the one shape both readable on the receiving side and writable on the sending side,
- * which is why a declaration names one instead of an array.</p>
+ * The buffer types a schema may declare a sequence as: the one shape both readable on the receiving side and
+ * writable on the sending side, which is why a declaration names one instead of an array.
  */
 public final class WireType {
     private static final Map<String, WireType> TYPES = new LinkedHashMap<>();
@@ -25,15 +23,12 @@ public final class WireType {
         TYPES.put("WireStringView", new WireType("WireStringView", "l", "String", 0, true));
     }
 
-    /** The simple name of the type as a declaration writes it. */
     public final String simple;
     /** The type code from the bridge's closed vocabulary, so the two channels agree on types. */
     public final String code;
-    /** The Java type of one element. */
     public final String element;
     /** Bytes per element; zero for the string view, whose entries are variable. */
     public final int width;
-    /** Whether this is the string view rather than one of the numeric buffers. */
     public final boolean strings;
 
     private WireType(String simple, String code, String element, int width, boolean strings) {
@@ -49,15 +44,14 @@ public final class WireType {
     }
 
     /**
-     * The description of a declared type, or {@code null} when it is not a wire buffer. Matched on
-     * the simple name: a schema may import its buffers from anywhere.
+     * The description of a declared type, or {@code null} when it is not a wire buffer. Matched on the simple name,
+     * so a schema may import its buffers from anywhere.
      */
     public static WireType of(String type) {
         final int dot = type.lastIndexOf('.');
         return TYPES.get(dot < 0 ? type : type.substring(dot + 1));
     }
 
-    /** A comma separated list of the names a schema may declare, for a diagnostic. */
     public static String names() {
         return String.join(", ", TYPES.keySet());
     }

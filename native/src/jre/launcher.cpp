@@ -29,8 +29,6 @@ namespace copper::bridge::jre::Launcher {
                            const char* pname, const char* lname, jboolean javaargs,
                            jboolean cpwildcard, jboolean javaw, jint ergo);
 
-        // Only used for JLI_Launch's own banner and a couple of internal comparisons; the game never sees
-        // them.
         constexpr const char* FULL_VERSION = "1.8.0-internal";
         constexpr const char* DOT_VERSION = "1.8";
 
@@ -52,14 +50,9 @@ namespace copper::bridge::jre::Launcher {
     } // namespace
 
     /**
-     * Ends what the VM left behind, in the way its exit code asks for.
-     *
-     * <p>A non-zero status means the VM could not do its job: {@code _exit} runs no teardown at all, because
-     * that teardown is what takes ART down with it - an ART-side thread that touches the destroyed state
-     * dies of FORTIFY and SIGABRT (measured on the tablet, on the OEM insets thread).</p>
-     *
-     * <p>A clean return is the game ending on its own terms: the screen leaves with its own transition and
-     * this thread parks, so that teardown never runs; the host kills what is left before the next game.</p>
+     * Ends what the VM left behind, in the way its exit code asks for. A non-zero status means it could not do its
+     * job: {@code _exit} runs no teardown - that teardown takes ART down, an ART thread touching the destroyed state
+     * dying of FORTIFY/SIGABRT (measured). A clean return is the game ending on its own terms.
      */
     [[noreturn]] void EndProcessNow(int status) {
         if (status != 0) {
@@ -96,8 +89,7 @@ namespace copper::bridge::jre::Launcher {
                 env->DeleteLocalRef(element);
         }
 
-        // The VM keeps these strings for the rest of the process, so they are copied into memory that
-        // outlives this call.
+        // The VM keeps these strings for the rest of the process, so they are copied into memory that outlives this call.
         std::vector<char*> argv;
         argv.reserve(args.size());
         for (const std::string& arg : args) {
@@ -112,8 +104,7 @@ namespace copper::bridge::jre::Launcher {
             argv.push_back(copy);
         }
 
-        // The loader opened libjli when it loaded the JRE: ask it for that library rather than open the file
-        // a second time.
+        // The loader opened libjli when it loaded the JRE: ask it rather than open the file a second time.
         void* libjli = Loader::GetJreLibrary("libjli.so");
         if (libjli == nullptr) {
             Log::Error("LAUNCHER", "the JRE's launcher library is not loaded, so there is nothing to start");
@@ -132,13 +123,10 @@ namespace copper::bridge::jre::Launcher {
                      FULL_VERSION, DOT_VERSION, argv[0], argv[0], JNI_FALSE, JNI_TRUE,
                      JNI_FALSE, 0);
 
-        // What the VM printed is already in the log - the writes were taken over at the calls that made them
-        // - so there is nothing left in a pipe to wait for.
+        // What the VM printed is already in the log, so there is nothing left in a pipe to wait for.
         Log::InfoF("LAUNCHER", "jvm returned %d", static_cast<int>(result));
 
-        // The same ending the other path gets, so both leave the same way: the screen goes, and then the
-        // process ends with the VM's status. Its teardown is safe here - the VM that shared this process's
-        // C++ state is already gone - and the process must not outlive it.
+        // The same ending the other path gets: its teardown is safe here, the VM that shared this state being gone.
         EndProcessNow(static_cast<int>(result));
     }
 

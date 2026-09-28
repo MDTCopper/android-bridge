@@ -6,8 +6,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Labels a generated call that runs on the calling thread and returns a value. Written by the
- * generator, never by hand.
+ * Labels a generated call that runs on the calling thread and returns a value. Written by the generator, never
+ * by hand.
  */
 @Retention(RetentionPolicy.CLASS)
 @Target(ElementType.METHOD)

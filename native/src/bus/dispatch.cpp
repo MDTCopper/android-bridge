@@ -12,12 +12,8 @@
 #include <cstring>
 #include <utility>
 
-// Performing a call: the pump that drains one side's whole mailbox, and the two ways a single row can run.
-//
-// A posted row is taken off the queue and performed here, on the thread that pumps; a direct row is
-// performed on the calling thread with no queue and no wake-up. The mailbox lock is never held while a
-// handler runs - it may take its time, and a thread that queues another message meanwhile must not be
-// made to wait for it.
+// Performing a call: the pump that drains one side's whole mailbox, and the two ways a row can run - posted, on the
+// pumping thread, or direct, on the calling thread. The mailbox lock is never held while a handler runs.
 
 namespace copper::bridge::bus::Dispatch {
     namespace Bus = gen::Bus;
@@ -26,12 +22,10 @@ namespace copper::bridge::bus::Dispatch {
 
     namespace {
 
-        /** Makes the call and hands back the raw result; all copying is `CopyValue`'s job. A null target
-         *  means a static method, which is how answers are delivered. */
+        /** Makes the call and hands back the raw result; a null target means a static method, as for answers. */
         jvalue CallTarget(JNIEnv* env, char return_code, jobject target, jclass clazz, jmethodID method,
                           const jvalue* args, int count);
 
-        /** Performs one posted row: decodes its payload, calls the handler, handles what comes back. */
         void InvokePosted(JNIEnv* env, const Bus::CallEntry& entry, jobject target, const Message& message) {
             jmethodID method = Handlers::MethodOf(entry.target, entry.kind);
             jclass owner = nullptr;
@@ -45,8 +39,6 @@ namespace copper::bridge::bus::Dispatch {
                 return;
             }
 
-            // The arguments, in the order the row declares them: the request id first when the row carries
-            // one, then - for an answer - the kind, then the payload.
             jvalue converted[Bus::MAX_PARAMS];
             int count = 0;
             if (entry.leading_request)
@@ -83,13 +75,11 @@ namespace copper::bridge::bus::Dispatch {
                         Log::InfoF("BUS", "handler %s threw", entry.method_name);
                         env->ExceptionClear();
                     }
-                    // On the JVM side the exception is left pending: the game loop gets the real stack.
                 }
                 return;
             }
 
-            // A synchronous row: the caller is blocked on this request id, so it is completed here, with the
-            // answer when there is one and the neutral value on every path that has none.
+            // A synchronous row: the caller is blocked on this request id, so it is completed here.
             if (env->ExceptionCheck()) {
                 Log::InfoF("BUS", "handler %s threw", entry.method_name);
                 env->ExceptionClear();
@@ -102,9 +92,7 @@ namespace copper::bridge::bus::Dispatch {
                 return;
             }
 
-            // An object answer is the most expensive crossing there is: it is rebuilt in the VM of the
-            // waiting caller and handed over as a global reference, because a local one belongs to this
-            // thread.
+            // An object answer is rebuilt in the VM of the waiting caller and handed over as a global reference.
             jni::Side callerSide = jni::Env::Other(entry.target);
             jni::Env callerEnv(callerSide);
             JNIEnv* caller = callerEnv.Get();
@@ -262,9 +250,7 @@ namespace copper::bridge::bus::Dispatch {
     }
 
     void Pump(JNIEnv* env, jclass) {
-        // The game loop's entry point: it performs what was addressed to this side, and nothing else. The
-        // other queue belongs to the other VM's loop (`Drain`): an ART handler may touch views and activity
-        // state, so it has to run on the thread that owns them.
+        // The game loop's entry point: it performs what was addressed to this side, on the thread that owns the ART state.
         PumpSide(jni::Side::Jvm, env);
     }
 

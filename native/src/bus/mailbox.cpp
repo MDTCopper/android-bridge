@@ -9,26 +9,19 @@
 #include <mutex>
 #include <utility>
 
-// The mailboxes themselves, and the wake-up that keeps a sleeping side from holding a call back.
-//
-// One mailbox per side, each with its own lock, so a burst of calls costs one wake-up and the side that
-// performs them never holds a lock while a handler runs.
+// The mailboxes, and the wake-up that keeps a sleeping side from holding a call back.
 
 namespace copper::bridge::bus::Mailbox {
     namespace Bus = gen::Bus;
 
     namespace {
 
-        // What one side's mailbox is: its queue and the flag that keeps a burst from posting a wake-up per
-        // message.
         struct Mailbox {
             std::mutex mutex;
             std::deque<Message> queue;
             bool wakePosted = false;
         };
 
-        // One per side, existing with this library rather than with the first message: a call can be queued
-        // before either side has pumped anything.
         Mailbox artMailbox;
         Mailbox jvmMailbox;
 
@@ -36,18 +29,14 @@ namespace copper::bridge::bus::Mailbox {
             return side == jni::Side::Art ? artMailbox : jvmMailbox;
         }
 
-        // Whether the line below about the missing ART pump has been written: reported once, because it
-        // would otherwise repeat for every wake-up.
         bool pumpMissingReported = false;
 
-        // Wakes the ART main thread. This is the only Java call a JVM thread makes on an ART object, and it
-        // is legal because Handler.post is thread safe; the call itself belongs to the binding layer.
+        // Wakes the ART main thread: the only Java call a JVM thread makes on an ART object (Handler.post is thread safe).
         void WakeArt() {
             switch (gen::VmCall::PostRequestPump()) {
             case gen::Binding::Outcome::Done:
                 return;
             case gen::Binding::Outcome::NotResolved: {
-                // Reported once: the pump's slow tick still picks the call up, so this is late, not lost.
                 if (!pumpMissingReported) {
                     pumpMissingReported = true;
                     util::Log::Info("BUS", "the ART bus was never resolved, so calls wait for its periodic tick");
@@ -81,8 +70,7 @@ namespace copper::bridge::bus::Mailbox {
             }
         }
 
-        // Woken outside the lock: the wake-up borrows the other side's environment, and holding a lock
-        // across a JNI call is how a UI thread ends up waiting on a game thread.
+        // Woken outside the lock: holding one across a JNI call is how a UI thread ends up waiting on a game thread.
         if (wakeUp)
             Wake(to);
     }
@@ -90,8 +78,7 @@ namespace copper::bridge::bus::Mailbox {
     void BeginDrain(jni::Side me) {
         Mailbox& box = MailboxOf(me);
         std::lock_guard<std::mutex> lock(box.mutex);
-        // Cleared before the first take rather than after the last, so anything queued while a drain is
-        // running posts a new wake-up instead of assuming one is already on its way.
+        // Cleared before the first take, not after the last, so anything queued during a drain posts a new wake-up.
         box.wakePosted = false;
     }
 
@@ -108,8 +95,7 @@ namespace copper::bridge::bus::Mailbox {
     int Clear(jni::Side side) {
         Mailbox& box = MailboxOf(side);
 
-        // The whole queue leaves under the lock and is given back outside it: releasing a payload attaches
-        // to the VM that owns it, and a producer must not wait behind that.
+        // The whole queue is given back outside the lock: releasing a payload attaches to the VM that owns it.
         std::deque<Message> abandoned;
         {
             std::lock_guard<std::mutex> lock(box.mutex);

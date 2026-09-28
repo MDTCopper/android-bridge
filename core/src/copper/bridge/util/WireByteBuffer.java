@@ -3,12 +3,8 @@ package copper.bridge.util;
 import java.nio.ByteBuffer;
 
 /**
- * A re-bindable view of a run of bytes, read and written by type.
- *
- * <p>The element is a byte, so the wire form and the memory form are the same. What it adds is the shape
- * {@code java.nio.ByteBuffer} has - the cursor moves by the width of the value written or read, so a frame
- * can be walked field by field without the caller tracking offsets - and every accessor is little-endian,
- * the only order this bridge uses.</p>
+ * A re-bindable view of a run of bytes, read and written by type. Element and wire form are the same byte;
+ * every accessor is little-endian, the only order this bridge uses.
  */
 public final class WireByteBuffer extends WireBuffer {
     public WireByteBuffer() {
@@ -33,36 +29,30 @@ public final class WireByteBuffer extends WireBuffer {
         return this;
     }
 
-    /** The element at an index. */
     public byte get(int element) {
         return hb[index(element)];
     }
 
-    /** The element at the cursor, which then advances. */
     public byte get() {
         return hb[index(position++)];
     }
 
-    /** Writes one element. */
     public WireByteBuffer put(int element, byte value) {
         hb[index(element)] = value;
         return this;
     }
 
-    /** Writes one element at the cursor, which then advances. */
     public WireByteBuffer put(byte value) {
         hb[index(position++)] = value;
         return this;
     }
 
-    /** The 16 bit character at the cursor, which then advances past it. */
     public char getChar() {
         final int at = index(position, 2);
         position += 2;
         return (char) ((hb[at] & 0xFF) | ((hb[at + 1] & 0xFF) << 8));
     }
 
-    /** Writes one 16 bit character at the cursor, which then advances past it. */
     public WireByteBuffer putChar(char value) {
         final int at = index(position, 2);
         position += 2;
@@ -71,14 +61,12 @@ public final class WireByteBuffer extends WireBuffer {
         return this;
     }
 
-    /** The 16 bit integer at the cursor, which then advances past it. */
     public short getShort() {
         final int at = index(position, 2);
         position += 2;
         return (short) ((hb[at] & 0xFF) | (hb[at + 1] << 8));
     }
 
-    /** Writes one 16 bit integer at the cursor, which then advances past it. */
     public WireByteBuffer putShort(short value) {
         final int at = index(position, 2);
         position += 2;
@@ -87,7 +75,6 @@ public final class WireByteBuffer extends WireBuffer {
         return this;
     }
 
-    /** The 32 bit integer at the cursor, which then advances past it. */
     public int getInt() {
         final int at = index(position, 4);
         position += 4;
@@ -95,7 +82,6 @@ public final class WireByteBuffer extends WireBuffer {
                 | ((hb[at + 3] & 0xFF) << 24);
     }
 
-    /** Writes one 32 bit integer at the cursor, which then advances past it. */
     public WireByteBuffer putInt(int value) {
         final int at = index(position, 4);
         position += 4;
@@ -106,7 +92,6 @@ public final class WireByteBuffer extends WireBuffer {
         return this;
     }
 
-    /** The 64 bit integer at the cursor, which then advances past it. */
     public long getLong() {
         final int at = index(position, 8);
         position += 8;
@@ -116,7 +101,6 @@ public final class WireByteBuffer extends WireBuffer {
         return value;
     }
 
-    /** Writes one 64 bit integer at the cursor, which then advances past it. */
     public WireByteBuffer putLong(long value) {
         final int at = index(position, 8);
         position += 8;
@@ -125,32 +109,26 @@ public final class WireByteBuffer extends WireBuffer {
         return this;
     }
 
-    /** The 32 bit float at the cursor, which then advances past it. */
     public float getFloat() {
         return Float.intBitsToFloat(getInt());
     }
 
-    /** Writes one 32 bit float at the cursor, which then advances past it. */
     public WireByteBuffer putFloat(float value) {
         return putInt(Float.floatToRawIntBits(value));
     }
 
-    /** The 64 bit float at the cursor, which then advances past it. */
     public double getDouble() {
         return Double.longBitsToDouble(getLong());
     }
 
-    /** Writes one 64 bit float at the cursor, which then advances past it. */
     public WireByteBuffer putDouble(double value) {
         return putLong(Double.doubleToRawLongBits(value));
     }
 
     /**
-     * The string at the cursor, which then advances past it. The layout is a 32 bit character count
-     * followed by the characters - the same bytes a sequence of characters writes, so a declaration may
-     * carry its text either way and the other side reads the same frame. Reading allocates, because that is
-     * what a string is; a caller that only wants the characters should read them one at a time with
-     * {@link #getChar()}.
+     * The string at the cursor, which then advances past it. Layout is a 32 bit character count followed by the
+     * characters - the same bytes a character sequence writes, so a declaration may carry its text either way.
+     * Reading allocates; a caller that only wants the characters uses {@link #getChar()}.
      */
     public String getString() {
         final int count = getInt();
@@ -163,11 +141,8 @@ public final class WireByteBuffer extends WireBuffer {
         return new String(text);
     }
 
-    /**
-     * Writes one character sequence at the cursor, which then advances past it; {@code null} writes nothing.
-     * Takes a {@link CharSequence} rather than a {@code String} so a caller holding a borrowed view such as
-     * {@link WireCharBuffer} can write it without decoding it into a copy first.
-     */
+    /** Writes a character sequence at the cursor; {@code null} writes nothing. Takes a {@link CharSequence}, so a
+     * borrowed view such as {@link WireCharBuffer} needs no decoded copy. */
     public WireByteBuffer putString(CharSequence value) {
         final int count = value == null ? 0 : value.length();
         putInt(count);
@@ -176,7 +151,7 @@ public final class WireByteBuffer extends WireBuffer {
         return this;
     }
 
-    /** Takes the whole array as this buffer's content, copying it into an array of its own. */
+    /** Every {@code set} overload copies into an array of this instance's own; {@code null} empties it. */
     public WireByteBuffer set(byte[] values) {
         final int count = values == null ? 0 : values.length;
         bind(new byte[count], 0, count);
@@ -185,7 +160,7 @@ public final class WireByteBuffer extends WireBuffer {
         return this;
     }
 
-    /** Takes what is left of a {@code java.nio} buffer, for a caller that already holds one. */
+    /** Takes what is left of a {@code java.nio} buffer. */
     public WireByteBuffer set(ByteBuffer values) {
         final int count = values == null ? 0 : values.remaining();
         bind(new byte[count], 0, count);
@@ -194,7 +169,6 @@ public final class WireByteBuffer extends WireBuffer {
         return this;
     }
 
-    /** Takes another wire buffer's content, copying it. */
     public WireByteBuffer set(WireByteBuffer values) {
         if (values == null)
             return set((byte[]) null);

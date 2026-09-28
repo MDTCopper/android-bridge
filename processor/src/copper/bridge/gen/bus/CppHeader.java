@@ -5,9 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Writes {@code gen/bus.h}: the row ids, the widths the tables were built to, and the two entry shapes.
- *
- * <p>It declares no JNI entry point: each is declared beside the file that implements it.</p>
+ * Writes {@code gen/bus.h}: the row ids, the widths the tables were built to, and the two entry shapes. It declares
+ * no JNI entry point: each is declared beside the file that implements it.
  */
 final class CppHeader {
     private CppHeader() {
@@ -27,15 +26,11 @@ final class CppHeader {
                 #include <jni.h>
                 #include <cstdint>
 
-                // This header declares the bus's rows inside the generated bus namespace, so a row has
-                // exactly one name; the hand-written bus includes this header, never the other way round.
-                // What it needs from outside is which side a row belongs to.
-                //
-                // The bus's own four JNI entry points are not declared here: each is declared beside the file
-                // that implements it, in its module's public header. The generated stubs are not here either -
-                // a generated JNI function gets no public header, so they stay in internal/bus.h. The
-                // registration tables are written with every other table, in gen/binding.cpp, because the
-                // layer that registers them is what decides what they hold.
+                // This header declares the bus's rows inside the generated bus namespace, so a row has exactly one
+                // name; the hand-written bus includes this header, never the other way round. The bus's own four JNI
+                // entry points are not declared here - each is declared beside the file that implements it - and
+                // neither are the generated stubs, which stay in internal/bus.h because a generated JNI function gets
+                // no public header. The registration tables are written with every other table, in gen/binding.cpp.
                 #include "jni/side.h"
 
                 namespace copper::bridge::gen::Bus {

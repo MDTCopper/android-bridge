@@ -29,7 +29,6 @@ public final class WireDoubleBuffer extends WireBuffer {
         return this;
     }
 
-    /** The element at an index. */
     public double get(int element) {
         final int at = index(element);
         long bits = 0;
@@ -38,12 +37,10 @@ public final class WireDoubleBuffer extends WireBuffer {
         return Double.longBitsToDouble(bits);
     }
 
-    /** The element at the cursor, which then advances. */
     public double get() {
         return get(position++);
     }
 
-    /** Writes one element. */
     public WireDoubleBuffer put(int element, double value) {
         final int at = index(element);
         final long bits = Double.doubleToRawLongBits(value);
@@ -52,12 +49,10 @@ public final class WireDoubleBuffer extends WireBuffer {
         return this;
     }
 
-    /** Writes one element at the cursor, which then advances. */
     public WireDoubleBuffer put(double value) {
         return put(position++, value);
     }
 
-    /** Takes the whole array as this buffer's content, copying it. */
     public WireDoubleBuffer set(double[] values) {
         final int count = values == null ? 0 : values.length;
         bind(new byte[count * 8], 0, count);
@@ -66,7 +61,6 @@ public final class WireDoubleBuffer extends WireBuffer {
         return this;
     }
 
-    /** Takes what is left of a {@code java.nio} buffer. */
     public WireDoubleBuffer set(DoubleBuffer values) {
         final int count = values == null ? 0 : values.remaining();
         bind(new byte[count * 8], 0, count);
@@ -75,7 +69,6 @@ public final class WireDoubleBuffer extends WireBuffer {
         return this;
     }
 
-    /** Takes another wire buffer's content, copying it. */
     public WireDoubleBuffer set(WireDoubleBuffer values) {
         if (values == null)
             return set((double[]) null);

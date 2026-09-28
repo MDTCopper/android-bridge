@@ -6,9 +6,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Writes {@code gen/internal/bus.h}: the row lookups the walk and the stubs use, and the stubs themselves.
- *
- * <p>None of it leaves the module, so it is not in the public header.</p>
+ * Writes {@code gen/internal/bus.h}: the row lookups the walk and the stubs use, and the stubs themselves. None of
+ * it leaves the module, so it is not in the public header.
  */
 final class CppInternal {
     private CppInternal() {

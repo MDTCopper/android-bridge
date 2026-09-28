@@ -6,11 +6,8 @@ import copper.bridge.annotation.*;
 import copper.bridge.util.*;
 
 /**
- * Hands a URI or a folder over to whatever the system has registered for it.
- *
- * <p>Both directions start another app, which is the activity's to do, but nothing else about the activity is
- * involved, so this is not a method of it. Posted rather than called directly even though they only want a
- * value back: starting an activity belongs to the main thread.</p>
+ * Hands a URI or a folder over to whatever the system has registered for it. Posted rather than called
+ * directly even though they only want a value back: starting an activity belongs to the main thread.
  */
 public class UriLauncher {
     private final Context context;
@@ -19,10 +16,6 @@ public class UriLauncher {
         this.context = context;
     }
 
-    /**
-     * Opens a URI with whatever the system has registered for it. The context is the activity, so
-     * {@code startActivity} starts the new activity in this task and no {@code NEW_TASK} flag is needed.
-     */
     @ArtPostHandler
     public boolean openUri(String uri) {
         try {
@@ -34,7 +27,6 @@ public class UriLauncher {
         }
     }
 
-    /** Opens a folder with the system file manager. Posted for the same reason as {@link #openUri}. */
     @ArtPostHandler
     public boolean openFolder(String folder) {
         try {

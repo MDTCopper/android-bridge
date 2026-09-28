@@ -27,9 +27,8 @@ namespace copper::bridge::jni::Log {
         jstring path = nullptr;
         jboolean wanted = JNI_FALSE;
 
-        // A call that did not reach the member is the same answer as a missing file, for any of the three:
-        // this side has nothing to write through, and the caller in Java is the one that has to say what
-        // went wrong.
+        // A call that did not reach the member is the same answer as a missing file, for any of the three: this side
+        // has nothing to write through, and the caller in Java is the one that has to say what went wrong.
         if (VmCall::LogLevel(&level) != Outcome::Done)
             return false;
 

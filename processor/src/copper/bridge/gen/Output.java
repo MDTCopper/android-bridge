@@ -12,14 +12,11 @@ import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
 
 /**
- * Where the two generators put what they produce.
- *
- * <p>The Java half goes through the filer, so javac compiles it in the same run. The C++ half is
- * written into the source tree, and the build that reads it runs after the compile that writes it, so
- * nothing is ever compiled from a stale table.</p>
+ * Where the two generators put what they produce. The Java half goes through the filer, so javac compiles it
+ * in the same run; the C++ half is written into the source tree, and the build that reads it runs after the
+ * compile that writes it, so nothing is ever compiled from a stale table.
  */
 public final class Output {
-    /** Where the generated C++ goes; the Java half always goes through the filer. */
     public static final String OUTPUT_OPTION = "busOutput";
 
     private Output() {

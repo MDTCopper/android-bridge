@@ -75,8 +75,7 @@ namespace copper::bridge::util::Elf {
             return false;
         }
         if (header.e_phnum == 0) {
-            // A shared object with no program headers has no dynamic section either: a library with no
-            // dependencies, not a failure.
+            // A shared object with no program headers has no dynamic section either: no dependencies, not a failure.
             fclose(file);
             return true;
         }
@@ -164,8 +163,7 @@ namespace copper::bridge::util::Elf {
                 break;
                 case DT_RUNPATH:
                 case DT_RPATH: {
-                    // DT_RUNPATH wins over DT_RPATH when both are present, so runpath entries are
-                    // prepended to keep them ahead of any inherited rpath.
+                    // DT_RUNPATH wins over DT_RPATH, so runpath entries are prepended to stay ahead of inherited rpath.
                     std::string value = stringAt(entry.d_un.d_val);
                     size_t start = 0;
                     while (start <= value.size()) {

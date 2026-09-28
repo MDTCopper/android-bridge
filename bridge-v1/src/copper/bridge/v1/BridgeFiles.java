@@ -8,11 +8,11 @@ import copper.bridge.*;
 import java.io.*;
 
 /**
- * The JVM side of arc's {@link Files} abstraction. {@code local}/{@code external} are the game data folder,
- * {@code absolute} is never rebased, and {@code internal}/{@code classpath} are entries of the game jars
- * (see {@link BridgeFi}) - which is all of it: a classpath cannot be enumerated, so a directory that lives only
- * inside a jar has no listing, exactly as on the desktop. Cache files live under the bridge's own folder rather
- * than arc's default {@code local("cache")}, which would scatter scratch files through the user's data folder.
+ * The JVM side of arc's {@link Files} abstraction: {@code local} and {@code external} are the game data folder,
+ * {@code absolute} is never rebased, and {@code internal}/{@code classpath} are entries of the game jars - which is
+ * all of it, since a classpath cannot be enumerated and a directory that lives only inside a jar has no listing,
+ * exactly as on the desktop. Cache files live under the bridge's own folder rather than arc's default
+ * {@code local("cache")}, which would scatter scratch files through the user's data folder.
  */
 public class BridgeFiles implements Files {
     private final File dataFolder;
@@ -23,7 +23,6 @@ public class BridgeFiles implements Files {
         this.cacheFolder = new File(require(Bridge.options.cacheFolder, "cache folder"), "files");
     }
 
-    /** The handle for a path of any type. See {@link BridgeFi}. */
     @Override
     public Fi get(String path, FileType type) {
         return new BridgeFi(this, path, type);

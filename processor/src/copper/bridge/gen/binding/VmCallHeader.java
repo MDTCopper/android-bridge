@@ -5,9 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Writes {@code gen/vmcall.h}: one declaration per member native reaches for.
- *
- * <p>Every name in the namespace is derived from a member's own name, so nothing else may live there.</p>
+ * Writes {@code gen/vmcall.h}: one declaration per member native reaches for. Every name in the namespace is derived
+ * from a member's own name, so nothing else may live there.
  */
 final class VmCallHeader {
     private VmCallHeader() {
@@ -45,14 +44,11 @@ final class VmCallHeader {
 
                 #include "gen/binding.h"
 
-                // The calls native makes into the VM: one entry per member Java marks with @UsedByNative.
-                //
-                // Nothing else lives in this namespace. Every name below is derived from a member's own name, so a
+                // The calls native makes into the VM: one entry per member Java marks with @UsedByNative. Nothing
+                // else lives in this namespace, because every name below is derived from a member's own name and a
                 // name of any other kind could collide with one of them; the vocabulary and the tables are in
-                // gen::Binding for that reason.
-                //
-                // What each call is for is not generated: the declaration says which member and the annotation says
-                // which environment and whether the caller is coming back, and that is all this file knows.
+                // gen::Binding for that reason. What each call is for is not generated: the declaration says which
+                // member, and the annotation which environment and whether the caller is coming back.
 
                 namespace copper::bridge::gen::VmCall {
 

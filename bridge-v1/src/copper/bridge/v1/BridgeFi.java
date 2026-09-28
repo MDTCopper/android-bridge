@@ -7,12 +7,11 @@ import arc.util.*;
 import java.io.*;
 
 /**
- * The {@link Fi} this branch's {@link BridgeFiles} hands out, mirroring arc's own desktop backend, which overrides
- * only what its platform answers differently. Reading an {@code internal} or {@code classpath} path, its existence
- * and its length are all answered by arc's base class, which falls back to the class loader that owns the jars, and
- * a directory that lives only inside a jar has no listing on the desktop either. What is answered differently here
- * is {@code local}, which arc rebases for {@code external} only, and the handle type, which has to stay this one so
- * the rebasing survives a {@code child}/{@code parent} walk.
+ * The {@link Fi} this branch's {@link BridgeFiles} hands out, mirroring arc's own desktop backend and overriding only
+ * what this platform answers differently: {@code local}, which arc rebases for {@code external} only, and the handle
+ * type, which has to stay this one so the rebasing survives a {@code child}/{@code parent} walk. Reading an
+ * {@code internal} or {@code classpath} path is arc's base class, which falls back to the class loader that owns the
+ * jars.
  */
 public class BridgeFi extends Fi {
     private final BridgeFiles files;
@@ -22,7 +21,7 @@ public class BridgeFi extends Fi {
         this.files = files;
     }
 
-    /** Fi(File, FileType) is protected, so only a subclass may call it - which this is. */
+    /** {@code Fi(File, FileType)} is protected, so only a subclass may call it - which this is. */
     BridgeFi(BridgeFiles files, File file, FileType type) {
         super(file, type);
         this.files = files;

@@ -5,8 +5,8 @@
 
 namespace copper::bridge::jni::Log {
 
-    // The log's Java face. The log itself knows nothing about a VM: a line reaches it as plain strings, and
-    // turning a Java string into one of those lines is what this file is for.
+    // The log's Java face: a line reaches the log as plain strings, and turning a Java string into one is what this
+    // file is for.
 
     /** One line Java handed over: its level, its side's logcat tag, and the text the file holds. */
     void LogLine(JNIEnv* env, jclass, jint level, jstring logcatTag, jstring line);

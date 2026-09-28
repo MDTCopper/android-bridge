@@ -5,10 +5,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Writes {@code gen/bus_tables.cpp}: what the hand-written bus reads to find a row's handler.
- *
- * <p>The kind-id-to-index maps are emitted from the same rows as the tables, so the two cannot disagree
- * about which row an id means.</p>
+ * Writes {@code gen/bus_tables.cpp}: what the hand-written bus reads to find a row's handler. The
+ * kind-id-to-index maps are emitted from the same rows as the tables, so the two cannot disagree about which
+ * row an id means.
  */
 final class CppTables {
     private CppTables() {
@@ -93,8 +92,8 @@ final class CppTables {
 
                 #include "internal/bus.h"
 
-                // The bus's four hand-written entry points, which the two tables at the bottom register.
-                // Each is declared beside the file that implements it, so nothing declares them twice.
+                // The bus's four hand-written entry points, which the two tables at the bottom register. Each is
+                // declared beside the file that implements it, so nothing declares them twice.
                 #include "bus/dispatch.h"
                 #include "bus/handlers.h"
                 #include "bus/waiters.h"
@@ -102,8 +101,7 @@ final class CppTables {
                 namespace copper::bridge::gen::Bus {
                 namespace {
 
-                /** Kind id to its index in CALL_ENTRIES, or -1. Emitted so a lookup costs one array
-                 *  read instead of a scan. */
+                /** Kind id to its index in CALL_ENTRIES, or -1: a lookup costs one array read, not a scan. */
                 constexpr int8_t CALL_INDEX[KIND_COUNT] = {
                         {{callIndex}}
                 };

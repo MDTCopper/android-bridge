@@ -10,12 +10,7 @@
 
 #include <cstring>
 
-// The payload codec.
-//
-// A row's payload is described entirely by its type codes, so nothing here names a type. Scalars become
-// jint slots; objects become either global references built in the target VM (a synchronous row, where the
-// handler gets a ready argument) or a box measured, allocated and written once (an asynchronous row, where
-// the enqueuing thread must not touch the other VM at all).
+// The payload codec: a row's payload is described entirely by its type codes, so nothing here names a type.
 
 namespace copper::bridge::bus::Codec {
     namespace Bus = gen::Bus;
@@ -102,14 +97,10 @@ namespace copper::bridge::bus::Codec {
             }
         }
 
-        // The scalar half of a message: a value packed into the message's jint slots, as many of them as the
-        // value is wide.
         void WriteScalar(jint* args, int& cursor, char code, const jvalue& value) {
             switch (code) {
                 case 'J': {
-                    // The value's own bytes, and the reader takes them back the same way: that is what makes
-                    // the pair agree without either side naming a byte order. The cursor moves by the width
-                    // of the value it just took, not by a rule about the code.
+                    // The value's own bytes, and the reader takes them back the same way, so neither side names a byte order.
                     memcpy(&args[cursor], &value.j, sizeof(value.j));
                     cursor += sizeof(value.j) / sizeof(*args);
                     break;
@@ -133,9 +124,7 @@ namespace copper::bridge::bus::Codec {
             }
         }
 
-        // How many bytes one object parameter takes in the box. Every length is known before writing, which
-        // is what makes a single exact allocation possible. A null is spelled with a length of 0xffffffff,
-        // because a length of zero already means an empty string or array.
+        // How many bytes one object parameter takes in the box. A null is spelled 0xffffffff; a zero length is empty.
         constexpr uint32_t BOXED_NULL = 0xffffffffu;
 
         size_t BoxedSize(JNIEnv* env, char code, const jvalue& value) {
@@ -162,13 +151,8 @@ namespace copper::bridge::bus::Codec {
         }
 
         /**
-         * Writes one object parameter at `out`, without ever writing at or past `end`.
-         *
-         * The lengths are read here rather than taken from {@link BoxedSize}, because the array being
-         * written is not frozen between the two: a growing `String[]` or a widening array of scalars must
-         * not push the box past the bytes that were allocated for it. What does not fit is left as it is
-         * - the caller counts what it wrote and the peer reads only that many parameters - so a box that was
-         * resized under the writer loses its tail instead of writing beyond itself.
+         * Writes one object parameter at `out`, never at or past `end`.
+         * The lengths are read here, not from {@link BoxedSize}: a box resized under the writer loses its tail.
          */
         uint8_t* WriteBoxed(JNIEnv* env, uint8_t* out, uint8_t* end, char code, const jvalue& value) {
             if (value.l == nullptr)
@@ -199,8 +183,7 @@ namespace copper::bridge::bus::Codec {
                     return out;
                 uint8_t* header = out;
                 out = PutU32(out, static_cast<uint32_t>(count));
-                // A count is written before the items it counts are, so what fits decides it: leaving the
-                // array's own count there while writing fewer would make the peer read past the box.
+                // A count is written before the items it counts: the array's own count would make the peer read past the box.
                 size_t written = 0;
                 for (jsize i = 0; i < count; i++) {
                     auto item = static_cast<jstring>(env->GetObjectArrayElement(array, i));
@@ -308,8 +291,7 @@ namespace copper::bridge::bus::Codec {
             return array;
         }
 
-        // The asynchronous half: measure everything, allocate once, write once. The target VM's environment
-        // is not touched, which is the point of encoding instead of materialising.
+        // The asynchronous half: measure everything, allocate once, write once, without touching the target VM.
         void PutBoxed(JNIEnv* from, Message& message, const jvalue* values, int count) {
             const Bus::CallEntry* entry = Bus::FindCall(message.kind);
             const char* codes = entry == nullptr ? "" : entry->param_codes;
@@ -324,10 +306,7 @@ namespace copper::bridge::bus::Codec {
             message.box.data = new uint8_t[total];
             message.box.size = static_cast<uint32_t>(total);
 
-            // The box is the measured size and the writing is bounded by it, because the objects it is
-            // measured from are live: the two loops are one snapshot only if nothing may write past what the
-            // first one counted. `WriteBoxed` writes a parameter whole or not at all, so what the peer reads
-            // back is always a whole number of parameters even when the tail did not fit.
+            // The box is the measured size and the writing is bounded by it; the objects it was measured from are live.
             uint8_t* out = message.box.data + 1;
             uint8_t* end = message.box.data + total;
             int written = 0;
@@ -335,21 +314,16 @@ namespace copper::bridge::bus::Codec {
                 if (!TypeCodes::IsObject(codes[i]))
                     continue;
                 uint8_t* next = WriteBoxed(from, out, end, codes[i], values[i]);
-                // A moved cursor means a whole parameter went in - the writer leaves the cursor alone rather
-                // than writing part of one - so this is the count of what the block holds.
                 if (next != out)
                     written++;
                 out = next;
             }
 
-            // Written last and from what went in rather than from what was measured, so the peer walks
-            // exactly the parameters that are there: the measured count would let it read past the block
-            // when a live object grew beyond the bytes reserved for it.
+            // Written from what went in rather than what was measured, so the peer walks exactly what is there.
             message.box.data[0] = static_cast<uint8_t>(written);
         }
 
-        // The synchronous half: the object is rebuilt in the target VM and pinned there, so the handler gets
-        // a ready argument and the message owns one global reference until it is disposed.
+        // The synchronous half: the object is rebuilt in the target VM and pinned there for the handler.
         jobject PutTarget(JNIEnv* from, jni::Side target, char code, const jvalue& value) {
             if (value.l == nullptr)
                 return nullptr;
@@ -376,8 +350,7 @@ namespace copper::bridge::bus::Codec {
         jvalue value{};
         switch (code) {
             case 'J': {
-                // A value's bytes, and the writer laid them down the same way - which is also the order a
-                // jlong has in memory on every ABI this library is built for.
+                // A value's bytes, laid down as the writer did - and as a jlong sits in memory on every ABI here.
                 memcpy(&value.j, &args[cursor], sizeof(value.j));
                 cursor += sizeof(value.j) / sizeof(*args);
                 break;
@@ -428,8 +401,7 @@ namespace copper::bridge::bus::Codec {
 
         const char* codes = entry->param_codes;
 
-        // Scalars are written on both paths: the same fixed-width slots either way, and the peer reads them
-        // without asking which kind of row it is pumping.
+        // Scalars are written on both paths: the same fixed-width slots either way.
         int args = 0;
         for (int i = 0; i < count && codes[i] != '\0'; i++) {
             if (!TypeCodes::IsObject(codes[i]))
@@ -437,7 +409,6 @@ namespace copper::bridge::bus::Codec {
         }
 
         if (!Row::IsSync(message.kind)) {
-            // Asynchronous: the objects are encoded here and materialised by the peer.
             PutBoxed(from, message, values, count);
             return;
         }

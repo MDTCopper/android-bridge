@@ -4,16 +4,11 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * One piece of generated text with named holes in it.
- *
- * <p>{@code {{name}}} marks a hole and {@link #with} fills it at the column the hole sat at, so a
- * nested piece keeps its own indentation and the file's shape stays in one piece instead of being
- * spread over appending statements.</p>
- * <p>A value is a run of lines whose leading and trailing newlines are dropped, so the template
- * decides the layout; an empty value alone on its line takes that line away.</p>
+ * One piece of generated text with named holes in it. {@code {{name}}} marks a hole and {@link #with} fills
+ * it at the column the hole sat at, so a nested piece keeps its own indentation and the file's shape stays in
+ * one piece instead of being spread over appending statements.
  */
 public final class Template {
-    /** What a hole looks like: a name between these, and nothing else in between. */
     private static final String OPEN = "{{";
     private static final String CLOSE = "}}";
 
@@ -87,8 +82,8 @@ public final class Template {
     }
 
     /**
-     * Takes the newlines off both ends, and a trailing all-white line with them, so an item never
-     * carries a blank line to separate itself from the next one.
+     * Takes the newlines off both ends, and a trailing all-white line with them, so an item never carries a blank
+     * line to separate itself from the next one.
      */
     private static String trim(String value) {
         int start = 0;
@@ -112,9 +107,9 @@ public final class Template {
     }
 
     /**
-     * Puts the value at the hole line's indentation. A whole-line hole replaces that indentation,
-     * so every line moves; an inline hole keeps the text before it, so only the later lines move. A
-     * blank line stays blank - indenting it would put white space into the generated file.
+     * Puts the value at the hole line's indentation. A whole-line hole replaces that indentation, so every line
+     * moves; an inline hole keeps the text before it, so only the later lines move. A blank line stays blank, since
+     * indenting it would put white space into the generated file.
      */
     private static String move(String value, String indent, boolean wholeLine) {
         if (indent.isEmpty() || value.isEmpty())

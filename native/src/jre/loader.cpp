@@ -22,9 +22,7 @@ namespace copper::bridge::jre::Loader {
 
     namespace {
 
-        // The JRE's libraries by their path relative to the JRE's lib directory, each with the handle the
-        // linker gave back. Starts empty: the JRE directory is a value only Java has at startup, so
-        // LoadJreLibraries fills this in, not the first caller that asks for a library.
+        // The JRE's libraries by their path relative to lib/, with the handle the linker gave back.
         std::map<std::string, void*> jreLibraries;
 
     } // namespace
@@ -36,8 +34,7 @@ namespace copper::bridge::jre::Loader {
 
     namespace {
 
-        // The architecture directory names a JRE may use. The exact spelling differs between distributions,
-        // so several are tried.
+        // The architecture directory names a JRE may use; the spelling differs between distributions, so several are tried.
         std::vector<std::string> ArchitectureNames() {
             std::vector<std::string> names;
 
@@ -77,10 +74,8 @@ namespace copper::bridge::jre::Loader {
             return dirs;
         }
 
-        // Every library file in one directory, sorted so two runs open them in the same order. Nothing found
-        // here is loaded for its own sake - each file still goes through the same DT_NEEDED walk, and a
-        // dependency that cannot be found is still one log line - but the scan is what reaches the libraries
-        // the Java side asks for later by name.
+        // Every library file in one directory, sorted so two runs open them in the same order; each still walks
+        // DT_NEEDED, and the scan reaches the libraries Java asks for later by name.
         std::vector<std::string> SharedObjectsIn(const std::string& dir) {
             std::vector<std::string> found;
 
@@ -102,8 +97,6 @@ namespace copper::bridge::jre::Loader {
             return found;
         }
 
-        // One of the two libraries this bridge calls into, or an empty path when this JRE does not ship it.
-        // Everything else is discovered.
         std::string FindEntryPoint(const std::vector<std::string>& dirs, const char* soname) {
             for (const std::string& dir : dirs) {
                 std::string candidate = dir + "/" + soname;
@@ -132,8 +125,7 @@ namespace copper::bridge::jre::Loader {
 
         Log::Info("LOADER", "loading jre libraries");
 
-        // libjli holds JLI_Launch, libjvm holds JNI_CreateJavaVM. Resolving both up front turns a broken JRE
-        // layout into an immediate, clear report instead of a failure halfway through the launch.
+        // libjli holds JLI_Launch, libjvm JNI_CreateJavaVM: resolving both up front reports a broken layout at once.
         const std::string jli = FindEntryPoint(dirs, "libjli.so");
         const std::string jvm = FindEntryPoint(dirs, "libjvm.so");
 
@@ -149,9 +141,7 @@ namespace copper::bridge::jre::Loader {
         if (!ok)
             return;
 
-        // Opened by absolute path, which is what makes the later loads by name work: both entry points are
-        // answered out of the linker's list of what is already mapped rather than out of a search path. Each
-        // is recorded under its path relative to the JRE's lib directory.
+        // Opened by absolute path, so the later loads by name are answered from the linker's list of what is mapped.
         const std::string libDir = root + "/lib/";
         const auto remember = [&libDir](const std::string& path, void* handle) {
             if (handle == nullptr)
@@ -164,11 +154,8 @@ namespace copper::bridge::jre::Loader {
         remember(jli, linker.Load(jli));
         remember(jvm, linker.Load(jvm));
 
-        // The two entry points do not reach everything a running JVM asks for: libnet.so is needed by
-        // libnio.so alone, and only once the Java side touches java.nio.file - by then the JVM calls
-        // dlopen("libnet.so") itself, and bionic cannot resolve that name, since the JRE directory is not on
-        // its search path. Opening the file here makes that same call resolve to the copy in memory.
-        // Architecture directory first: a JRE keeps the architecture specific build of a shared name there.
+        // The entry points do not reach everything a running JVM asks for: libnet.so is needed by libnio.so alone,
+        // and only once Java touches java.nio.file, by which time bionic cannot resolve the name.
         std::vector<std::string> onDemandDirs;
         for (const std::string& arch : ArchitectureNames())
             onDemandDirs.push_back(root + "/lib/" + arch);
@@ -203,8 +190,7 @@ namespace copper::bridge::jre::Loader {
         if (value.empty())
             return;
 
-        // A private libdl entry point, present in the sphal namespace on some ROMs. Best effort by nature:
-        // the dependency walk in LoadJreLibraries is what actually makes the loads work.
+        // A private libdl entry point, present in the sphal namespace on some ROMs; the dependency walk does the work.
         void* libdl = dlopen("libdl.so", RTLD_LAZY);
         if (libdl == nullptr) {
             Log::Warn("LOADER", "cannot open libdl.so, skipping the linker path update");

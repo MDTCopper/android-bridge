@@ -4,143 +4,73 @@ import java.io.*;
 import java.util.*;
 
 /**
- * Everything the ART side has to hand over to the JVM side.
- *
- * <p>The two VMs share no object graph, so the resolved runtime facts (jars, folders, ABI, ANGLE
- * choice, allowed GL version, JVM arguments) cross as system properties -
- * {@link copper.bridge.art.JvmArgs} and {@link #fromSystemProperties()} are the two ends of that. So the
- * sides cannot disagree about, for example, which ABI was detected, and there is no file in the cache
- * folder to go stale.</p>
+ * Everything the ART side hands over to the JVM side: the two VMs share no object graph, so the resolved runtime
+ * facts cross as system properties. {@link #fromSystemProperties()} is the other end of
+ * {@link copper.bridge.art.JvmArgs}.
  */
 public class BridgeOptions {
-    /**
-     * Prefix of every option property, so an option cannot collide with a property the JVM or the JRE
-     * already defines: a bare {@code arch} would sit beside the injected {@code os.arch}.
-     */
+    /** Prefix of every option property: a bare {@code arch} would sit beside the JVM's own {@code os.arch}. */
     private static final String PREFIX = "copper.bridge.";
 
-    /** Bridge version, read from {@code bridge.properties} inside the bridge jar. */
     public String bridgeVersion = "0.0.0";
-
-    /**
-     * The commit this build came from, and only when the remote has that commit. Only a snapshot carries
-     * one: every snapshot shares the version "snapshot", so the commit is what tells two of them apart.
-     */
     public String bridgeCommit = "";
-
-    /**
-     * Whether this is a custom build: it was not built from a commit the remote has, so the version and
-     * the commit cannot say what is inside. A local commit or a changed tree lands here.
-     */
     public boolean customBuild = false;
 
-    /** All classpath jars passed on the ART side, in the order they were given. */
     public final List<File> gameJars = new ArrayList<>();
-    /** Custom loader jars, in the order they were given. Only used in the injected-loader case. */
     public final List<File> loaderJars = new ArrayList<>();
 
-    /** Game data folder (saves, settings, mods). */
     public File gameDataFolder;
-    /** Bridge runtime folder: extracted natives, dex cache, logs, tmp. */
     public File cacheFolder;
 
-    /** The JVM executable, as given by the caller. */
     public File javaExecutable;
-    /** The JRE root derived from {@link #javaExecutable} (the parent of {@code bin}). */
     public File javaHome;
 
-    /** Custom loader main class; enables the injected-loader classpath rule when set. */
     public String customMainClass;
 
-    /**
-     * Where the caller's native libraries are: a folder they are all taken from, or a single file. One
-     * parameter, because the bridge stages whatever list it is given rather than owning it.
-     */
     public File arcLibPath;
-    /** This bridge's own jar, as the host gave it: the JVM needs it on its classpath to find its main class. */
     public File bridgeJar;
-    /**
-     * Folder the caller's libraries were staged in, or {@code null} when none was provided. Both VMs need
-     * it: see {@link copper.bridge.art.ArcNatives}.
-     */
     public File arcNativeFolder;
-    /**
-     * Whether staging found arc's own library, {@code libarc.so}. The other libraries the caller hands over
-     * are not a substitute for it: without this one, arc's native code paths cannot be used at all.
-     */
+    /** Whether staging found arc's own {@code libarc.so}, without which arc's native code paths are unusable. */
     public boolean foundArcNative;
 
-    /** Whether ANGLE is requested: the device's own libraries when {@link #anglePath} is null. */
+    /** Whether ANGLE is requested: the device's own libraries when {@link #anglePath} is {@code null}. */
     public boolean angle = false;
-    /** Folder the caller's ANGLE libraries are in, or {@code null} for the device's own. */
     public File anglePath;
 
-    /** Whether an OpenGL ES 3 context should be requested (default) or ES 2. */
     public boolean useGL30 = true;
 
-    /** Device ABI, or {@code null} to detect it at runtime. */
     public String abi;
-    /** Android API level, injected as {@code os.version}. */
     public int androidVersion = 0;
-    /** CPU architecture string, injected as {@code os.arch}. */
     public String arch = "";
 
-    /**
-     * Display density, as {@code android.util.DisplayMetrics#density}: arc scales the whole mobile
-     * UI by it, and the JVM side has no way to ask the system for it.
-     */
+    /** Display density: arc scales the whole mobile UI by it, and the JVM side cannot ask the system. */
     public float density = 1f;
-    /** Physical pixels per inch on the x axis; 0 when the device does not report it. */
     public float xdpi = 0f;
-    /** Physical pixels per inch on the y axis; 0 when the device does not report it. */
     public float ydpi = 0f;
 
-    /** Whether the default JVM argument injection is disabled. */
     public boolean noJvmArgs = false;
-    /** User supplied JVM arguments, one entry per {@code -J} occurrence, in order. */
     public final List<String> jvmArgs = new ArrayList<>();
 
-    /**
-     * The caller's positional arguments, in the order they were given: everything on the ART side's command
-     * line that is not one of this bridge's own options. They belong to the game - or to an injected loader -
-     * and the bridge only carries them, because it is the side that parses that command line.
-     */
     public final List<String> positional = new ArrayList<>();
 
-    /** Debug log output requested. */
     public boolean debug = false;
-    /** Verbose log output requested. */
     public boolean verbose = false;
-    /** Whether lines may also go to Android's log. Off by default: the log file holds everything. */
     public boolean logcat = false;
 
-    /**
-     * Where the ART side extracted the bridge's own native library. Recorded because both VMs load the very
-     * same file - a native method binds to the VM whose load registered it - so the JVM side is handed this
-     * path instead of looking for a library of its own.
-     */
+    /** Where the ART side extracted the bridge's own native library; both VMs load that very file. */
     public File bridgeLibrary;
 
-    /**
-     * The version as the startup lines print it. A release reads {@code v0.1.3}, with the {@code v} its tag
-     * is written with; a snapshot reads {@code snapshot} on its own, {@code snapshot+a1b2c3d} when it was
-     * built from a commit the remote has, and {@code snapshot+custom} when it was not.
-     */
+    /** The version the startup lines print: {@code v0.1.3}, {@code snapshot}, {@code snapshot+<commit|custom>}. */
     public String versionLabel() {
         String label = bridgeVersion;
         if (customBuild)
             label += "+custom";
         else if (bridgeCommit != null && !bridgeCommit.isEmpty())
             label += "+" + bridgeCommit;
-        // "snapshot" is the name of the untagged build, so it prints as it is called
         return "snapshot".equals(bridgeVersion) ? label : "v" + label;
     }
 
-    /**
-     * These options as properties, keyed exactly as they cross to the JVM: {@link #PREFIX} is
-     * already in the keys, so this set <em>is</em> the {@code -D} argument list, with no translation
-     * on either side - adding a field here is the whole change.
-     */
+    /** These options as properties, keyed exactly as they cross to the JVM: adding a field here is the whole change. */
     public Properties toProperties() {
         Properties props = new Properties();
         put(props, "bridgeVersion", bridgeVersion);
@@ -176,16 +106,10 @@ public class BridgeOptions {
         return props;
     }
 
-    /**
-     * Reads back the options the ART side passed as {@code -Dcopper.bridge.*} system properties.
-     * Reads the live system properties directly: the names carry {@link #PREFIX}, so the JVM's own
-     * properties are simply never looked up.
-     */
     public static BridgeOptions fromSystemProperties() {
         return parse(System.getProperties());
     }
 
-    /** Parses a property set keyed the way {@link #toProperties()} writes it. */
     private static BridgeOptions parse(Properties props) {
         BridgeOptions options = new BridgeOptions();
         options.bridgeVersion = get(props, "bridgeVersion", "0.0.0");
@@ -221,14 +145,7 @@ public class BridgeOptions {
         return options;
     }
 
-    /**
-     * The JVM classpath for the current mode: the bridge jar followed by every jar the caller
-     * passed, or, with an injected loader, the loader jars only - the game and the bridge itself go
-     * over as {@code --bridge-class-path} so the loader owns the class loading order.
-     *
-     * <p>{@link #arcNativeFolder} is not a classpath entry in either mode: the staged folder belongs on the
-     * library search path ({@link copper.bridge.art.Bootstrap}), not on the classpath.</p>
-     */
+    /** The JVM classpath for the current mode: with an injected loader, the loader jars only. */
     public List<String> jvmClasspath() {
         List<String> path = new ArrayList<>();
         if (usesCustomLoader()) {
@@ -240,28 +157,15 @@ public class BridgeOptions {
         return path;
     }
 
-    /**
-     * The argument that carries {@link #bridgeClasspath()} to an injected loader, as
-     * {@code --bridge-class-path=<paths>}. Written by the ART side and consumed by the loader, so both read
-     * the name from here rather than each spelling it out.
-     */
     public static final String CLASS_PATH_OPTION = "--bridge-class-path";
 
-    /**
-     * The game-side classpath handed to an injected loader: the bridge jar first, then every jar
-     * the caller passed, from which the loader adds its own jar and builds its class loader.
-     */
     public List<String> bridgeClasspath() {
         List<String> path = new ArrayList<>();
         addBridgeEntries(path);
         return path;
     }
 
-    /**
-     * The entries both classpaths share, in this order: the bridge jar, then the game jars. The staged arc
-     * natives are not here, because arc loads them by name. So a game jar that carries its own desktop build
-     * of them is never found by a class loader.
-     */
+    /** The entries both classpaths share: the bridge jar, then the game jars - never the staged arc natives. */
     private void addBridgeEntries(List<String> path) {
         File bridgeJar = Bridge.jar();
         if (bridgeJar != null)
@@ -270,17 +174,14 @@ public class BridgeOptions {
             path.add(jar.getAbsolutePath());
     }
 
-    /** Whether the injected-loader classpath rule applies. */
     public boolean usesCustomLoader() {
         return customMainClass != null && !customMainClass.isEmpty() && !loaderJars.isEmpty();
     }
 
-    /** Reads one option, or {@code null} when it was not passed. */
     private static String get(Properties props, String key) {
         return props.getProperty(PREFIX + key);
     }
 
-    /** Reads one option, falling back when it was not passed. */
     private static String get(Properties props, String key, String fallback) {
         return props.getProperty(PREFIX + key, fallback);
     }

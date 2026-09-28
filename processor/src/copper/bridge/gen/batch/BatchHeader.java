@@ -5,9 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Writes {@code gen/batch.h}: the table of channels and their bounds.
- *
- * <p>The table is generated so the ids native reads cannot drift from the ids Java sends.</p>
+ * Writes {@code gen/batch.h}: the table of channels and their bounds, generated so the ids native reads cannot
+ * drift from the ids Java sends.
  */
 final class BatchHeader {
     private BatchHeader() {
@@ -40,9 +39,8 @@ final class BatchHeader {
 
                 #include "jni/side.h"
 
-                // The channels. The ring and the two entry points every channel shares are hand written;
-                // what is generated is which channels exist and what they are allowed to hold, so the ids
-                // native uses cannot drift from the ids Java sends.
+                // The channels. The ring and the two entry points every channel shares are hand written; the ids
+                // native uses are generated here so they cannot drift from the ids Java sends.
                 namespace copper::bridge::gen::Batch {
 
                 /** One channel: its id, the side that receives, and its two bounds. */

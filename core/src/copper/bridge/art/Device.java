@@ -6,18 +6,14 @@ import android.util.DisplayMetrics;
 import java.util.*;
 
 /**
- * The device facts the ART side resolves for the JVM side.
- *
- * <p>The JVM is a separate VM with its own system properties and no {@code android.*} in scope, so it
- * cannot answer these for itself: they are read while the launcher is still parsing arguments, before
- * any activity exists, and recorded in {@link BridgeOptions}. Nothing on the JVM side loads this
- * class, which is why it names Android types directly rather than through {@code Class.forName}.</p>
+ * The device facts the ART side resolves for the JVM side, which as a separate VM with no {@code android.*} in scope
+ * cannot answer them for itself. Nothing on the JVM side loads this class, which is why it names Android types
+ * directly instead of through {@code Class.forName}.
  */
 public class Device {
     private Device() {
     }
 
-    /** The device ABI, for example {@code arm64-v8a}. */
     public static String abi() {
         String abi = cpuAbi();
         if (abi != null && !abi.isEmpty())
@@ -25,7 +21,6 @@ public class Device {
         return abiFromArch(arch());
     }
 
-    /** Maps a JVM architecture name onto an Android ABI. */
     public static String abiFromArch(String arch) {
         String normalized = arch == null ? "" : arch.toLowerCase();
         if (normalized.contains("aarch64") || normalized.contains("arm64"))
@@ -39,7 +34,7 @@ public class Device {
         return "arm64-v8a";
     }
 
-    /** The CPU architecture as the game expects it in {@code os.arch}. */
+    /** The CPU architecture as the game expects it in {@code os.arch}, which is not the ABI's spelling. */
     public static String arch() {
         String abi = cpuAbi();
         if (abi == null)
@@ -56,40 +51,29 @@ public class Device {
         return normalized.isEmpty() ? "aarch64" : normalized;
     }
 
-    /** The Android API level, injected as {@code os.version}. */
     public static int apiLevel() {
         return Build.VERSION.SDK_INT;
     }
 
-    /**
-     * The display density, or 1 when it cannot be read. Read from the system resources rather than
-     * from an activity, because this runs before any activity exists; those resources already carry
-     * the default display's density.
-     */
+    /** The display density, or 1 when it cannot be read: the system resources carry the default's density. */
     public static float density() {
         float density = metrics().density;
         return density > 0f ? density : 1f;
     }
 
-    /** Physical pixels per inch on the x axis, or 0 when the device does not report it. */
     public static float xdpi() {
         return metrics().xdpi;
     }
 
-    /** Physical pixels per inch on the y axis, or 0 when the device does not report it. */
     public static float ydpi() {
         return metrics().ydpi;
     }
 
-    /** The metrics of the default display, available before any activity is. */
     private static DisplayMetrics metrics() {
         return Resources.getSystem().getDisplayMetrics();
     }
 
-    /**
-     * The {@code lib/<arch>} directory names a JRE may use on this device: the exact spelling differs
-     * between distributions, so every plausible one is tried in turn instead of guessing once.
-     */
+    /** The {@code lib/<arch>} directory names a JRE may use here; the spelling differs, so all are tried. */
     public static List<String> archCandidates() {
         List<String> candidates = new ArrayList<>();
         String arch = System.getProperty("os.arch", "");
@@ -99,7 +83,6 @@ public class Device {
                 continue;
             candidates.add(candidate);
         }
-        // the names OpenJDK derived Android builds use
         for (String extra : new String[] {"aarch64", "arm", "arm64", "amd64", "x86_64", "i386", "i486", "i586"}) {
             if (!candidates.contains(extra))
                 candidates.add(extra);
@@ -107,11 +90,7 @@ public class Device {
         return candidates;
     }
 
-    /**
-     * The ABI this process runs as, as Android reports it: {@code SUPPORTED_ABIS}, not the deprecated
-     * {@code Build.CPU_ABI}, because the callers need the ABI whose {@code libcopperbridge.so} can be
-     * loaded into this process - not everything the device can run.
-     */
+    /** The ABI this process runs as: {@code SUPPORTED_ABIS}, not the deprecated {@code Build.CPU_ABI}. */
     private static String cpuAbi() {
         return Build.SUPPORTED_ABIS[0];
     }

@@ -5,16 +5,11 @@
 
 namespace copper::bridge::bus::Handlers {
 
-    // Binding, as the VM sees it.
-    //
-    // One entry per side, because the caller already said which one it is: `ArtBus.bind` hands over the ART
-    // half and `JvmBus.bind` the JVM half. The object's own type chain decides which rows of that side it
-    // serves; a type that serves none of them is not a mistake, and the line that says so is verbose.
+    // Binding, as the VM sees it: one entry per side. A type that serves no row of that side is not a mistake.
 
     // Registers one handler instance against the ART side's rows. One instance per declaring class.
     void BindArt(JNIEnv* env, jclass, jobject handlers);
 
-    // The same for the JVM side.
     void BindJvm(JNIEnv* env, jclass, jobject handlers);
 
 } // namespace copper::bridge::bus::Handlers

@@ -7,11 +7,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Writes both halves of every batch channel: the accessors, the per-schema codec, and the C++ table
- * of channel ids.
- *
- * <p>Both accessors are generated from the same model in one pass, so the writer's methods and the
- * reader's switch cannot disagree about a record id, a field order or a width.</p>
+ * Writes both halves of every batch channel: the accessors, the per-schema codec, and the C++ table of
+ * channel ids. Both accessors come from the same model in one pass, so the writer's methods and the reader's
+ * switch cannot disagree about a record id, a field order or a width.
  */
 final class BatchGen {
     private BatchGen() {
@@ -23,7 +21,6 @@ final class BatchGen {
         processor.writeCpp("batch.h", BatchHeader.of(processor));
     }
 
-    /** The declared schemas, in the order their channel ids are assigned. */
     static List<Schema> sorted(List<Schema> schemas) {
         List<Schema> sorted = new ArrayList<>(schemas);
         sorted.sort((left, right) -> left.accessor.compareTo(right.accessor));

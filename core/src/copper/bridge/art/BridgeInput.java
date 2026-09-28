@@ -4,19 +4,12 @@ import android.view.*;
 import copper.bridge.gen.*;
 
 /**
- * Turns Android input into the frames the JVM side consumes. A {@code MotionEvent} already carries a whole
- * frame's worth of pointer samples, so it is written into one frame and sent with one call; keys are sent
- * one event per frame, which is what a keyboard actually produces.
- *
- * <p>Nothing here interprets the events: the mapping onto the game's own key and pointer model happens on
- * the JVM side, where the game's own classes live, which keeps this class version independent.</p>
+ * Turns Android input into the frames the JVM consumes. A {@code MotionEvent} already carries a whole frame's
+ * pointer samples, so it is written into one frame and sent with one call. Nothing here interprets the events.
  */
 public class BridgeInput implements View.OnTouchListener, View.OnGenericMotionListener {
 
-    /**
-     * Registers this instance as the listeners of the view it is given. The view is not stored: it is needed
-     * for exactly these two calls, and everything sent afterwards goes through the generated accessor.
-     */
+    /** Registers this instance as the view's listeners; the view is not stored. */
     public BridgeInput(View view) {
         view.setOnTouchListener(this);
         view.setOnGenericMotionListener(this);
@@ -36,40 +29,29 @@ public class BridgeInput implements View.OnTouchListener, View.OnGenericMotionLi
         return true;
     }
 
-    /** Forwards one key press, with the repeat count Android reports for a held key. */
     public boolean keyDown(int keyCode, int repeat) {
         ArtBatch.input.keyDown(keyCode, repeat);
         ArtBatch.submitInput();
         return true;
     }
 
-    /** Forwards one key release together with the text its press produced. */
     public boolean keyUp(int keyCode, String chars) {
         ArtBatch.input.keyUp(keyCode, chars);
         ArtBatch.submitInput();
         return true;
     }
 
-    /** Forwards text that is not a key transition, as Android reports multi character input. */
     public boolean text(String chars) {
         ArtBatch.input.text(chars);
         ArtBatch.submitInput();
         return true;
     }
 
-    /**
-     * The text one key event carries, or an empty string when it carries none. Only the up of a press types,
-     * which is what arc's own Android backend does: a key down is a transition and the text belongs to the press
-     * as a whole.
-     *
-     * <p>{@code KeyEvent.getCharacters()} is only filled for {@code ACTION_MULTIPLE}, so reading it on down and
-     * up always produced null and the game's text fields never received a character. The unicode char is the
-     * right source there, with backspace forced to {@code \b} because Android reports no unicode char for it.
-     */
+    /** The text one key event carries, or an empty string. Only the up of a press types: {@code getCharacters()} is
+     *  filled for {@code ACTION_MULTIPLE} only, and backspace is forced to {@code \b}. */
     @SuppressWarnings("deprecation")
     public static String characters(KeyEvent event) {
         if (event.getAction() == KeyEvent.ACTION_MULTIPLE) {
-            // multi character input really does arrive as text, and it is not a key transition
             String chars = event.getCharacters();
             return chars == null ? "" : chars;
         }
@@ -78,25 +60,18 @@ public class BridgeInput implements View.OnTouchListener, View.OnGenericMotionLi
         if (event.getKeyCode() == KeyEvent.KEYCODE_DEL)
             return "\b";
 
-        // a modifier or an arrow key has no unicode char; getUnicodeChar() answers 0 for those, and
-        // typing a NUL is not the same as typing nothing
+        // a modifier or an arrow key has no unicode char: getUnicodeChar() answers 0, and a NUL is not nothing
         char character = (char) event.getUnicodeChar();
         return character == 0 ? "" : String.valueOf(character);
     }
 
-    /** Clears the JVM side pointer state, used when the activity loses focus. */
     public void cancelAllPointers() {
         ArtBatch.input.pointerCancel();
         ArtBatch.submitInput();
     }
 
-    /**
-     * Writes a motion event into the current frame.
-     *
-     * @param generic whether the event came from the generic motion listener, which only carries
-     *                hover and scroll data
-     * @return the number of records written, or 0 when the event carries nothing actionable
-     */
+    /** Writes a motion event into the current frame; {@code generic} marks an event from the generic motion listener.
+     *  Returns the records written, or 0 when there is nothing actionable. */
     private int pack(MotionEvent event, boolean generic) {
         int action = event.getActionMasked();
         int pointerIndex = event.getActionIndex();
@@ -132,10 +107,7 @@ public class BridgeInput implements View.OnTouchListener, View.OnGenericMotionLi
         }
     }
 
-    /**
-     * Writes every sample of a move event. A move carries the positions sampled since the last frame, so
-     * replaying them in order is what preserves a fast swipe: one record per sample per pointer.
-     */
+    /** Writes every sample of a move event, one record per sample per pointer, which preserves a fast swipe. */
     private int move(MotionEvent event) {
         int records = 0;
         int history = event.getHistorySize();

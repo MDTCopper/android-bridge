@@ -6,11 +6,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Labels a generated call that only tells the peer something: no handler runs in the caller's frame
- * and nothing comes back.
- *
- * <p>Answers travel under this label too: they share the event queue and dispatch, and only their
- * name - the request name plus the outcome - separates them from a notification.</p>
+ * Labels a generated call that only tells the peer something: no handler runs in the caller's frame and
+ * nothing comes back. Answers travel under this label too, since they share the event queue and dispatch.
  */
 @Retention(RetentionPolicy.CLASS)
 @Target(ElementType.METHOD)

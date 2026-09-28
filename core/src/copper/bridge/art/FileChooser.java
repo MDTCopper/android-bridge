@@ -12,18 +12,11 @@ import java.io.*;
 import java.util.*;
 
 /**
- * The system file picker, and the staging that turns its answers into something the game can read.
- *
- * <p>The answer arrives at the activity and is handed straight here: the request id comes back through
- * {@code onActivityResult} carrying nothing else, so it is packed into the request code - which is what lets
- * the picker keep no record of what is in flight, so two pickers cannot overwrite each other's answer and
- * there is nothing to reset when one is dismissed.</p>
+ * The system file picker, and the staging that turns its answers into something the game can read: the request id is
+ * packed into the request code, so two pickers cannot overwrite each other's answer.
  */
 public class FileChooser {
-    /**
-     * Marks a request code as one this activity started itself. The low bits hold the id, one bit says
-     * whether the picker was open or save, and this bit keeps an unrelated result out.
-     */
+    /** Marks a request code as one this activity started: the low bits hold the id, one bit says open or save. */
     private static final int PICKER_RESULT = 1 << 29;
     private static final int PICKER_SAVE = 1 << 30;
     /** The bits the id may use: everything below the marker, so an id can never look like one. */
@@ -35,10 +28,6 @@ public class FileChooser {
         this.activity = activity;
     }
 
-    /**
-     * Opens the system file picker. Runs on the main thread; the title is ignored because the system picker
-     * has no place to put one.
-     */
     @ArtPostHandler(callbacks = {"result(String[])", "error(String)", "canceled()"})
     public void showFileChooser(long request, boolean open, boolean multiple, String title,
                                 String fileName, String[] extensions) {
@@ -46,8 +35,7 @@ public class FileChooser {
             String extension = extensions != null && extensions.length > 0 ? extensions[0] : "";
             Intent intent = new Intent(open ? Intent.ACTION_OPEN_DOCUMENT : Intent.ACTION_CREATE_DOCUMENT);
             intent.addCategory(Intent.CATEGORY_OPENABLE);
-            // The picker filters by mime type, and a game file has no registered type; a zip is the
-            // one exception worth naming, because the archive type is what the user is looking for.
+            // The picker filters by mime type and a game file has no registered type; only a zip is worth naming.
             intent.setType(!open && "zip".equals(extension) ? "application/zip" : "*/*");
             if (fileName != null && !fileName.isEmpty())
                 intent.putExtra(Intent.EXTRA_TITLE, fileName);
@@ -61,7 +49,6 @@ public class FileChooser {
         }
     }
 
-    /** Takes the answer the system delivered to the activity. */
     public void activityResult(int requestCode, int resultCode, Intent data) {
         if ((requestCode & PICKER_RESULT) == 0)
             return;
@@ -72,7 +59,6 @@ public class FileChooser {
             return;
 
         if (resultCode != Activity.RESULT_OK || data == null) {
-            // A dismissed picker is a cancellation, not a failure.
             ArtCall.showFileChooserCanceled(request);
             return;
         }
@@ -96,7 +82,6 @@ public class FileChooser {
         }
     }
 
-    /** Drops whatever an earlier launch left in the staged folder. */
     public void clearStaged() {
         File[] leftovers = pickedFolder().listFiles();
         if (leftovers == null)
@@ -105,18 +90,12 @@ public class FileChooser {
             file.delete();
     }
 
-    /** The request code that carries one picker's identity through the system. */
     private static int pickerCode(long request, boolean open) {
         return PICKER_RESULT | (open ? 0 : PICKER_SAVE) | (int) (request & PICKER_MASK);
     }
 
-    /**
-     * Turns a document the picker returned into something the game can use. An open request has to become a
-     * real file: a picked document is a {@code content://} URI, which the JVM side cannot read, so it is
-     * copied into the cache folder and the copy is what the game gets. A save request stays a document -
-     * nothing is written yet - so its URI is handed over and the game writes it through
-     * {@code JvmCall.writeUri} or {@code copyToUri} when it has produced the file.
-     */
+    /** Turns a document the picker returned into something the game can use. An open request becomes a real file: a
+     *  {@code content://} URI is copied into the cache folder. A save request's URI goes over to be written. */
     private String stage(Uri uri, boolean open) throws IOException {
         if (!open)
             return uri.toString();
@@ -131,14 +110,12 @@ public class FileChooser {
         return target.getAbsolutePath();
     }
 
-    /** The cache folder picked files are staged in. */
     private File pickedFolder() {
         File folder = new File(Bridge.options.cacheFolder, "picked");
         folder.mkdirs();
         return folder;
     }
 
-    /** A name for a picked document that cannot collide with an earlier pick. */
     private static String uniqueName(Uri uri) {
         String name = uri.getLastPathSegment();
         if (name == null || name.isEmpty())

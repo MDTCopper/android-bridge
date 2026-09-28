@@ -3,11 +3,9 @@ package copper.bridge.util;
 import java.nio.CharBuffer;
 
 /**
- * A re-bindable view of a run of 16 bit characters, little-endian like every wire buffer: the low byte comes
- * first, and a {@code char} is unsigned on both sides, which is why the decoding masks rather than sign-extends.
- * It is also how a string travels inside a frame. It is a {@link CharSequence}, so a reader that needs no decoded
- * copy can hand the view itself to anything that takes one, and the sequence is valid only until the next poll
- * rebinds it.
+ * A re-bindable view of a run of 16 bit characters, little-endian like every wire buffer, and how a string travels
+ * inside a frame. A {@link CharSequence}, so a reader that needs no decoded copy hands the view itself on; the
+ * sequence is valid only until the next poll rebinds it.
  */
 public final class WireCharBuffer extends WireBuffer implements CharSequence {
     public WireCharBuffer() {
@@ -32,19 +30,13 @@ public final class WireCharBuffer extends WireBuffer implements CharSequence {
         return this;
     }
 
-    /** The number of characters this view sees. */
     @Override
     public int length() {
         return limit;
     }
 
-    /**
-     * The character at an index.
-     *
-     * <p>A {@code CharSequence} has to answer an out of range index with
-     * {@link IndexOutOfBoundsException}, so this checks the range itself and leaves the wire layer's
-     * {@code BatchFormatException} to {@link #get(int)}, which is the accessor a decoder uses.</p>
-     */
+    /** Out of range answers {@link IndexOutOfBoundsException}, as a {@code CharSequence} must; {@link #get(int)} is
+     * the accessor a decoder uses, and keeps the wire layer's {@link BatchFormatException}. */
     @Override
     public char charAt(int index) {
         if (index < 0 || index >= limit)
@@ -52,13 +44,8 @@ public final class WireCharBuffer extends WireBuffer implements CharSequence {
         return get(index);
     }
 
-    /**
-     * A slice of this view, as a string.
-     *
-     * <p>The one {@code CharSequence} operation that has to copy: a slice would be another view, and
-     * a view that the next poll rebinds underneath whoever holds it is a trap. A reader that wants
-     * characters without a copy reads them with {@link #get(int)} or walks {@link #charAt(int)}.</p>
-     */
+    /** A slice as a string: the one {@code CharSequence} call that has to copy, because a view the next poll
+     * rebinds underneath its holder is a trap. */
     @Override
     public CharSequence subSequence(int start, int end) {
         if (start < 0 || end < start || end > limit)
@@ -69,24 +56,20 @@ public final class WireCharBuffer extends WireBuffer implements CharSequence {
         return new String(slice);
     }
 
-    /** The content as a string, which is what printing a character sequence means. */
     @Override
     public String toString() {
         return text();
     }
 
-    /** The element at an index. */
     public char get(int element) {
         final int at = index(element);
         return (char) ((hb[at] & 0xFF) | ((hb[at + 1] & 0xFF) << 8));
     }
 
-    /** The element at the cursor, which then advances. */
     public char get() {
         return get(position++);
     }
 
-    /** Writes one element. */
     public WireCharBuffer put(int element, char value) {
         final int at = index(element);
         hb[at] = (byte) (value & 0xFF);
@@ -94,12 +77,11 @@ public final class WireCharBuffer extends WireBuffer implements CharSequence {
         return this;
     }
 
-    /** Writes one element at the cursor, which then advances. */
     public WireCharBuffer put(char value) {
         return put(position++, value);
     }
 
-    /** Takes the whole string as this buffer's content, copying its characters. */
+    /** Every {@code set} overload copies into an array of this instance's own; {@code null} empties it. */
     public WireCharBuffer set(String values) {
         final int count = values == null ? 0 : values.length();
         bind(new byte[count * 2], 0, count);
@@ -108,7 +90,6 @@ public final class WireCharBuffer extends WireBuffer implements CharSequence {
         return this;
     }
 
-    /** Takes the whole array as this buffer's content, copying it. */
     public WireCharBuffer set(char[] values) {
         final int count = values == null ? 0 : values.length;
         bind(new byte[count * 2], 0, count);
@@ -117,7 +98,6 @@ public final class WireCharBuffer extends WireBuffer implements CharSequence {
         return this;
     }
 
-    /** Takes what is left of a {@code java.nio} buffer. */
     public WireCharBuffer set(CharBuffer values) {
         final int count = values == null ? 0 : values.remaining();
         bind(new byte[count * 2], 0, count);
@@ -126,7 +106,6 @@ public final class WireCharBuffer extends WireBuffer implements CharSequence {
         return this;
     }
 
-    /** Takes another wire buffer's content, copying it. */
     public WireCharBuffer set(WireCharBuffer values) {
         if (values == null)
             return set((String) null);
@@ -137,13 +116,7 @@ public final class WireCharBuffer extends WireBuffer implements CharSequence {
         return this;
     }
 
-    /**
-     * The content as a string.
-     *
-     * <p>Allocates, so a reader that only needs a character or two should use {@link #get(int)}
-     * instead; the batch contract is that the buffers are borrowed, and building a string from one
-     * is a copy by definition.</p>
-     */
+    /** Builds a string, which allocates; a reader that wants a character or two uses {@link #get(int)}. */
     public String text() {
         if (hb == null)
             return "";

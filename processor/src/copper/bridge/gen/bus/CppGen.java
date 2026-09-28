@@ -2,9 +2,7 @@ package copper.bridge.gen.bus;
 
 import java.io.IOException;
 
-/**
- * Writes the C++ half of the bus: the generated header, the row tables, and one stub per signature.
- */
+/** Writes the C++ half of the bus: the generated header, the row tables, and one stub per signature. */
 final class CppGen {
     private CppGen() {
     }

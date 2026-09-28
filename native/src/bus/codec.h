@@ -5,12 +5,8 @@
 
 #include <jni.h>
 
-// The payload codec: what a row's parameters look like on the way across.
-//
-// A row carries one of two payloads and they never mix. A synchronous row has its objects built in the
-// target VM and kept as global references, so the handler gets a ready argument; an asynchronous row has
-// them encoded in the sender's VM and materialised when the peer pumps, which keeps the enqueuing thread
-// out of the other VM entirely. Scalars go into the message's int slots either way.
+// The payload codec: a synchronous row's objects are built in the target VM and kept as global references; an
+// asynchronous row's are encoded in the sender's VM, which keeps the enqueuing thread out of the other VM.
 
 namespace copper::bridge::bus::Codec {
 

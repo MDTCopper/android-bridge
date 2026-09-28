@@ -6,10 +6,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Writes {@code gen/bus_stubs.cpp}: one function per (parameters, return) signature, shared by both sides.
- *
- * <p>A stub is what the JVM's {@code RegisterNatives} binds, so nothing in native is written once per
- * kind.</p>
+ * Writes {@code gen/bus_stubs.cpp}: one function per (parameters, return) signature, shared by both sides. A
+ * stub is what the JVM's {@code RegisterNatives} binds, so nothing in native is written once per kind.
  */
 final class CppStubs {
     private CppStubs() {
@@ -42,10 +40,6 @@ final class CppStubs {
                 .render();
     }
 
-    /**
-     * The names in a stub are positions, not the parameter names of whichever declaration asked for the
-     * signature: no single declaration owns the shape.
-     */
     private static Template stub(String entry, Row row) {
         boolean returns = !row.result.isVoid;
         List<Template> queued = new ArrayList<>();
@@ -81,7 +75,6 @@ final class CppStubs {
                 .with("queue", Template.join(queued, "\n"));
     }
 
-    /** The request-id branch a row with a leading request id takes, ahead of the ordinary payload. */
     private static Template leading(Row row) {
         List<Template> queued = new ArrayList<>();
         if (row.params.size() > 1)
@@ -101,7 +94,6 @@ final class CppStubs {
                 .with("enqueue", enqueue(row).render());
     }
 
-    /** The slots a direct call passes, one per parameter. */
     private static Template arguments(Row row) {
         List<Template> slots = new ArrayList<>();
         for (int i = 0; i < row.params.size(); i++)
@@ -119,7 +111,6 @@ final class CppStubs {
                 .with("slots", Template.join(slots, "\n"));
     }
 
-    /** The slots a queued call carries, from one parameter up to the end of the list. */
     private static Template put(Row row, int from, int to) {
         List<Template> slots = new ArrayList<>();
         for (int i = from; i < to; i++)
@@ -139,7 +130,6 @@ final class CppStubs {
                 .with("slots", Template.join(slots, "\n"));
     }
 
-    /** What happens to the message once it is built: a void row hands it over, any other waits. */
     private static Template enqueue(Row row) {
         if (row.result.isVoid)
             return Template.of("""

@@ -6,15 +6,11 @@ import java.util.List;
 
 /** One record kind of a schema: an abstract method on the receiving side. */
 final class Record {
-    /** The method name, which is what the sender calls. */
     String name;
-    /** The id this record travels as, assigned by declaration order. */
     int id;
     final List<Field> params = new ArrayList<>();
-    /** The source forms each parameter accepts, one list per {@code @SenderSignature}. */
     final List<List<String>> signatures = new ArrayList<>();
 
-    /** The wire parameter list, which is the receiving method's own signature. */
     String wireParameters() {
         StringBuilder text = new StringBuilder();
         for (Field param : params) {
@@ -25,7 +21,6 @@ final class Record {
         return text.toString();
     }
 
-    /** Whether every parameter is a scalar; such a record needs no overloads. */
     boolean scalarsOnly() {
         for (Field param : params) {
             if (param.isSequence())
@@ -35,14 +30,13 @@ final class Record {
     }
 
     /**
-     * The buffer one record's sequence lives in: both sides name it record plus field, which cannot
-     * collide with a header field or a record name.
+     * The buffer one record's sequence lives in: both sides name it record plus field, which cannot collide with a
+     * header field or a record name.
      */
     String fieldName(Field param) {
         return name + "_" + param.name;
     }
 
-    /** The arguments of the call into this record's wire form: a sequence comes from its own buffer. */
     String wireArguments() {
         StringBuilder text = new StringBuilder();
         for (Field param : params) {
@@ -53,10 +47,6 @@ final class Record {
         return text.toString();
     }
 
-    /**
-     * The parameters of one listed source form: a scalar is the wire type, a sequence takes the form
-     * listed at its own index.
-     */
     String sourceParameters(List<String> signature) {
         StringBuilder text = new StringBuilder();
         for (int i = 0; i < params.size(); i++) {
@@ -82,7 +72,6 @@ final class Record {
         return true;
     }
 
-    /** The first listed source form that is not the wire form itself, or null when there is none. */
     List<String> firstSourceForm() {
         for (List<String> signature : signatures) {
             if (!sameAsWire(signature))

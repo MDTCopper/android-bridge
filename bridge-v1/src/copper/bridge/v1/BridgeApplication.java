@@ -12,16 +12,11 @@ import copper.bridge.jvm.Surface;
 import copper.bridge.util.*;
 
 /**
- * arc's application object for the JVM side of the bridge.
- *
- * <p>On Android arc is driven by ART: the activity owns the lifecycle callbacks and a
- * {@code GLSurfaceView} owns the render thread. Neither exists here, so this class owns the loop
- * that turns forwarded events back into a lifecycle on one thread with the EGL context current.
- * Events are polled rather than pushed, which lands the surface pointer on the thread that makes
- * the context current and needs no lock around GL state; the handlers live in {@link BridgeEvents}.
+ * arc's application object for the JVM side of the bridge. On Android arc is driven by ART - the activity owns the
+ * lifecycle callbacks, a {@code GLSurfaceView} owns the render thread - and neither exists here, so this class owns
+ * the loop that turns forwarded events back into a lifecycle on one thread with the EGL context current.
  */
 public class BridgeApplication implements Application {
-    /** How long to wait for ART to hand over a window before giving up. */
     private static final long SURFACE_TIMEOUT_MILLIS = 20000;
 
     public final BridgeGraphics graphics;
@@ -42,15 +37,9 @@ public class BridgeApplication implements Application {
         this.events = new BridgeEvents(graphics, input, listeners);
     }
 
-    /**
-     * Runs the game until it exits, blocking the calling thread, which must be the JVM main thread.
-     *
-     * <p>The order matters: {@code Audio} registers a listener on this application when it
-     * initialises, and LWJGL must be pointed at the right EGL and GLES libraries before anything
-     * asks for a context.
-     */
+    /** Runs the game until it exits, blocking the calling thread, which must be the JVM main thread. LWJGL has to be
+     *  pointed at the right EGL and GLES libraries before anything asks for a context. */
     public void run() {
-        // recorded first: this epoch's arc can ask which thread the game is on before the loop starts
         mainThread = Thread.currentThread();
 
         Core.app = this;
@@ -73,7 +62,6 @@ public class BridgeApplication implements Application {
         }
         events.markSurfaceReady();
 
-        // GL exists now, so this is the first point at which a listener may build graphics resources
         for (ApplicationListener listener : listeners)
             listener.init();
         for (ApplicationListener listener : listeners)
@@ -84,12 +72,8 @@ public class BridgeApplication implements Application {
         teardown();
     }
 
-    /**
-     * Waits for ART to hand over the native window, taking events while waiting.
-     *
-     * <p>ART creates the surface once its main thread is free again, so this is a wait and not a
-     * request; the events must be taken here because the window pointer arrives as one of them.
-     */
+    /** Waits for ART to hand over the native window, taking events while waiting: ART creates the surface once its
+     *  main thread is free again, so the window pointer arrives as one of those events. */
     private boolean waitForWindow() {
         long deadline = System.currentTimeMillis() + SURFACE_TIMEOUT_MILLIS;
         while (!Surface.ready()) {
@@ -172,14 +156,8 @@ public class BridgeApplication implements Application {
         return ApplicationType.android;
     }
 
-    /**
-     * The thread every listener callback arrives on, which is also the one that ran {@link #run()} - and
-     * therefore why nothing in this class is synchronized.
-     *
-     * <p>arc added this pair in v151 as default methods nothing in arc or the game calls across this range; it
-     * is implemented because the answer is exact and free. A default in the newer epochs, the same source still
-     * compiles against the older ones, where it is simply an extra method - one branch, whole range.
-     */
+    /** The thread every listener callback arrives on, the one that ran {@link #run()} - and therefore why nothing in
+     *  this class is synchronized. */
     @Override
     public Thread getMainThread() {
         return mainThread;
@@ -215,7 +193,7 @@ public class BridgeApplication implements Application {
         return JvmCall.openFolder(folder);
     }
 
-    /** Queues work for the loop thread, which is the only thread allowed to touch the game. */
+    /** Queues work for the loop thread, the only thread allowed to touch the game. */
     @Override
     public void post(Runnable runnable) {
         synchronized (runnables) {
@@ -223,7 +201,6 @@ public class BridgeApplication implements Application {
         }
     }
 
-    /** Asks ART to finish the activity; the loop stops when the destroy event comes back. */
     @Override
     public void exit() {
         JvmCall.finishActivity();

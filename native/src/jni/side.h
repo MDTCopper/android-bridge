@@ -3,11 +3,8 @@
 
 #include <cstdint>
 
-// The vocabulary the two generated systems share, and the only thing they share.
-//
-// The bus tables and the batch tables are generated from independent declarations by independent
-// processors, so neither may include the other's header; what they have in common is which virtual machine
-// a row belongs to. Both generated headers include this file rather than each other.
+// The one thing the two generated systems share: which virtual machine a row belongs to. Neither includes the
+// other's header.
 
 namespace copper::bridge::jni {
 

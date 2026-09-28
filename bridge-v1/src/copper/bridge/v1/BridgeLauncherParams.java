@@ -6,20 +6,16 @@ import arc.struct.*;
 import mindustry.ui.FileChooser.*;
 
 /**
- * The file chooser as Mindustry 159 and later declare it: one {@code FileChooserParams} request
- * object instead of four entry points.
- *
- * <p>Unlike {@link BridgeLauncherLegacy} this class carries {@code @Override}: the parameter type
- * exists only from 159 on, so a class mentioning it cannot be loaded by the older epochs - which is
- * why {@link BridgeLaunchers#create()} reaches for this one only after probing for that type.
+ * The file chooser as Mindustry 159 and later declare it: one {@code FileChooserParams} request object
+ * instead of four entry points.
  */
 public class BridgeLauncherParams extends BridgeLauncher {
 
     /**
-     * Opens the system file picker. The whole picker in this epoch is {@code params}: it already
-     * carries the direction, the multi-select flag, the extensions, the default name and the caller's
-     * handler, and {@link FileChooserParams#handleChooseResult(Fi...)} decides between the single and
-     * the multiple one, so this class never has to know which kind of request it is answering.
+     * The whole picker in this epoch is {@code params}: it already carries the direction, the multi-select flag, the
+     * extensions, the default name and the caller's handler, and
+     * {@link FileChooserParams#handleChooseResult(Fi...)} decides between the single and the multiple one, so this
+     * class never has to know which kind of request it is answering.
      */
     @Override
     public void showFileChooser(FileChooserParams params) {

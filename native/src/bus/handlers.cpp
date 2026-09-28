@@ -8,10 +8,7 @@
 #include <string>
 #include <vector>
 
-// The binding table, and the walk that fills it.
-//
-// Which side an object is bound on is not guessed: the entry the VM called is this side's, so one call
-// fills one side's table. A type that declares no row of this side costs one verbose line, not an error.
+// The binding table, and the walk that fills it: the entry the VM called is this side's, so one call fills one table.
 
 namespace copper::bridge::bus::Handlers {
     namespace Bus = gen::Bus;
@@ -22,19 +19,14 @@ namespace copper::bridge::bus::Handlers {
 
     namespace {
 
-        // What one side has bound: per kind, the instance and its method id, and for a static row the class
-        // that declares it. A static row has no instance - it is declared on the class that made the
-        // request - so its owning class is resolved from the table instead.
+        // What one side has bound: per kind, the instance and its method id, and for a static row the declaring class.
         struct Handlers {
             jobject instances[Bus::KIND_COUNT] = {};
             jmethodID methods[Bus::KIND_COUNT] = {};
             jclass staticOwners[Bus::KIND_COUNT] = {};
-            // The declaring classes that already have an instance.
             std::vector<std::string> owners;
         };
 
-        // One per side, existing with this library rather than with the first bind: a bind may arrive before
-        // either side has pumped anything.
         Handlers artHandlers;
         Handlers jvmHandlers;
 
@@ -65,9 +57,7 @@ namespace copper::bridge::bus::Handlers {
             return text;
         }
 
-        // Every type the instance is, so a handler declared on an interface is found through the class that
-        // implements it. This is what lets a branch bind `BridgeEvents implements Events`: the processor
-        // only ever saw the interface.
+        // Every type the instance is, so a handler on an interface is found through the implementing class.
         void CollectTypes(JNIEnv* env, jclass clazz, std::vector<std::string>& names, int depth) {
             if (clazz == nullptr || depth > 8)
                 return;
@@ -138,8 +128,7 @@ namespace copper::bridge::bus::Handlers {
                 for (const std::string& seen : current.owners)
                     alreadyBound |= seen == type;
 
-                // Every row this declaration type owns is served by the same instance, so the type is
-                // recorded once and a second instance of it is refused rather than half applied.
+                // Every row this type owns is served by the same instance, so a second is refused, not half applied.
                 int matches = 0;
                 for (int id = 0; id < Bus::KIND_COUNT; id++) {
                     const auto kind = static_cast<Bus::Kind>(id);
@@ -147,8 +136,7 @@ namespace copper::bridge::bus::Handlers {
                     const Bus::DirectEntry* direct = Bus::FindDirect(kind);
                     const char* owner = call != nullptr ? call->owner_class
                                                         : (direct != nullptr ? direct->owner_class : nullptr);
-                    // The row's own side decides where it lands: skipping a row the other side performs is
-                    // what keeps a table from holding the wrong VM's references.
+                    // The row's own side decides where it lands: a table never holds the other VM's references.
                     const jni::Side performer = call != nullptr ? call->target : direct->target;
                     if (owner == nullptr || type != owner || performer != side)
                         continue;
@@ -236,7 +224,6 @@ namespace copper::bridge::bus::Handlers {
         if (entry == nullptr || !entry->is_static)
             return nullptr;
 
-        // A static row is declared on a class that never binds, so its class is resolved from the table.
         jclass owner = ResolveOwner(side, *entry);
         if (owner == nullptr)
             return nullptr;
@@ -255,8 +242,7 @@ namespace copper::bridge::bus::Handlers {
     }
 
     void BindArt(JNIEnv* env, jclass, jobject handlers) {
-        // The ART side's entry, reached from `ArtBus.bind`: the object is walked against this side's rows
-        // only, which is what keeps the other VM's references out of this table.
+        // The ART side's entry, reached from `ArtBus.bind`: the object is walked against this side's rows only.
         BindSide(jni::Side::Art, env, handlers);
     }
 

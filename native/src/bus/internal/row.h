@@ -3,11 +3,8 @@
 
 #include "gen/bus.h"
 
-// What a row's kind says about the call it declares.
-//
-// A row's return code is the whole description of how its call runs: a row that returns something has a
-// caller blocked on the answer, and a row that returns nothing is performed later, so its message carries
-// a box instead of global references.
+// What a row's kind says about the call it declares: a row that returns something has a caller blocked on the
+// answer, and a row that returns nothing is performed later, so its message carries a box instead of references.
 
 namespace copper::bridge::bus::Row {
 

@@ -6,8 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Writes the receiving half of one channel: the class a caller walks a frame with, by polling and then
- * reading one header and one call per record.
+ * Writes the receiving half of one channel: the class a caller walks a frame with, by polling and then reading one
+ * header and one call per record.
  */
 final class BatchReader {
     private BatchReader() {
@@ -156,7 +156,6 @@ final class BatchReader {
                 .with("members", Template.join(members, "\n\n"));
     }
 
-    /** The header walk: every field read under one catch, so a bad frame is dropped as a unit. */
     private static Template headerRead(Schema schema) {
         List<Template> reads = new ArrayList<>();
         for (Field field : schema.headers) {

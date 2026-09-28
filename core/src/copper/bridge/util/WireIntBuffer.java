@@ -4,7 +4,7 @@ import java.nio.IntBuffer;
 
 /**
  * A re-bindable view of a run of 32 bit signed integers, little-endian byte by byte, so the buffer means the
- * same thing on every device the two VMs run on rather than whatever the machine happens to prefer.
+ * same thing on every device the two VMs run on instead of whatever the machine happens to prefer.
  */
 public final class WireIntBuffer extends WireBuffer {
     public WireIntBuffer() {
@@ -29,19 +29,16 @@ public final class WireIntBuffer extends WireBuffer {
         return this;
     }
 
-    /** The element at an index. */
     public int get(int element) {
         final int at = index(element);
         return (hb[at] & 0xFF) | ((hb[at + 1] & 0xFF) << 8) | ((hb[at + 2] & 0xFF) << 16)
                 | ((hb[at + 3] & 0xFF) << 24);
     }
 
-    /** The element at the cursor, which then advances. */
     public int get() {
         return get(position++);
     }
 
-    /** Writes one element. */
     public WireIntBuffer put(int element, int value) {
         final int at = index(element);
         hb[at] = (byte) (value & 0xFF);
@@ -51,12 +48,10 @@ public final class WireIntBuffer extends WireBuffer {
         return this;
     }
 
-    /** Writes one element at the cursor, which then advances. */
     public WireIntBuffer put(int value) {
         return put(position++, value);
     }
 
-    /** Takes the whole array as this buffer's content, copying it. */
     public WireIntBuffer set(int[] values) {
         final int count = values == null ? 0 : values.length;
         bind(new byte[count * 4], 0, count);
@@ -65,7 +60,6 @@ public final class WireIntBuffer extends WireBuffer {
         return this;
     }
 
-    /** Takes what is left of a {@code java.nio} buffer. */
     public WireIntBuffer set(IntBuffer values) {
         final int count = values == null ? 0 : values.remaining();
         bind(new byte[count * 4], 0, count);
@@ -74,7 +68,6 @@ public final class WireIntBuffer extends WireBuffer {
         return this;
     }
 
-    /** Takes another wire buffer's content, copying it. */
     public WireIntBuffer set(WireIntBuffer values) {
         if (values == null)
             return set((int[]) null);

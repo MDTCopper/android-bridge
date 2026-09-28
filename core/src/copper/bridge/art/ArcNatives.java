@@ -8,34 +8,21 @@ import java.nio.file.*;
 import java.util.*;
 
 /**
- * Stages the caller's native libraries under the names arc's loader asks for. arc looks its libraries up by
- * name, not by path, so each file has to be in a folder on the JVM's library search path under the name arc
- * computes for it. A file is staged under its own name, because this class never touches arc and does not
- * reproduce arc's naming rule.
+ * Stages the caller's native libraries under the names arc's loader asks for: arc looks its libraries up by name.
  */
 public final class ArcNatives {
     private ArcNatives() {
     }
 
-    /** Cache subfolder the caller's libraries are staged in. */
     private static final String STAGING_FOLDER = "native/arc";
 
     /** The file name arc's own library has to arrive under: the one {@code ArcNativesLoader} asks for. */
     private static final String ARC = "libarc.so";
 
     /**
-     * Stages the caller's native libraries under the names they arrived with, and stores the folder in
-     * {@link BridgeOptions#arcNativeFolder} for the JVM side. Which libraries there are to stage is
-     * {@link Libraries#list}'s answer; none of them is renamed, because the bridge does not own the list of
-     * libraries arc may need.
-     *
-     * <p>The caller has to hand the files over already spelled the way arc asks, including the ABI infix:
-     * arc asks for {@code libarc-filedialogsarm64.so}, not for {@code libarc-filedialogs.so}. A wrong name is
-     * not corrected here, and arc reports nothing when it does not find a library.</p>
-     *
-     * <p>Whether arc's own library was among them is recorded in {@link BridgeOptions#foundArcNative}. When
-     * the caller gave no library at all, nothing is staged and {@link BridgeOptions#arcNativeFolder} stays
-     * {@code null}.</p>
+     * Stages the caller's libraries under the names they arrived with, and records the folder in
+     * {@link BridgeOptions#arcNativeFolder}. The caller has to spell them the way arc asks, ABI infix included
+     * ({@code libarc-filedialogsarm64.so}): nothing is renamed, and arc reports a missing library as nothing.
      */
     public static void stage() {
         File folder = new File(Bridge.options.cacheFolder, STAGING_FOLDER);
@@ -47,8 +34,7 @@ public final class ArcNatives {
             return;
         }
 
-        // Keyed by the file's own name, because that is the name arc will ask for later: the caller hands
-        // the libraries over already spelled the way arc computes, and nothing here renames them.
+        // keyed by the file's own name, which is the name arc asks for later; nothing here renames anything
         Map<String, File> wanted = new LinkedHashMap<>();
         boolean foundArc = false;
         for (File library : libraries) {
@@ -59,8 +45,7 @@ public final class ArcNatives {
                 foundArc = true;
         }
 
-        // Reconciled, not rebuilt: an entry already staged under the right name from the same file is
-        // left alone, so a launch that changes nothing does not copy a hundred-megabyte library.
+        // reconciled, not rebuilt: an entry already staged from the same file is left alone
         folder.mkdirs();
         removeUnwanted(folder, wanted);
         for (Map.Entry<String, File> entry : wanted.entrySet()) {
@@ -81,13 +66,8 @@ public final class ArcNatives {
     }
 
     /**
-     * Puts one library under the staging folder: a symbolic link first, since copying costs the whole
-     * size again, and a copy where the file system has no links - Android's
-     * {@code getExternalFilesDir} is the usual example.
-     *
-     * <p>A copy needs the mode set again: a link hands out the source's mode, while a copy is created with
-     * the default one, and Android will not map a library that is not executable. The copy is left read-only
-     * for the same reason the source is: a library anything may write can be mapped half written.</p>
+     * Puts one library under the staging folder: a symbolic link first, a copy where the file system has no links.
+     * A copy needs the mode set again, or Android will not map it.
      */
     private static boolean stage(File from, File to) {
         try {
@@ -112,7 +92,6 @@ public final class ArcNatives {
         }
     }
 
-    /** Drops whatever the folder holds that is not wanted any more, and says whether it dropped one. */
     private static boolean removeUnwanted(File folder, Map<String, File> wanted) {
         File[] children = folder.listFiles();
         if (children == null)
@@ -127,11 +106,7 @@ public final class ArcNatives {
         return removed;
     }
 
-    /**
-     * Whether a staged entry already is the file it should be. A copy has nothing to compare but its size
-     * and its time, and its time is when it was copied, so a source replaced afterwards is newer than its
-     * copy and gets copied again.
-     */
+    /** Whether a staged entry already is the file it should be: a copy has only size and time to compare. */
     private static boolean isCurrent(File staged, File source) {
         if (!staged.exists())
             return false;

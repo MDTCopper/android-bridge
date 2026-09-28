@@ -4,19 +4,17 @@ import copper.bridge.*;
 import copper.bridge.util.*;
 
 /**
- * Picks the version branch that matches a detected game version.
- *
- * <p>Exact matches win; when nothing matches - an unsupported bleeding edge build, a range gap, or a
- * jar without a version file - the closest entry is picked anyway and the caller is told it was a
- * guess, so the failure surfaces as a log warning, not a hard error inside a class loader.</p>
+ * Picks the version branch that matches a detected game version. Exact matches win; when nothing matches - an
+ * unsupported bleeding edge build, a range gap, or a jar without a version file - the closest entry is picked
+ * anyway and the caller is told it was a guess, so the failure surfaces as a log warning, not a hard error inside
+ * a class loader.
  */
 public class BranchResolver {
 
-    /** The outcome of a resolution. */
     public static class Result {
         public final VersionEntry entry;
         public final String branch;
-        /** Whether the entry matched exactly; {@code false} means it was merely the closest. */
+        /** {@code false} means the entry was only the closest one, not a match. */
         public final boolean exact;
         /** Why the resolution is only a guess, or {@code null} when it is exact. */
         public final String note;
@@ -30,10 +28,7 @@ public class BranchResolver {
     }
 
     /**
-     * Resolves a branch.
-     *
-     * @throws RuntimeException when the table is empty, because a jar without branches cannot run
-     *                          a game at all
+     * @throws RuntimeException when the table is empty, because a jar without branches cannot run a game at all
      */
     public static Result resolve(GameVersion version, String forcedBranch) {
         if (VersionTable.isEmpty())

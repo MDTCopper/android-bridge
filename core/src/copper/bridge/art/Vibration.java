@@ -8,9 +8,8 @@ import copper.bridge.annotation.*;
 import copper.bridge.util.*;
 
 /**
- * The device's vibrator. {@code android.permission.VIBRATE} is not a runtime permission - the host
- * app either declares it or every call throws - so the check below keeps the game from being told a
- * vibrator is available when using it would only fail.
+ * The device's vibrator. {@code VIBRATE} is not a runtime permission - the host app either declares it or every
+ * call throws - so the check below keeps the game from being told a vibrator is available when using it would fail.
  */
 public class Vibration {
     private final Context context;
@@ -19,10 +18,7 @@ public class Vibration {
         this.context = context;
     }
 
-    /**
-     * The vibrator, or {@code null} when this app may not use one. The permission is checked on the
-     * context rather than on the activity, so this class needs nothing an activity owns.
-     */
+    /** The vibrator, or {@code null} when this app may not use one; checked on the context, not the activity. */
     private Vibrator vibrator() {
         if (context.checkSelfPermission(android.Manifest.permission.VIBRATE)
                 != PackageManager.PERMISSION_GRANTED)
@@ -38,27 +34,19 @@ public class Vibration {
         return manager == null ? null : manager.getDefaultVibrator();
     }
 
-    /**
-     * The lookup API 30 forces: there the manager service does not exist yet and
-     * {@code VIBRATOR_SERVICE} is still the way to the same vibrator.
-     */
+    /** The lookup API 30 forces: there {@code VIBRATOR_SERVICE} is still the way to the same vibrator. */
     @SuppressWarnings("deprecation")
     private Vibrator legacyVibrator() {
         return (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
     }
 
-    /** Whether this device has a vibrator the game is allowed to use. */
     @ArtDirectHandler
     public boolean isVibratorAvailable() {
         Vibrator vibrator = vibrator();
         return vibrator != null && vibrator.hasVibrator();
     }
 
-    /**
-     * Vibrates for the given number of milliseconds, through {@code VibrationEffect} rather than the
-     * plain duration overload, which is deprecated since API 26 - no version guard is needed because
-     * this bridge never runs below API 30.
-     */
+    /** Vibrates for this many milliseconds through {@code VibrationEffect}, not the deprecated overload. */
     @ArtDirectHandler
     public void vibrate(int milliseconds) {
         try {
@@ -73,9 +61,8 @@ public class Vibration {
     }
 
     /**
-     * Vibrates a waveform: the first entry is the wait before the first pulse, the rest alternate
-     * between on and off, and {@code repeat} is the index to restart from, or -1 for a single run. A
-     * null pattern means the JVM side could not hand the array over, so stopping is the only answer.
+     * Vibrates a waveform: the first entry is the wait before the first pulse, the rest alternate on and off, and
+     * {@code repeat} is the index to restart from, or -1. A null pattern means the array never arrived: stop.
      */
     @ArtDirectHandler
     public void vibrate(long[] pattern, int repeat) {
@@ -93,7 +80,6 @@ public class Vibration {
         }
     }
 
-    /** Stops whatever vibration is running. */
     @ArtDirectHandler
     public void cancelVibrate() {
         try {

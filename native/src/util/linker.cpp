@@ -28,8 +28,7 @@ namespace copper::bridge::util {
             if (!expanded.empty())
                 candidates.push_back(expanded);
         }
-        // The caller's own directory is what makes the AWT style case work: a sibling library with no
-        // usable runpath is still found, because this loader looks where the linker would not.
+        // The caller's own directory is what makes the AWT style case work: a sibling with no usable runpath is found.
         candidates.push_back(origin);
         for (const std::string& dir : searchDirs)
             candidates.push_back(dir);
@@ -66,9 +65,7 @@ namespace copper::bridge::util {
         for (const std::string& soname : deps.needed) {
             std::string dependency = FindLibrary(soname, deps);
             if (dependency.empty()) {
-                // Not in this JRE, which for libc, libdl, libz and the rest of the platform's libraries is
-                // the normal case: they are already mapped in, and asking the linker is what tells those
-                // apart from a library that really is missing.
+                // Not in this JRE, which for the platform's own libraries is normal: they are already mapped in.
                 if (dlopen(soname.c_str(), RTLD_LAZY) != nullptr)
                     continue;
 
@@ -84,8 +81,7 @@ namespace copper::bridge::util {
         if (visited.count(path) > 0)
             return true;
         if (visiting.count(path) > 0) {
-            // A cycle in DT_NEEDED is legal; the linker breaks it at the first repeating edge, and so does
-            // this.
+            // A cycle in DT_NEEDED is legal, broken at the first repeating edge here as the linker does.
             util::Log::VerboseF("LINKER", "cycle back to %s, ignored", path.c_str());
             return true;
         }
@@ -104,10 +100,8 @@ namespace copper::bridge::util {
 
         VisitDependencies(deps, depth);
 
-        // Dependencies are opened first: an entry has to be present before the library needing it is
-        // opened, otherwise the linker would go looking for it on its own and fail.
-        // W^X: a mapped library must be executable and must not be writable. A JRE ships its libraries
-        // writable, so the mode is set here instead of being trusted.
+        // Dependencies are opened first, or the linker goes looking for them itself and fails. W^X: a JRE ships its
+        // libraries writable, so the mode is set here rather than trusted.
         if (chmod(path.c_str(), 0500))
             util::Log::WarnF("LINKER", "failed to chmod 0500: %d, %s", errno, path.c_str());
         void* handle = dlopen(path.c_str(), RTLD_NOW | RTLD_GLOBAL);
@@ -115,15 +109,13 @@ namespace copper::bridge::util {
             const char* reason = dlerror();
             util::Log::InfoF("LINKER", "failed %s: %s", path.c_str(), reason == nullptr ? "unknown" : reason);
             visiting.erase(path);
-            // Recorded as visited anyway: retrying the same failing library once per dependent would
-            // only multiply the same message.
+            // Recorded as visited anyway: retrying one failing library per dependent would multiply the same message.
             visited.insert(path);
             counts.skipped++;
             return false;
         }
 
-        // The soname now maps to this path for every later lookup, so a second copy is never loaded under
-        // another name.
+        // The soname now maps to this path for every later lookup, so a second copy is never loaded under another name.
         if (!deps.soname.empty())
             knownPaths[deps.soname] = path;
 

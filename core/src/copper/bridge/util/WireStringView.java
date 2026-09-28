@@ -1,13 +1,9 @@
 package copper.bridge.util;
 
 /**
- * A re-bindable view of a run of strings inside a frame.
- *
- * <p>Not a list of character buffers: one object that walks the layout is what keeps a reader from
- * allocating a buffer per string per frame. The layout is {@code [u32 count]} followed by {@code count}
- * entries of {@code [u32 length][characters]} - the same shape a sequence of characters has, nested.
- * {@link #get(int)} allocates the string it returns, because that is what a string is; a reader that only
- * needs the characters should use {@link #get(int, char[])} instead.</p>
+ * A re-bindable view of a run of strings inside a frame, not a list of character buffers: one object that walks the
+ * layout keeps a reader from allocating a buffer per string per frame. {@link #get(int)} allocates the string it
+ * returns; a reader that only needs the characters uses {@link #get(int, char[])}.
  */
 public final class WireStringView {
     private byte[] hb;
@@ -26,20 +22,17 @@ public final class WireStringView {
         this.count = readInt(byteOffset);
         if (count < 0)
             throw new BatchFormatException("a string view cannot hold " + count + " strings");
-        // Each entry needs at least its own length, so a count that cannot even fit that many is rejected
-        // here rather than on the first read: a malformed frame should fail where it is bound.
+        // Reject a count that cannot fit its own lengths here: a malformed frame fails where it is bound.
         if (byteOffset + 4 + 4L * count > array.length)
             throw new BatchFormatException("a view of " + count + " strings does not fit an array of "
                     + array.length);
         return this;
     }
 
-    /** How many strings the view holds. */
     public int size() {
         return count;
     }
 
-    /** The string at an index. */
     public String get(int index) {
         final int length = lengthOf(index);
         final char[] text = new char[length];
@@ -47,11 +40,7 @@ public final class WireStringView {
         return new String(text);
     }
 
-    /**
-     * Copies the string at an index into an array, and reports its length.
-     *
-     * @return the number of characters written, which may be shorter than the array
-     */
+    /** Copies the string at an index into an array of any size, and returns its full length. */
     public int get(int index, char[] destination) {
         final int length = lengthOf(index);
         final int written = Math.min(length, destination.length);
@@ -59,7 +48,7 @@ public final class WireStringView {
         return length;
     }
 
-    /** The length of one entry, checked against the end of the array. */
+    /** Walks to one entry and checks it against the end of the array: O(index), entries being variable length. */
     private int lengthOf(int index) {
         if (index < 0 || index >= count)
             throw new BatchFormatException("string " + index + " is outside 0.." + (count - 1));

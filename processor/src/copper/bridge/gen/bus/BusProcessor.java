@@ -25,13 +25,10 @@ import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 
 /**
- * Reads the bridge's call declarations and writes both sides of the bus: the Java entry points and
- * the native tables and stubs. Declarations in core are the only source, so no table is maintained
- * by hand.
- *
- * <p>All six handler annotations are known even though only three are written today: adding the
- * other three has to be a declaration, not a change to the mechanism. A declaration that cannot be
- * honoured is a compile error here.
+ * Reads the bridge's call declarations and writes both sides of the bus: the Java entry points and the native
+ * tables and stubs. Declarations in core are the only source, so no table is maintained by hand, and all six
+ * handler annotations are known even though only three are written today. A declaration that cannot be honoured
+ * is a compile error here.
  */
 @SupportedAnnotationTypes({BusProcessor.ART_POST, BusProcessor.ART_DIRECT, BusProcessor.ART_EVENT,
         BusProcessor.JVM_POST, BusProcessor.JVM_DIRECT, BusProcessor.JVM_EVENT})
@@ -139,7 +136,7 @@ public final class BusProcessor extends AbstractProcessor {
         return true;
     }
 
-    // --- collecting ---------------------------------------------------------
+    //region collecting
 
     private void collect(Handler handler, ExecutableElement method) {
         TypeElement owner = owner(method);
@@ -241,7 +238,6 @@ public final class BusProcessor extends AbstractProcessor {
             answer.method = "deliver";
             answer.isStatic = true;
             answer.leadingRequest = true;
-            // The kind tells the two outcomes of one request apart; the value is its single payload.
             answer.descriptor = "(JI" + (callback.payload == null ? "" : callback.payload.descriptor) + ")V";
             answer.params.add(longType());
             answer.paramNames.add("request");
@@ -327,7 +323,9 @@ public final class BusProcessor extends AbstractProcessor {
         return callback;
     }
 
-    // --- assigning ids and deriving the limits ------------------------------
+    //endregion
+
+    //region assigning ids and deriving the limits
 
     private void assign() {
         if (rows.isEmpty())
@@ -368,8 +366,6 @@ public final class BusProcessor extends AbstractProcessor {
             }
             maxArgs = Math.max(maxArgs, slots);
             maxParams = Math.max(maxParams, row.params.size());
-            // A synchronous row keeps its objects as global references in the target VM, so only its
-            // count has to fit the message; an asynchronous row encodes them into the box instead.
             if (row.waits)
                 maxRefs = Math.max(maxRefs, refs);
             else
@@ -380,7 +376,6 @@ public final class BusProcessor extends AbstractProcessor {
                     + " counts them in one byte, so at most " + MAX_BOXED + " are allowed");
     }
 
-    /** One constant per row; an overload set is told apart by the code of its first parameter. */
     private void assignConstants() {
         Map<String, List<Row>> byBase = new LinkedHashMap<>();
         for (Row row : rows)
@@ -416,13 +411,14 @@ public final class BusProcessor extends AbstractProcessor {
         }
     }
 
-    // --- helpers ------------------------------------------------------------
+    //endregion
+
+    //region helpers
 
     private TypeElement annotation(String name) {
         return processingEnv.getElementUtils().getTypeElement(name);
     }
 
-    /** Whether a method carries the named annotation; the processor has no class reference to it. */
     private static boolean hasAnnotation(Element element, String name) {
         for (AnnotationMirror mirror : element.getAnnotationMirrors()) {
             if (mirror.getAnnotationType().toString().equals(name))
@@ -527,7 +523,9 @@ public final class BusProcessor extends AbstractProcessor {
         Output.warn(processingEnv, element, message);
     }
 
-    // --- output -------------------------------------------------------------
+    //endregion
+
+    //region output
 
     void writeJava(String packageName, String simpleName, String content) throws IOException {
         Output.writeJava(processingEnv, packageName, simpleName, content);
@@ -536,4 +534,5 @@ public final class BusProcessor extends AbstractProcessor {
     void writeCpp(String name, String content) throws IOException {
         Output.writeCpp(processingEnv, name, content);
     }
+    //endregion
 }

@@ -1,7 +1,7 @@
 #include "bus/internal/copy.h"
 
-// Cross-VM copies: one value rebuilt in the other VM, byte for byte where the element type is fixed and
-// element by element where it is a reference.
+// Cross-VM copies: one value rebuilt in the other VM, byte for byte where the element type is fixed and element by
+// element where it is a reference.
 
 namespace copper::bridge::bus::Copy {
 

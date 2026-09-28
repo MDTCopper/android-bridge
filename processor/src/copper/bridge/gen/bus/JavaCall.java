@@ -50,9 +50,9 @@ final class JavaCall {
                 import {{log}};
                 {{imports}}
 
-                /** Generated. Do not edit. The calls the {{side}} side makes: one method per call, one native per signature, so a new call of an
-                 * existing shape adds no native method. A call that returns a value waits for its own
-                 * answer; a call that returns void is queued and forgotten. */
+                /** Generated. Do not edit. The calls the {{side}} side makes: one method per call and one native per
+                 * signature, so a new call of an existing shape adds no native method. A call that returns a value
+                 * waits for its own answer; a call that returns void is queued and forgotten. */
                 public final class {{name}} {
 
                     {{calls}}

@@ -4,9 +4,8 @@ import copper.bridge.func.*;
 import java.util.*;
 
 /**
- * Command-line argument parser: short/long options, flags, bundled flags ({@code -abc}) and the bare words
- * that are none of those, {@code --} included, which collects them. The constructor registers
- * {@code -h/--help}.
+ * Command-line argument parser: short/long options, flags, bundled flags ({@code -abc}) and the bare words that are
+ * none of those, {@code --} included. The constructor registers {@code -h/--help}.
  */
 public class ArgParser {
     private final String programName;
@@ -22,35 +21,25 @@ public class ArgParser {
         addFlag("h", "help", "Show this help message", () -> helpRequested = true);
     }
 
-    /**
-     * Sets what the bare words are for, as the help should word it. The parser collects them and knows
-     * nothing more, so only the caller can say whose they are.
-     */
+    /** Sets what the bare words are for, as the help should word it; only the caller can say whose they are. */
     public void setPositionalDescription(String positionalDescription) {
         this.positionalDescription = positionalDescription;
     }
 
-    /** Registers a flag (an option without an argument) and the action it runs. */
     public void addFlag(String shortOpt, String longOpt, String desc, Runnable action) {
         options.add(new Option(shortOpt, longOpt, desc, false, null, action, null));
     }
 
-    /** Registers an option with an argument and the handler it calls. */
     public void addOption(String shortOpt, String longOpt, String desc, String argName, Cons<String> action) {
         options.add(new Option(shortOpt, longOpt, desc, true, argName, null, action));
     }
 
-    /**
-     * Registers an option whose value may itself start with a dash: {@code -J -Xmx2g} has to hand
-     * {@code -Xmx2g} over untouched, so only options carrying foreign arguments use this overload.
-     */
+    /** Registers an option whose value may start with a dash, as {@code -J -Xmx2g} needs. */
     public void addOption(String shortOpt, String longOpt, String desc, String argName, Cons<String> action, boolean allowDashValue) {
         options.add(new Option(shortOpt, longOpt, desc, true, argName, null, action, allowDashValue));
     }
 
-    /** Parses command-line arguments.
-     *
-     * @throws IllegalArgumentException if an unknown option or missing argument is encountered. */
+    /** Parses command-line arguments. Throws on an unknown option or a missing argument. */
     public void parse(String[] args) {
         int i = 0;
         while (i < args.length) {
@@ -168,12 +157,10 @@ public class ArgParser {
         return null;
     }
 
-    /** Returns the positional arguments. */
     public List<String> getPositionalArgs() {
         return positionalArgs;
     }
 
-    /** Prints the help message to stdout. */
     public void printHelp() {
         System.out.println("Usage: " + programName + " [options] [arguments...]");
         if (description != null && !description.isEmpty()) {
@@ -203,7 +190,6 @@ public class ArgParser {
         }
     }
 
-    /** Internal option representation. */
     private static class Option {
         final String shortOpt;
         final String longOpt;

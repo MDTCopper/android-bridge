@@ -6,21 +6,14 @@ import java.io.*;
 import java.util.*;
 
 /**
- * The entry point the launcher calls on the ART side; a separate class from the JVM side's
- * {@link copper.bridge.jvm.Main} because the two run in different virtual machines. The version branch is not
- * decided here - the JVM resolves it from its own classpath - and this side reports only the game version it
- * found, the one fact knowable before a JVM exists.
+ * The entry point the launcher calls on the ART side. The version branch is decided on the JVM side, from its own
+ * classpath; this side only reports the game version it found.
  */
 public class Main {
 
-    /**
-     * Parses the launcher arguments. Called once before {@link #launch()}; calling it again is harmless.
-     */
     public static void main(String[] args) {
         parse(args);
 
-        // Android's log is reached by this side's backend alone - the JVM has no android.util.Log -
-        // and the same backend writes the file until the native library is loaded.
         Log.setSide(Log.Side.ART);
         Log.setLogcat(Bridge.options.logcat);
         if (Bridge.options.verbose)
@@ -28,8 +21,7 @@ public class Main {
         else if (Bridge.options.debug)
             Log.setLevel(Log.Level.DEBUG);
 
-        // This side owns the log file until the native library is loaded, and takes it back if that never
-        // happens. A run's log starts empty: a stale one would read as if it were this run's.
+        // a run's log starts empty: a stale one would read as if it were this run's
         File logFile = new File(Bridge.options.gameDataFolder, "last_log.txt");
         logFile.getParentFile().mkdirs();
         logFile.delete();
@@ -43,55 +35,41 @@ public class Main {
         for (File jar : Bridge.options.gameJars)
             Log.info("  " + jar);
 
-        // Reported, not used: the branch is resolved on the JVM side. Keeping the line here is what
-        // makes a launch that never reaches the JVM diagnosable at all - the ART log exists before
-        // the JVM does, so it is the only record of which jar the game version came out of.
+        // reported, not used: the ART log is the only record of the version when a launch never reaches the JVM
         GameVersion version = GameVersion.fromJars(Bridge.options.gameJars);
         Log.info("game version: " + (version == null ? "unknown (no version.properties)" : version.toString()));
 
-        // The library is extracted and loaded here, and the path it landed on is recorded: the JVM has to
-        // reopen this very file, because a native method binds to the VM whose JNI_OnLoad registered it.
-        // Extraction happens while this side still has the file.
+        // the JVM has to reopen this very file: a native method binds to the VM whose JNI_OnLoad registered it
         Bridge.prepare();
 
-        // The writer is given up before the load: from its first instruction the native side owns the
-        // file, and this side's lines still reach logcat through this backend.
+        // writer given up before the load: the native side owns the file from its first instruction
         Log.closeOutputFile();
         try {
             Bridge.load();
         } catch (Throwable e) {
-            // The library's first act is to take the file over; if it never got that far, the file is
-            // this side's again and this is where the reason for the failed load ends up.
             Log.setOutputFile(logFile);
             Log.error("the native library failed to load: " + e);
             throw e;
         }
 
-        // Loaded: the native side is the writer now, and this side hands its lines over.
         Log.setBackend(new NativeLogBackend());
     }
 
     /**
-     * Creates the game activity on the ART main thread and returns it immediately: the JVM is started by the
-     * activity itself, on its own thread. Reaching {@link BridgeActivity} directly puts
-     * {@code android.app.Activity} into this class's reference graph, which is safe because nothing on the JVM
-     * side ever loads this class.
-     *
-     * @return the activity, ready to be returned from {@code instantiateActivity}
+     * Creates the game activity on the ART main thread, the JVM being started by the activity itself. Reaching
+     * {@link BridgeActivity} directly is safe because nothing on the JVM side ever loads this class.
      */
     public static Object launch() {
         requireOptions();
         return new BridgeActivity();
     }
 
-    // argument parsing
+    //region argument parsing
 
-    /** Builds the argument parser with every option documented in the project spec. */
     private static ArgParser buildParser() {
         ArgParser parser = new ArgParser("CopperBridge", "An Android JVM bridge to launch the vanilla game.");
 
-        // The bare words are the caller's arguments for the game: the bridge collects them and passes them
-        // on, and with an injected loader that loader is the one that forwards them.
+        // the bare words are the game's, or an injected loader's, which forwards them
         parser.setPositionalDescription("passed on to the game, or to an injected loader, which forwards them");
 
         parser.addOption("G", "game-jar", "Game jar / arc jar / extra classpath jar, repeatable", "path",
@@ -129,25 +107,18 @@ public class Main {
                 () -> Bridge.options.verbose = true);
         parser.addFlag(null, "logcat", "Also write to Android's log", () -> Bridge.options.logcat = true);
 
-        // one JVM argument per occurrence, handed over untouched: the value may start with a dash
         parser.addOption("J", "jvm-args", "One JVM argument, repeatable", "arg",
                 arg -> Bridge.options.jvmArgs.add(arg), true);
 
         return parser;
     }
 
-    /**
-     * Parses the given arguments into the one options instance, filling in the derived values. Nothing is
-     * returned: the instance is the process's, and every other class reads it from {@link Bridge}.
-     */
     private static void parse(String[] args) {
         Bridge.options = new BridgeOptions();
         readBridgeProperties();
         ArgParser parser = buildParser();
         parser.parse(args);
 
-        // Everything that is not one of this bridge's own options is the game's: those words are carried
-        // over, so whoever starts the game - the JVM entry, or an injected loader - can hand them on.
         Bridge.options.positional.addAll(parser.getPositionalArgs());
 
         require(Bridge.options.gameJars.isEmpty(), "no game jar provided, pass at least one -G");
@@ -162,8 +133,7 @@ public class Main {
         if (Bridge.options.androidVersion == 0)
             Bridge.options.androidVersion = Device.apiLevel();
 
-        // arc derives its mobile UI scale from the display density and the JVM side has no way to
-        // ask Android for it, so it is recorded here with the rest of the device facts
+        // the JVM side cannot ask Android for the display density, so it is recorded here
         if (Bridge.options.density <= 0f)
             Bridge.options.density = Device.density();
         if (Bridge.options.xdpi <= 0f)
@@ -178,12 +148,7 @@ public class Main {
         Bridge.options.javaHome = deriveJavaHome(Bridge.options.javaExecutable);
     }
 
-    /**
-     * Reads {@code bridge.properties}, the build stamp {@code :pack} writes: the version, and for a
-     * snapshot either the commit it was built from or the fact that it is a custom build. A missing
-     * resource, or a jar built before the stamp carried either, leaves the placeholders standing
-     * instead of failing the launch.
-     */
+    /** Reads the build stamp {@code :pack} writes; a missing resource leaves the placeholders standing. */
     private static void readBridgeProperties() {
         try (InputStream in = Main.class.getClassLoader().getResourceAsStream("bridge.properties")) {
             if (in == null)
@@ -198,7 +163,6 @@ public class Main {
         }
     }
 
-    /** The JRE root implied by a JVM executable path. */
     private static File deriveJavaHome(File javaExecutable) {
         File bin = javaExecutable.getAbsoluteFile().getParentFile();
         if (bin != null && "bin".equals(bin.getName()) && bin.getParentFile() != null)
@@ -206,7 +170,6 @@ public class Main {
         return bin == null ? javaExecutable.getAbsoluteFile() : bin;
     }
 
-    /** Fails unless {@link #main} has run, i.e. unless the one options instance exists. */
     private static void requireOptions() {
         if (Bridge.options == null)
             throw new RuntimeException("copper.bridge.art.Main.main has not run yet");
@@ -216,4 +179,5 @@ public class Main {
         if (empty)
             throw new RuntimeException(message);
     }
+    //endregion
 }

@@ -5,9 +5,9 @@ import java.util.Map;
 import javax.lang.model.type.TypeMirror;
 
 /**
- * The closed set of types the bridge lets across. A type outside it is rejected where it is
- * written rather than at the crossing, because the far side rebuilds every value from a
- * description and has no recipe for it.
+ * The closed set of types the bridge lets across. A type outside it is rejected where it is written rather
+ * than at the crossing, because the far side rebuilds every value from a description and has no recipe for
+ * it.
  */
 public final class Vocabulary {
     private static final Map<String, TypeRef> TYPES = new LinkedHashMap<>();
@@ -49,7 +49,6 @@ public final class Vocabulary {
         TYPES.put(canonical, new TypeRef(canonical, code, descriptor, java, jni, jvalue, object, isVoid));
     }
 
-    /** The description of a type written in source, or {@code null} when it is outside the table. */
     public static TypeRef parse(String source) {
         String name = source.trim();
         // An outcome is written on an annotation, where the simple name is all there is room for.
@@ -60,12 +59,10 @@ public final class Vocabulary {
         return TYPES.get(name);
     }
 
-    /** The description of a declared type, or {@code null} when it is outside the table. */
     public static TypeRef of(TypeMirror mirror) {
         return TYPES.get(mirror.toString());
     }
 
-    /** A comma-separated list of the names this table accepts, for a diagnostic. */
     public static String names() {
         return String.join(", ", TYPES.keySet());
     }

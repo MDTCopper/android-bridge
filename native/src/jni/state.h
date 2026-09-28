@@ -5,20 +5,13 @@
 
 namespace copper::bridge::jni::State {
 
-    // Process wide state: which VM is which.
-    //
-    // Two VMs share this library, so an entry point has to know which one it is talking to; both are kept,
-    // because the bus serves both directions. There is one of each per process, so the values live behind
-    // functions rather than in an object that would only be something to hand around.
+    // Process wide state: which VM is which. Both are kept because the bus serves both directions.
 
-    // The VM that loaded the library first, which is always the ART side; recorded on the first load and
-    // never replaced.
+    // The VM that loaded the library first, which is always ART: recorded on the first load, never replaced.
     JavaVM* ArtVm();
     void SetArtVm(JavaVM* vm);
 
-    // The VM that JLI_Launch created, recorded by its own load of this library. A process that never recorded
-    // it would drop every answer silently - the pump resolves the delivery method through this side's own
-    // environment - which is what the file chooser and text input callbacks need.
+    // The VM JLI_Launch created, recorded by its own load of this library; never recorded, answers are dropped.
     JavaVM* Jvm();
     void SetJvm(JavaVM* vm);
 

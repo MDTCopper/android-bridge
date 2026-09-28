@@ -20,12 +20,10 @@ import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
 
 /**
- * Reads the two binding annotations and writes every registration table, the list of them, and the calls
- * native makes back into Java.
- *
- * <p>Both directions are read from the same declarations, so names, descriptors and entries cannot
- * drift apart. They are written once, after all rounds: some belong to classes another pass generates,
- * and writing early would leave half a set on disk for the check option to compare against.</p>
+ * Reads the two binding annotations and writes every registration table, the list of them, and the calls native
+ * makes back into Java, from the same declarations, so names, descriptors and entries cannot drift apart. They are
+ * written once, after all rounds: some belong to classes another pass generates, and writing early would leave half
+ * a set on disk for the check option to compare against.
  */
 @SupportedAnnotationTypes({BindingProcessor.NATIVE, BindingProcessor.USED_BY_NATIVE})
 @SupportedOptions({Output.OUTPUT_OPTION})
@@ -33,11 +31,8 @@ public final class BindingProcessor extends AbstractProcessor {
     static final String NATIVE = Packages.ANNOTATIONS + ".Native";
     static final String USED_BY_NATIVE = Packages.ANNOTATIONS + ".UsedByNative";
 
-    /** Each class's natives, keyed by its qualified name. */
     private final Map<String, List<Forward>> forwards = new TreeMap<>();
-    /** Table symbols already taken; two classes cannot claim one. */
     private final Set<String> tableNames = new LinkedHashSet<>();
-    /** Keyed by the name the generated entry carries. */
     private final Map<String, Reverse> reverses = new LinkedHashMap<>();
 
     @Override
@@ -62,7 +57,7 @@ public final class BindingProcessor extends AbstractProcessor {
         return false;
     }
 
-    // --- collecting ---------------------------------------------------------
+    //region collecting
 
     private void collect(RoundEnvironment round) {
         // A native with no entry binds nothing, and the symptom is a call that fails much later - or never,
@@ -85,7 +80,6 @@ public final class BindingProcessor extends AbstractProcessor {
         return found;
     }
 
-    /** Recurses into nested classes, reporting every native that names no entry. */
     private void requireEntry(Element element) {
         for (Element member : element.getEnclosedElements()) {
             if (member.getKind().isClass() || member.getKind().isInterface()) {
@@ -232,8 +226,9 @@ public final class BindingProcessor extends AbstractProcessor {
                 method.getSimpleName().toString(), descriptor(params, result), entry, side, detaches, params,
                 result));
     }
+    //endregion
 
-    // --- helpers ------------------------------------------------------------
+    //region helpers
 
     private static boolean hasAnnotation(Element element, String name) {
         for (AnnotationMirror mirror : element.getAnnotationMirrors()) {
@@ -244,9 +239,8 @@ public final class BindingProcessor extends AbstractProcessor {
     }
 
     /**
-     * One annotation element, as a string. Read by name rather than through a class reference: this pass
-     * is compiled before the bridge is, so the annotation is a name to it too. An enum constant arrives as
-     * the constant itself, which is why its simple name is what is returned.
+     * One annotation element, as a string. Read by name rather than through a class reference, because this pass is
+     * compiled before the bridge is: an enum constant arrives as the constant itself, so its simple name is returned.
      */
     private String annotationString(Element element, String annotation, String name, String fallback) {
         for (AnnotationMirror mirror : element.getAnnotationMirrors()) {
@@ -275,8 +269,9 @@ public final class BindingProcessor extends AbstractProcessor {
             text.append(param.descriptor);
         return text.append(')').append(result.descriptor).toString();
     }
+    //endregion
 
-    // --- what the generator reads -------------------------------------------
+    //region what the generator reads
 
     /** Sorted so the generated file does not move between two equal runs. */
     Map<String, List<Forward>> forwards() {
@@ -289,14 +284,12 @@ public final class BindingProcessor extends AbstractProcessor {
         return sorted;
     }
 
-    /** Sorted for the same reason as {@link #forwards()}. */
     List<Reverse> reverses() {
         List<Reverse> sorted = new ArrayList<>(reverses.values());
         sorted.sort(Comparator.comparing((Reverse member) -> member.owner).thenComparing(member -> member.entry));
         return sorted;
     }
 
-    /** The reverse members that need a handle: a member of both VMs looks its own class up per call. */
     List<Reverse> slotted() {
         List<Reverse> slotted = new ArrayList<>();
         for (Reverse member : reverses()) {
@@ -313,4 +306,5 @@ public final class BindingProcessor extends AbstractProcessor {
     void error(Element element, String message) {
         Output.error(processingEnv, element, message);
     }
+    //endregion
 }

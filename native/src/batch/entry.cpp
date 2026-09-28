@@ -8,8 +8,7 @@ namespace copper::bridge::batch::Entry {
 
     namespace {
 
-        // Every number in the frame stream is a uint32: the total that follows the head, and each frame's own
-        // length.
+        // Every number in the frame stream is a uint32: the total after the head, and each frame's own length.
         constexpr size_t PREFIX = sizeof(uint32_t);
 
         bool Queue(int32_t channel, const uint8_t* data, size_t length) {
@@ -27,14 +26,9 @@ namespace copper::bridge::batch::Entry {
         }
 
         /**
-         * Moves the queued frames into `out`, whose first four bytes are the byte count of the frames that
-         * followed, and returns how many of `out`'s bytes they took.
-         *
-         * `capacity` is how large the caller's buffer is, and it is the only bound every copy obeys. The
-         * producer runs while this copies, so which frames fit is decided here, against the buffer itself,
-         * rather than by a measurement taken before it: a frame that arrived since and does not fit is left
-         * in the ring for the next call rather than copied past the end. The count is written last, because
-         * until the loop ends it is not known.
+         * Moves the queued frames into `out`, whose first four bytes are their byte count, and returns how many of
+         * `out`'s bytes they took. `capacity` is the caller's buffer size and the only bound every copy obeys. The
+         * count is written last, because until the loop ends it is not known.
          */
         size_t Drain(int32_t channel, uint8_t* out, size_t capacity) {
             if (out == nullptr || capacity < PREFIX)
@@ -48,10 +42,7 @@ namespace copper::bridge::batch::Entry {
                 const uint8_t* data = nullptr;
                 size_t length = 0;
                 while (target->PeekFirst(data, length)) {
-                    // The count `written` makes is the frame plus its prefix, so the room left is
-                    // `capacity - written` - subtracting the prefix a second time would understate it, and
-                    // on a buffer of exactly the prefix's size it would wrap and let the copy through.
-                    // `written` never exceeds `capacity`, so the copies below stay inside `out`.
+                    // The count `written` makes is the frame plus its prefix, so the room left is `capacity - written`.
                     if (PREFIX + length > capacity - written)
                         break;
                     const auto size = static_cast<uint32_t>(length);
@@ -60,8 +51,7 @@ namespace copper::bridge::batch::Entry {
                     memcpy(cursor, data, length);
                     cursor += length;
                     written += PREFIX + length;
-                    // Consumed as it is copied: the frames are in the caller's hands now, and holding
-                    // them in the ring as well would only make the producer drop the next ones.
+                    // Consumed as it is copied: holding them in the ring as well would only make the producer drop more.
                     target->ConsumeFirst();
                 }
             }
@@ -85,7 +75,6 @@ namespace copper::bridge::batch::Entry {
             return;
         }
 
-        // Read only, so the array is released without copying anything back.
         Queue(channel, reinterpret_cast<const uint8_t*>(bytes), static_cast<size_t>(capped));
         env->ReleaseByteArrayElements(buffer, bytes, JNI_ABORT);
     }
@@ -93,8 +82,6 @@ namespace copper::bridge::batch::Entry {
     jbyteArray Poll(JNIEnv* env, jclass, jint channel, jbyteArray reuse) {
         const jsize needed = static_cast<jsize>(FramedBytes(channel));
 
-        // The array is reused when it is already large enough; otherwise a right sized one is handed back,
-        // and the caller keeps it for the next frame.
         jbyteArray destination = reuse;
         if (destination == nullptr || env->GetArrayLength(destination) < needed) {
             destination = env->NewByteArray(needed);
@@ -110,8 +97,7 @@ namespace copper::bridge::batch::Entry {
             return destination;
         }
 
-        // The array's own length is what bounds the copy, not the measurement: the reused array may be
-        // larger, and a frame that arrived after the measurement would make `needed` too small.
+        // The array's own length bounds the copy, not the measurement: the reused array may be larger.
         Drain(channel, reinterpret_cast<uint8_t*>(out),
                 static_cast<size_t>(env->GetArrayLength(destination)));
         env->ReleaseByteArrayElements(destination, out, 0);

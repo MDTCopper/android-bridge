@@ -16,33 +16,23 @@ import java.io.*;
 import java.nio.*;
 
 /**
- * arc's graphics for the JVM side of the bridge.
- *
- * <p>The game runs in a separate JVM, where {@code android.opengl} is unreachable, so LWJGL's EGL
- * and OpenGL ES bindings are the only route to GL. ART hands the window over as an opaque native
- * pointer, which is exactly what {@code eglCreateWindowSurface} wants. A pause destroys only the
- * window surface, so the context and its textures and shaders survive a resume.</p>
+ * arc's graphics for the JVM side of the bridge. {@code android.opengl} is unreachable in this JVM, so LWJGL's EGL
+ * and OpenGL ES bindings are the only route to GL, and ART hands the window over as an opaque native pointer. A
+ * pause destroys only the window surface, so GL objects survive a resume.
  */
 public class BridgeGraphics extends Graphics {
     /** Coverage sampling attribute; not in LWJGL's core EGL headers. */
     private static final int EGL_COVERAGE_SAMPLES_NV = 0x30E1;
 
-    /** Cache subfolder the device's own ANGLE libraries are staged in. */
     private static final String STAGING_FOLDER = "native/angle";
 
-    /** The names ANGLE's libraries have. */
     private static final String ANGLE_EGL = "libEGL_angle.so";
     private static final String ANGLE_GLES = "libGLESv2_angle.so";
 
-    /** The system's own EGL and GLES, used whenever ANGLE is not requested or cannot be had. */
     private static final String SYSTEM_EGL = "libEGL.so";
     private static final String SYSTEM_GLES = "libGLESv2.so";
 
-    /**
-     * Where a device's own ANGLE may sit, in the order the search tries them: the platform's
-     * libraries, the ANGLE apex, then the partitions a vendor build may put it in. A 64-bit process
-     * reads the {@code lib64} form of each.
-     */
+    /** Where a device's own ANGLE may sit, in the order the search tries them. */
     private static final String[] SYSTEM_LIBRARY_ROOTS = {
             "/system", "/apex/com.android.angle", "/system_ext", "/vendor", "/product", "/odm"
     };
@@ -75,19 +65,8 @@ public class BridgeGraphics extends Graphics {
     }
 
     /**
-     * Points LWJGL at this device's EGL and GLES libraries and loads them. LWJGL would otherwise
-     * load its own bundled natives, which do not exist for Android, and its OpenGL ES binding needs
-     * an explicit create rather than the lazy one.
-     *
-     * <p>ANGLE is asked for in two forms: {@code --angle} takes the device's own pair, found under
-     * the system's library directories, and {@code --angle-path} takes a pair the caller supplied,
-     * found under that folder. A pair that is not there is reported and the system's EGL/GLES are
-     * used instead, so asking for ANGLE never costs a launch.</p>
-     *
-     * <p>A pair from {@code --angle-path} is made executable for the owner and read-only where it lies, the
-     * same W^X treatment the bridge's own libraries get, because LWJGL opens both by absolute path. The
-     * device's own pair is staged into the cache folder first, by {@link #stageAngle}, and the copy is the
-     * one that gets the treatment and is loaded; the system's own files stay as they are.</p>
+     * Points LWJGL at this device's EGL and GLES libraries and loads them: LWJGL would otherwise load its own bundled
+     * natives, which do not exist for Android. A pair that is not there is reported and the system's used instead.
      */
     public void configure() {
         String egl = SYSTEM_EGL;
@@ -99,8 +78,7 @@ public class BridgeGraphics extends Graphics {
                 File eglAngle = Libraries.find(Bridge.options.anglePath, Bridge.options.abi, ANGLE_EGL, SYSTEM_EGL);
                 File glesAngle = Libraries.find(Bridge.options.anglePath, Bridge.options.abi, ANGLE_GLES, SYSTEM_GLES);
                 if (eglAngle != null && glesAngle != null) {
-                    // W^X: LWJGL opens these by absolute path, so they have to be executable and not
-                    // writable. These two are the caller's own files, so they can be changed in place.
+                    // W^X: LWJGL opens these by absolute path, so they have to be executable and not writable.
                     Libraries.ensureLoadable(eglAngle);
                     Libraries.ensureLoadable(glesAngle);
 
@@ -127,8 +105,7 @@ public class BridgeGraphics extends Graphics {
         Configuration.EGL_LIBRARY_NAME.set(egl);
         Configuration.OPENGLES_LIBRARY_NAME.set(gles);
         Configuration.OPENGLES_EXPLICIT_INIT.set(true);
-        // LWJGL's own debug output follows the two flags the same way arc's level does: either one is a
-        // request for everything a run can print.
+        // LWJGL's debug output follows the two flags as arc's level does: either one asks for everything
         if (Bridge.options.debug || Bridge.options.verbose)
             Configuration.DEBUG.set(true);
 
@@ -137,13 +114,7 @@ public class BridgeGraphics extends Graphics {
         GLES.create();
     }
 
-    /**
-     * Finds the device's own ANGLE pair: the system's library directories are searched in turn and the
-     * first one holding both libraries wins. Only their presence is settled here; whether the pair can
-     * actually be loaded is settled by the staging and the load that follow.
-     *
-     * @return the two files, EGL first, or {@code null} when no directory holds a pair
-     */
+    /** Finds the device's own ANGLE pair: the system's library directories in turn, the first holding both winning. */
     private static File[] findSystemAngle() {
         String suffix = bits64() ? "lib64" : "lib";
         for (String root : SYSTEM_LIBRARY_ROOTS) {
@@ -156,15 +127,8 @@ public class BridgeGraphics extends Graphics {
         return null;
     }
 
-    /**
-     * Copies one of the device's own ANGLE libraries into {@link #STAGING_FOLDER}, through
-     * {@link Libraries#extract}, and returns the copy: that copy is what LWJGL is pointed at, and the
-     * system's own file is never loaded.
-     *
-     * <p>The copy is what makes the pair loadable: the linker only lets an app process load the platform
-     * libraries that {@code /system/etc/public.libraries.txt} names, and a file under the cache folder is
-     * this app's own library instead of a platform one.</p>
-     */
+    /** Copies a device ANGLE library into {@link #STAGING_FOLDER}, which is what makes it loadable: the linker only
+     *  lets an app process load the platform libraries {@code public.libraries.txt} names. */
     private static File stageAngle(File source) {
         File stageFolder = new File(Bridge.options.cacheFolder, STAGING_FOLDER);
         File target = new File(stageFolder, source.getName());
@@ -173,17 +137,13 @@ public class BridgeGraphics extends Graphics {
         return target;
     }
 
-    /** Whether this process is 64 bit, which decides between the {@code lib} and {@code lib64} forms. */
     private static boolean bits64() {
         String arch = Bridge.options.arch == null ? "" : Bridge.options.arch;
         String abi = Bridge.options.abi == null ? "" : Bridge.options.abi;
         return arch.contains("64") || arch.startsWith("armv8") || abi.contains("64");
     }
 
-    /**
-     * Creates the context and window surface for a window ART handed over, or replaces only the
-     * surface when that is all that was lost. {@code window} is the {@code ANativeWindow*} pointer.
-     */
+    /** Creates the context and window surface for the window ART handed over, or replaces only the surface. */
     public boolean createSurface(long window, int surfaceWidth, int surfaceHeight) {
         if (eglDisplay == EGL10.EGL_NO_DISPLAY || eglContext == EGL10.EGL_NO_CONTEXT) {
             fullInit(window);
@@ -209,7 +169,6 @@ public class BridgeGraphics extends Graphics {
         return true;
     }
 
-    /** Creates the display, config and context; the window surface is made afterwards. */
     private void fullInit(long window) {
         eglDisplay = EGL10.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY);
         if (eglDisplay == EGL10.EGL_NO_DISPLAY)
@@ -244,7 +203,6 @@ public class BridgeGraphics extends Graphics {
             throw new IllegalStateException("eglCreateWindowSurface failed: 0x" + Integer.toHexString(EGL10.eglGetError()));
     }
 
-    /** Picks a window-renderable ES2 config matching the requested channel sizes. */
     private long chooseConfig() {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             int[] attribs = {
@@ -268,7 +226,6 @@ public class BridgeGraphics extends Graphics {
         }
     }
 
-    /** Records what the chosen config actually delivered, for the game's own GL log. */
     private void logConfig(long config) {
         int r = attrib(config, EGL10.EGL_RED_SIZE);
         int g = attrib(config, EGL10.EGL_GREEN_SIZE);
@@ -291,10 +248,7 @@ public class BridgeGraphics extends Graphics {
         }
     }
 
-    /**
-     * Builds the GL wrappers once the context is current: the ES3 one must not be installed on a
-     * device that only offers ES2, so the choice needs the live version string.
-     */
+    /** The ES3 wrapper must not be installed on a device that only offers ES2. */
     private void setupGL() {
         GLES.createCapabilities();
 
@@ -334,7 +288,6 @@ public class BridgeGraphics extends Graphics {
         }
     }
 
-    /** Tears the context down for good; only the destroy path needs this. */
     public void disposeContext() {
         destroySurface();
         if (eglDisplay == EGL10.EGL_NO_DISPLAY)
@@ -348,7 +301,6 @@ public class BridgeGraphics extends Graphics {
         eglDisplay = EGL10.EGL_NO_DISPLAY;
     }
 
-    /** Records the new surface size; the caller already resized the viewport if needed. */
     public void surfaceResized(int surfaceWidth, int surfaceHeight) {
         width = surfaceWidth;
         height = surfaceHeight;
@@ -356,15 +308,12 @@ public class BridgeGraphics extends Graphics {
             GLES20.glViewport(0, 0, width, height);
     }
 
-    /**
-     * Marks the next frame as the first after a resume: a pause can last minutes, and its time would
-     * otherwise reach the game as one delta and step its physics in one jump.
-     */
+    /** Marks the next frame as the first after a resume: a pause can last minutes, and its time would otherwise reach
+     *  the game as one delta and step its physics in one jump. */
     public void markResumed() {
         resumed = true;
     }
 
-    /** Advances the frame clock. Called once per loop iteration, before the game updates. */
     public void beginFrame() {
         long time = System.nanoTime();
         if (lastFrameTime == -1)
@@ -484,19 +433,14 @@ public class BridgeGraphics extends Graphics {
         return Bridge.options.ydpi / 2.54f;
     }
 
-    /** ART's display density; arc scales the whole mobile UI by it, so it cannot be a constant. */
+    /** ART's display density; arc scales the whole mobile UI by it. */
     @Override
     public float getDensity() {
         return Bridge.options.density;
     }
 
-    /**
-     * Never called: a bridge that only draws into the activity's surface has no window.
-     *
-     * <p>No {@code @Override} on purpose: arc declares it abstract up to v156 and removes it in
-     * v157, so with one epoch compiled and all of them run, the annotation cannot be present and
-     * the method cannot be dropped - v156 would be left with an unimplemented abstract method.</p>
-     */
+    /** Never called: a bridge that only draws into the activity's surface has no window. No {@code @Override} on
+     *  purpose - arc declares it abstract up to v156 and removes it in v157. */
     @SuppressWarnings("unused")
     public boolean setWindowedMode(int width, int height) {
         return false;
@@ -531,7 +475,6 @@ public class BridgeGraphics extends Graphics {
     public void setContinuousRendering(boolean isContinuous) {
     }
 
-    /** The loop renders every frame, so there is never anything to wake up. */
     @Override
     public void requestRendering() {
     }

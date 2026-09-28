@@ -7,8 +7,7 @@ import java.util.List;
 
 /**
  * Writes the generated {@code Kinds} class: one constant per bus row, and the two lookups the log lines use.
- *
- * <p>The ids come from sorting the constant names, so an unchanged declaration keeps the id it always had.</p>
+ * The ids come from sorting the constant names, so an unchanged declaration keeps the id it always had.
  */
 final class JavaKinds {
     private JavaKinds() {
@@ -47,11 +46,9 @@ final class JavaKinds {
         return Template.of("""
                 package {{package}};
 
-                /** Generated. Do not edit. One constant per bus row; the ids come from sorting the
-                 * constant names, so an unchanged declaration keeps the id it always had.
-                 *
-                 * <p>Package private, like the two call classes' use of it: an id is what one side passes
-                 * to native, and nothing outside this package names one.</p> */
+                /** Generated. Do not edit. One constant per bus row; the ids come from sorting the constant names,
+                 * so an unchanged declaration keeps the id it always had. Package private, like the two call classes'
+                 * use of it: an id is what one side passes to native, and nothing outside this package names one. */
                 final class Kinds {
                     /** No row at all: a direct call never travels. */
                     static final int NONE = -1;

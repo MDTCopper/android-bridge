@@ -8,24 +8,17 @@ import java.io.*;
 import java.util.*;
 
 /**
- * Starts the JVM from the ART side. Runs on its own thread because {@code JLI_Launch} does not return until
- * the game exits, so the activity's main thread stays free for the Android message loop. The order below is
- * the one the Android linker forces: the search path is widened before anything is opened, and the
- * dependency closure is loaded before the launch.
+ * Starts the JVM from the ART side, on its own thread: {@code JLI_Launch} does not return until the game exits. The
+ * order below is the one the Android linker forces.
  */
 public class Bootstrap {
 
-    /** Starts the JVM and blocks this thread until the game process ends. */
     public static void start() {
         File jre = Bridge.options.javaHome;
 
-        // Runs before the JVM starts: the folder set here has to be on the library search path below, and the
-        // JVM side is told about it too. See ArcNatives.stage.
         ArcNatives.stage();
 
-        // The host is the only one that knows where this jar ended up, so it says so with
-        // --bridge-jar. Without it the JVM dies quietly in well under a second: "could not find main
-        // class" goes to a stdout that is /dev/null in an app process.
+        // the host alone knows where the jar ended up: without --bridge-jar the JVM dies quietly in under a second
         File jar = Bridge.jar();
         if (jar == null)
             Log.warn("no bridge jar: pass --bridge-jar <path>, the JVM will not find its main class");
@@ -35,15 +28,12 @@ public class Bootstrap {
 
         setEnvironment();
 
-        // Only some ROMs take the ld directory from this call. It has to run before the libraries are
-        // loaded. On the other ROMs, loading the JRE libraries by absolute path below is what works.
+        // only some ROMs take the ld directory from this call, and it must run before the libraries are loaded
         for (File dir : searchDirs()) {
             if (dir.isDirectory())
                 updateLdPath(dir.getAbsolutePath());
         }
-        // The staged arc natives are added for the same reason, and once instead of once per JRE directory:
-        // the folder is not one of the JRE's. W^X: the staged libraries are read-only, so arc can only load
-        // them by name.
+        // the staged arc natives join for the same reason. W^X: they are read-only, so arc loads them by name.
         File nativeFolder = Bridge.options.arcNativeFolder;
         if (nativeFolder != null && nativeFolder.isDirectory())
             updateLdPath(nativeFolder.getAbsolutePath());
@@ -59,11 +49,7 @@ public class Bootstrap {
         Log.info("the JVM exited with code " + code);
     }
 
-    /**
-     * Builds the arguments that follow the main class on the JVM command line: the classpath an injected loader
-     * owns first, then the caller's positional arguments. Those go last and bare, because the loader's own
-     * parser collects bare words as its positional list and hands them to the game.
-     */
+    /** The arguments after the main class: the loader's classpath first, then the caller's positional arguments. */
     private static List<String> trailingArgs() {
         List<String> args = new ArrayList<>();
         if (Bridge.options.usesCustomLoader())
@@ -73,7 +59,6 @@ public class Bootstrap {
         return args;
     }
 
-    /** Sets the process environment the JVM and the game rely on. */
     private static void setEnvironment() {
         Map<String, String> env = new LinkedHashMap<>();
         env.put("JAVA_HOME", Bridge.options.javaHome.getAbsolutePath());
@@ -90,42 +75,23 @@ public class Bootstrap {
         }
     }
 
-    // Declared where they are used: the table binding them is generated from the @Native names
-    // below, so the two cannot drift apart.
 
-    /** Sets a process environment variable. */
     @Native("jre::Loader::SetEnv")
     private static native void setEnv(String key, String value);
 
-    /**
-     * Appends a directory to the linker's search path with {@code android_update_LD_LIBRARY_PATH}, only
-     * effective on some ROMs, so it is a best effort companion to loading the JVM libraries by absolute
-     * path. Must run before {@link #loadJvmLibs}: the linker reads the path when it resolves a library.
-     */
+    /** Appends a directory to the linker's search path; must run before {@link #loadJvmLibs}. */
     @Native("jre::Loader::UpdateLinkerPath")
     private static native void updateLdPath(String path);
 
-    /**
-     * Loads every shared library a JRE needs to be started, in dependency order. Doing this up front is what
-     * makes the later {@code JLI_Launch} work at all: the Android linker cannot be pointed at the JRE directory
-     * (it ignores {@code LD_LIBRARY_PATH}), and a JRE's libraries usually carry no usable {@code DT_RUNPATH}, so
-     * loading one by name fails even when the file sits next to its caller. A library that cannot be loaded is
-     * reported in logcat and skipped.
-     *
-     * @param jreDir the JRE root, the directory that contains {@code bin} and {@code lib}
-     */
+    /** Loads every shared library a JRE needs to start, in dependency order: the linker cannot be pointed at the JRE
+     *  directory, so doing it up front makes {@code JLI_Launch} work. One that cannot be loaded is skipped. */
     @Native("jre::Loader::LoadJreLibraries")
     private static native void loadJvmLibs(String jreDir);
 
-    /**
-     * Starts the JVM. Blocks until the VM exits, so the caller must own a dedicated thread.
-     *
-     * @return the JVM exit code
-     */
+    /** Starts the JVM, blocking until it exits; the caller must own a dedicated thread. Returns its exit code. */
     @Native("jre::Launcher::LaunchJvm")
     private static native int launchJVM(String[] argv);
 
-    /** The JRE directories the linker may have to look into. */
     private static List<File> searchDirs() {
         File lib = new File(Bridge.options.javaHome, "lib");
         List<File> dirs = new ArrayList<>();
@@ -146,9 +112,7 @@ public class Bootstrap {
                 builder.append(':');
             builder.append(dir.getAbsolutePath());
         }
-        // W^X: the staged arc libraries are read-only, so arc loads them by name instead of extracting a
-        // writable copy. That is why the branch entry sets OS.isAndroid to true. The JVM builds its library
-        // search path from LD_LIBRARY_PATH while it starts, so this entry has to be here.
+        // W^X: the staged arc libraries are read-only, so arc loads them by name instead of extracting a copy.
         File nativeFolder = Bridge.options.arcNativeFolder;
         if (nativeFolder != null && nativeFolder.exists())
             builder.append(':').append(nativeFolder.getAbsolutePath());

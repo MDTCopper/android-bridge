@@ -5,12 +5,8 @@ import copper.bridge.util.*;
 import java.io.*;
 
 /**
- * Unpacks the LWJGL natives carried inside the bridge jar.
- *
- * <p>LWJGL finds libraries by searching the directories it is told about and knows nothing about the
- * layout inside the jar, so the files are written out first and the caller points LWJGL at the
- * result ({@code Configuration.LIBRARY_PATH}). This runs on the JVM side, the only side that has
- * LWJGL and a loader that can see the bridge jar; what LWJGL is told is the branch's business.</p>
+ * Unpacks the LWJGL natives carried inside the bridge jar. This runs on the JVM side, the only side that has
+ * LWJGL and a loader that can see the bridge jar; what LWJGL is told is the branch's business.
  */
 public final class LwjglNatives {
     private LwjglNatives() {
@@ -26,8 +22,7 @@ public final class LwjglNatives {
      * Unpacks the LWJGL natives for this device out of the bridge jar {@link Bridge#jar()} names, through
      * {@link Libraries#extract}.
      *
-     * @return the extracted {@code linux/<arch>} folder, or {@code null} when the natives could not be
-     * unpacked
+     * @return the extracted {@code linux/<arch>} folder, or {@code null} when the natives could not be unpacked
      */
     public static File extract() {
         String arch = arch(Bridge.options.abi);
@@ -55,9 +50,8 @@ public final class LwjglNatives {
     }
 
     /**
-     * Translates an Android ABI name into the token LWJGL uses for its own native layout: the bridge
-     * and the activity speak Android ABI names, while the LWJGL archives are laid out under LWJGL's
-     * own.
+     * Translates an Android ABI name into the token LWJGL uses for its own native layout: the bridge and the
+     * activity speak Android ABI names, while the LWJGL archives are laid out under LWJGL's own.
      */
     private static String arch(String abi) {
         if (abi == null)

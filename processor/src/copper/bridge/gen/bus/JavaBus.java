@@ -11,10 +11,8 @@ import java.util.Set;
 
 /**
  * Writes one side's bus class: the binding, the pump, and the native entry points the calls go through.
- *
- * <p>Binding only hands the instance to native and touches nothing the batch subsystem owns, so the two
- * binds stay separate calls and the caller names the half it hands over. The per-signature natives are
- * transport, not a caller's API, so they live here and stay package private.</p>
+ * Binding only hands the instance to native and touches nothing the batch subsystem owns, so the two binds
+ * stay separate calls and the caller names the half it hands over.
  */
 final class JavaBus {
     private JavaBus() {
@@ -56,12 +54,10 @@ final class JavaBus {
                 public final class {{name}} {
 
                     /**
-                     * Binds one handler instance to the bus.
-                     *
-                     * <p>Native takes it from here: it resolves the method ids of every kind the
-                     * object's own type declares for this side, so nothing on this side has to know
-                     * whether a type declares a bus handler at all. A type that declares none is
-                     * not a mistake - it is one verbose line, not a warning.</p>
+                     * Binds one handler instance to the bus. Native takes it from here: it resolves the method ids
+                     * of every kind the object's own type declares for this side, so nothing on this side has to
+                     * know whether a type declares a bus handler at all, and a type that declares none is not a
+                     * mistake.
                      */
                     @Native("bus::Handlers::Bind{{bind}}")
                     public static native void bind(Object handlers);
@@ -87,7 +83,6 @@ final class JavaBus {
                 .render();
     }
 
-    /** The pump entry: the JVM side is pumped by its caller, the ART side by native waking it. */
     private static Template pump(Side side) {
         if (side == Side.JVM)
             return Template.of("""
@@ -164,7 +159,6 @@ final class JavaBus {
                 """);
     }
 
-    /** The owners of the handlers a set of rows calls, which is what a bus class has to import. */
     private static List<String> owners(List<Row> rows) {
         Set<String> found = new LinkedHashSet<>();
         for (Row row : rows) {

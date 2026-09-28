@@ -15,26 +15,19 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-// Taking over the VM's exit, its output streams, and the opens that would write the log file.
-//
-// The VM's exit() runs the destructors of every library loaded here, the platform's included, and an
-// ART-side thread that touches that state afterwards dies of FORTIFY and SIGABRT. So the process has to
-// end before exit() gets anywhere, and exit() is taken over by patching the GOT slot of the libraries
-// that call it: bionic does not promote an already loaded library to the global scope, so a symbol of
-// ours would never be reached (measured). Going per-library is also what keeps ART's own exits out.
+// Takes the VM's exit, its output streams and the log file's opens over.
+// exit() runs the destructors of every library loaded here; an ART thread touching that state dies of FORTIFY/SIGABRT.
+// Bionic does not promote a loaded library to global scope (measured), so the GOT slot is patched instead.
 
 namespace copper::bridge::jre::Hook {
     namespace {
         namespace Log = util::Log;
 
-        /** The VM's exit: the process ends here, before its teardown can run. */
         void ExitFromJvm(int status) {
             Log::InfoF("HOOK", "the VM's exit(%d) reached the hook", status);
             Launcher::EndProcessNow(status);
         }
 
-        // A non-null stub only means the request was accepted: NOSYM is the only sign that a library never
-        // referenced the symbol.
         void HookedCallback(bytehook_stub_t stub, int status, const char* callerPathName, const char* symName,
                     void* newFunc, void* prevFunc, void* arg) {
             (void)stub;
@@ -48,16 +41,9 @@ namespace copper::bridge::jre::Hook {
                   callerPathName != nullptr ? callerPathName : "?", status);
         }
 
-        // The calls the process's own output is written through.
-        //
-        // Only the JRE's libraries are hooked, never ART's and never this one: that is what makes the
-        // pass-through below a plain libc call with no trampoline lookup, and hooking every caller crashed
-        // because android::Looper::wake() writes on every ART message.
-        //
-        // Only fd 1 and 2 (and stdout/stderr) are taken; a formatted line is cut at MAX_FORMATTED_LENGTH.
+        // Only the JRE's libraries are hooked, never ART's: that keeps the pass-through a plain libc call.
 
         constexpr size_t MAX_FORMATTED_LENGTH = 4096;
-
         bool IsOwnStream(FILE* stream) {
             return stream == stdout || stream == stderr;
         }
@@ -123,27 +109,16 @@ namespace copper::bridge::jre::Hook {
             return length;
         }
 
-        // The open family, so that nothing but this bridge can write into the file a run logs into.
-        //
-        // The host's own loader opens that same path with `new FileOutputStream(file, false)`, truncating the
-        // file first. Those lines are not the bridge's, so such an open is neither refused nor rewritten -
-        // either would break a loader - but made on /dev/null instead: a valid descriptor whose writes go
-        // nowhere and raise nothing. Reading is untouched, and so is O_TMPFILE, which never names this file.
-        //
-        // One path only, and it is the one this library was handed for its log: the same file reaches the
-        // process as /data/user/0/<pkg> and /data/data/<pkg>, so both spellings match and nothing else does.
-        // `unlink` and `remove` are deliberately not taken - a round's starter deletes the log on purpose.
+        // The open family, so nothing but this bridge can write into the file a run logs into. A truncating open of
+        // that path is served from /dev/null; reading and O_TMPFILE are untouched.
+        // `unlink` and `remove` are not taken: a starter deletes the log on purpose.
 
-        // The two heads an app's private directory is reached by. What follows either of them is the same.
         const std::string USER_DIRECTORY = "/data/user/0/";
         const std::string DATA_DIRECTORY = "/data/data/";
 
-        // A write open of the log is made here instead: it throws away whatever is written to it.
         constexpr const char* NULL_DEVICE = "/dev/null";
 
-        // Whether a path is the log file's, under either name this process reaches it by. The other name is
-        // built from the log's own path rather than guessed, so nothing outside this app's files directory
-        // can match.
+        // Whether a path is the log file's, under either name this process reaches it by.
         bool IsLogPath(const char* path) {
             if (path == nullptr)
                 return false;
@@ -154,8 +129,6 @@ namespace copper::bridge::jre::Hook {
             if (log == path)
                 return true;
 
-            // The same file under the directory's other name. The head of the path in hand is tested first,
-            // so a path that is not the log's is turned away by a byte compare.
             const size_t userLength = USER_DIRECTORY.size();
             const size_t dataLength = DATA_DIRECTORY.size();
             if (log.compare(0, userLength, USER_DIRECTORY) == 0)
@@ -167,18 +140,14 @@ namespace copper::bridge::jre::Hook {
             return false;
         }
 
-        // What an open of the log becomes.
         enum class Where {
             File,
             NullDevice,
-            // A file with no name holding a copy of the log: a read-write open keeps reading, at the cost of
-            // seeing the log as of the open, and its writes go nowhere.
+            // A file with no name holding a copy of the log: a read-write open keeps reading, its writes go nowhere.
             Copy,
         };
 
-        // What an open of that path becomes: where it is made, with which flags, and by which of the three
-        // ways above. The redirect drops only the flags that mean something for creating or emptying a file -
-        // /dev/null is always there, and O_APPEND on it means nothing - so O_CLOEXEC and O_NONBLOCK survive.
+        // What an open of that path becomes. The redirect drops only the flags that create or empty a file.
         struct Target {
             const char* path;
             int flags;
@@ -198,17 +167,12 @@ namespace copper::bridge::jre::Hook {
             if ((flags & O_ACCMODE) == O_WRONLY)
                 return Target{NULL_DEVICE, flags & ~(O_CREAT | O_EXCL | O_TRUNC | O_APPEND), Where::NullDevice};
 
-            // The access mode left is O_RDWR, which has to keep reading.
             return Target{path, flags, Where::Copy};
         }
 
-        // How much of the log is copied into a sink at one time. One page, and the size the formatted line
-        // buffer above is given too.
         constexpr size_t COPY_BYTES = 4096;
 
-        // A file nothing else can reach, so its bytes cannot be found once the last descriptor to it is
-        // closed: memfd_create (API 30, what this library is built for), or O_TMPFILE in the log's own
-        // directory where the filesystem supports it. The caller's own O_CLOEXEC is carried over.
+        // Its bytes are gone once the last descriptor closes: memfd_create (API 30) or O_TMPFILE.
         int AnonymousFile(int flags) {
             const unsigned int noInherit = (flags & O_CLOEXEC) != 0 ? MFD_CLOEXEC : 0U;
             const int memory = ::memfd_create("copper-log", noInherit);
@@ -218,12 +182,7 @@ namespace copper::bridge::jre::Hook {
             const std::string directory = util::File::DirName(Log::Path());
             return ::open(directory.c_str(), O_TMPFILE | O_RDWR | (flags & O_CLOEXEC), 0600);        }
 
-        // The sink a read-write open is served from: an anonymous file holding the log's bytes as of this
-        // moment, handed back at offset 0. The copy is made with a plain libc open from this library, which is
-        // never hooked, so there is no recursion.
-        //
-        // Both failure modes refuse the open rather than hand a writer this file: no anonymous file could be
-        // made, or the copy could not be completed. The caller gets that errno.
+        // The sink a read-write open is served from: an anonymous file holding the log's bytes, or the open is refused.
         int Snapshot(const char* path, int flags) {
             const int sink = AnonymousFile(flags);
             if (sink < 0) {
@@ -234,8 +193,7 @@ namespace copper::bridge::jre::Hook {
                 return -1;
             }
 
-            // The failure is taken where it happens: closing a descriptor may set errno too, and the caller
-            // must get the reason its own open failed.
+            // The failure is taken where it happens: closing a descriptor may set errno too.
             int failure = 0;
             bool copied = true;
             const int source = ::open(path, O_RDONLY | O_CLOEXEC);
@@ -283,23 +241,17 @@ namespace copper::bridge::jre::Hook {
             return -1;
         }
 
-        // libc's own condition, and it has to be the same one: the mode is read under exactly the flags that
-        // made the caller pass it. O_TMPFILE shares bits with O_DIRECTORY, so it is its own test; reading a
-        // mode under any other flag takes a register the caller never set.
+        // libc's own condition: the mode is read under the caller's own flags, and O_TMPFILE is its own test.
         bool HasMode(int flags) {
             return (flags & O_CREAT) != 0 || (flags & O_TMPFILE) == O_TMPFILE;
         }
 
-        // Says, once per write open of the log, that it was given a sink instead of the file, and which kind.
-        // Verbose, because the file is what says whether the rule held, not Android's log; the path named is
-        // the one asked for, since the sink is what came of it.
         void ReportDiscarded(const char* path, Where where) {
             Log::VerboseF("HOOK", "open of %s for writing: writes are discarded and the log keeps its lines; "
                     "the descriptor is %s", path != nullptr ? path : "?",
                     where == Where::NullDevice ? "/dev/null" : "an anonymous copy of the log");
         }
 
-        // The request an open was made with: the call it becomes, and the mode the flags say it carried.
         struct Request {
             Target target;
             mode_t mode;
@@ -314,12 +266,7 @@ namespace copper::bridge::jre::Hook {
             return request;
         }
 
-        // The proxies. Each one calls that name in libc - this library is never hooked, so there is no
-        // trampoline - except the copy arm, which is built here.
-        //
-        // The call carries a mode whether or not the caller passed one: libc reads it only under the flags
-        // HasMode asks about, and the two argument form the fortify'd header makes of it aborts when the flags
-        // turn out to want a mode.
+        // The proxies call that name in libc - this library is never hooked - except the copy arm.
         int OpenProxy(const char* path, int flags, ...) {
             va_list args;
             va_start(args, flags);
@@ -364,7 +311,6 @@ namespace copper::bridge::jre::Hook {
             return ::openat64(dirfd, request.target.path, request.target.flags, request.mode);
         }
 
-        // The two argument forms the fortify'd header makes of a call that passes no mode.
         int Open2Proxy(const char* path, int flags) {
             const Target target = TargetOf(path, flags);
             if (target.where != Where::File)
@@ -385,7 +331,6 @@ namespace copper::bridge::jre::Hook {
             return ::__openat_2(dirfd, target.path, target.flags);
         }
 
-        // Everything this module takes over, in one table so the walk below hooks them together.
         struct Taken {
             const char* symbol;
             void* replacement;
@@ -398,9 +343,7 @@ namespace copper::bridge::jre::Hook {
             {"vfprintf", reinterpret_cast<void*>(VfprintfProxy)},
             {"fprintf", reinterpret_cast<void*>(FprintfProxy)},
             {"printf", reinterpret_cast<void*>(PrintfProxy)},
-            // The fortify'd forms belong with the plain ones: a caller built with _FORTIFY_SOURCE - every
-            // platform library is - reaches __open_2 for a two argument open and has its three argument open
-            // inlined onto `open`, so which of these a library calls depends on how it was built.
+            // The fortify'd forms belong with the plain ones: _FORTIFY_SOURCE callers reach __open_2.
             {"open", reinterpret_cast<void*>(OpenProxy)},
             {"open64", reinterpret_cast<void*>(Open64Proxy)},
             {"openat", reinterpret_cast<void*>(OpenatProxy)},
@@ -409,15 +352,12 @@ namespace copper::bridge::jre::Hook {
             {"__openat_2", reinterpret_cast<void*>(Openat2Proxy)},
         };
 
-        // Whether the hook library has been initialized, so a second PrepareHooks is a no-op.
         bool prepared = false;
 
     } // namespace
 
     void PrepareHooks() {
-        // Once, and only after the loading: ByteHook can only hook the libraries it saw when it started
-        // (measured: hooking libjvm right after loading it, with the init done on libjli a moment earlier,
-        // installed nothing).
+        // Once, and only after the loading: ByteHook can only hook the libraries it saw when it started (measured).
         if (prepared)
             return;
 
@@ -430,8 +370,7 @@ namespace copper::bridge::jre::Hook {
     }
 
     void InstallHook(const std::string& library) {
-        // The name, not the path: ByteHook matches a bare name by suffix, and the JRE directory reaches this
-        // process under two names.
+        // The name, not the path: ByteHook matches a bare name by suffix.
         const std::string name = util::File::BaseName(library);
 
         int hooked = 0;

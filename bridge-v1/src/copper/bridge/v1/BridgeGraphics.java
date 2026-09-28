@@ -86,8 +86,8 @@ public class BridgeGraphics extends Graphics {
      *
      * <p>A pair from {@code --angle-path} is made executable for the owner and read-only where it lies, the
      * same W^X treatment the bridge's own libraries get, because LWJGL opens both by absolute path. The
-     * device's own pair is copied into the cache folder first, through {@link Libraries#extract}, and the
-     * copy is the one that gets the treatment and is loaded; the system's own files stay as they are.</p>
+     * device's own pair is staged into the cache folder first, by {@link #stageAngle}, and the copy is the
+     * one that gets the treatment and is loaded; the system's own files stay as they are.</p>
      */
     public void configure() {
         String egl = SYSTEM_EGL;
@@ -139,8 +139,8 @@ public class BridgeGraphics extends Graphics {
 
     /**
      * Finds the device's own ANGLE pair: the system's library directories are searched in turn and the
-     * first one holding both libraries wins. Only their presence is settled here - whether the linker
-     * accepts the directory is what the load LWJGL performs a moment later says.
+     * first one holding both libraries wins. Only their presence is settled here; whether the pair can
+     * actually be loaded is settled by the staging and the load that follow.
      *
      * @return the two files, EGL first, or {@code null} when no directory holds a pair
      */
@@ -157,9 +157,13 @@ public class BridgeGraphics extends Graphics {
     }
 
     /**
-     * Copies one of the device's own ANGLE libraries into the cache folder under its own name and returns
-     * the copy, which is what LWJGL is pointed at. The system's own file stays untouched, and the staged
-     * subfolder is {@link #STAGING_FOLDER}.
+     * Copies one of the device's own ANGLE libraries into {@link #STAGING_FOLDER}, through
+     * {@link Libraries#extract}, and returns the copy: that copy is what LWJGL is pointed at, and the
+     * system's own file is never loaded.
+     *
+     * <p>The copy is what makes the pair loadable: the linker only lets an app process load the platform
+     * libraries that {@code /system/etc/public.libraries.txt} names, and a file under the cache folder is
+     * this app's own library instead of a platform one.</p>
      */
     private static File stageAngle(File source) {
         File stageFolder = new File(Bridge.options.cacheFolder, STAGING_FOLDER);

@@ -5,13 +5,13 @@ import java.nio.file.*;
 import java.util.zip.*;
 
 /**
- * One jar, open for reading: what its central directory says about an entry, and taking one out.
+ * One jar, open for reading: what its central directory says about an entry, and a stream over that
+ * entry's bytes.
  *
- * <p>The size and the build of an entry come from the zip central directory, so no payload has to be read
- * for them. Only taking an entry out reads bytes, and it does that just to see whether the cached copy is
- * already the same. This class is a handle, not a set of static calls, because the questions come one after
- * another and the same file would otherwise be opened three times. An entry is written under a temporary
- * name and then moved into place, because a file that is half written is a failure the cache cannot see.</p>
+ * <p>The CRC32 and the size of an entry come from the zip central directory, so no payload has to be read
+ * for them. This class is a handle, not a set of static calls, because the questions come one after another
+ * and the same file would otherwise be opened three times. Writing an entry out as a library is
+ * {@link Libraries#extract}'s job.</p>
  */
 public final class Archive implements Closeable {
     private final ZipFile jar;
@@ -39,16 +39,20 @@ public final class Archive implements Closeable {
             this.entry = entry;
         }
 
-        /** The CRC32 of the entry, for a caller's log line. It comes from the central directory. */
+        /** The entry's CRC32, as the central directory has it. */
         public long crc() {
             return entry.getCrc();
         }
 
-        /** The uncompressed size, for a caller's log line. */
+        /** The entry's uncompressed size, as the central directory has it. */
         public long size() {
             return entry.getSize();
         }
 
+        /**
+         * A stream over the entry's bytes. It reads from the jar this entry came from, so the caller has to
+         * read it before the archive is closed.
+         */
         public InputStream read() {
             try {
                 return zip.getInputStream(entry);

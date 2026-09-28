@@ -27,6 +27,7 @@ public class BridgeGraphics extends Graphics {
     /** Coverage sampling attribute; not in LWJGL's core EGL headers. */
     private static final int EGL_COVERAGE_SAMPLES_NV = 0x30E1;
 
+    /** Cache subfolder the device's own ANGLE libraries are staged in. */
     private static final String STAGING_FOLDER = "native/angle";
 
     /** The names ANGLE's libraries have. */
@@ -83,8 +84,10 @@ public class BridgeGraphics extends Graphics {
      * found under that folder. A pair that is not there is reported and the system's EGL/GLES are
      * used instead, so asking for ANGLE never costs a launch.</p>
      *
-     * <p>A pair from {@code --angle-path} is made executable for the owner and read-only before LWJGL gets
-     * it, the same W^X treatment the bridge's own libraries get. The device's own pair is not touched.</p>
+     * <p>A pair from {@code --angle-path} is made executable for the owner and read-only where it lies, the
+     * same W^X treatment the bridge's own libraries get, because LWJGL opens both by absolute path. The
+     * device's own pair is copied into the cache folder first, through {@link Libraries#extract}, and the
+     * copy is the one that gets the treatment and is loaded; the system's own files stay as they are.</p>
      */
     public void configure() {
         String egl = SYSTEM_EGL;
@@ -97,7 +100,7 @@ public class BridgeGraphics extends Graphics {
                 File glesAngle = Libraries.find(Bridge.options.anglePath, Bridge.options.abi, ANGLE_GLES, SYSTEM_GLES);
                 if (eglAngle != null && glesAngle != null) {
                     // W^X: LWJGL opens these by absolute path, so they have to be executable and not
-                    // writable. A pair from --angle-path is the only one the bridge may touch.
+                    // writable. These two are the caller's own files, so they can be changed in place.
                     Libraries.ensureLoadable(eglAngle);
                     Libraries.ensureLoadable(glesAngle);
 
@@ -139,7 +142,7 @@ public class BridgeGraphics extends Graphics {
      * first one holding both libraries wins. Only their presence is settled here - whether the linker
      * accepts the directory is what the load LWJGL performs a moment later says.
      *
-     * @return the two absolute paths, EGL first, or {@code null} when no directory holds a pair
+     * @return the two files, EGL first, or {@code null} when no directory holds a pair
      */
     private static File[] findSystemAngle() {
         String suffix = bits64() ? "lib64" : "lib";
@@ -153,6 +156,11 @@ public class BridgeGraphics extends Graphics {
         return null;
     }
 
+    /**
+     * Copies one of the device's own ANGLE libraries into the cache folder under its own name and returns
+     * the copy, which is what LWJGL is pointed at. The system's own file stays untouched, and the staged
+     * subfolder is {@link #STAGING_FOLDER}.
+     */
     private static File stageAngle(File source) {
         File stageFolder = new File(Bridge.options.cacheFolder, STAGING_FOLDER);
         File target = new File(stageFolder, source.getName());

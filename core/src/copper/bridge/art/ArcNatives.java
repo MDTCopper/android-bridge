@@ -25,10 +25,9 @@ public final class ArcNatives {
 
     /**
      * Stages the caller's native libraries under the names they arrived with, and stores the folder in
-     * {@link BridgeOptions#arcNativeFolder} for the JVM side. Two layouts are accepted: the libraries
-     * directly in the folder, or one subfolder per Android ABI. A subfolder for the ABI this process runs is
-     * searched first. Out of a folder only the {@code .so} files are taken, and none of them is renamed: the
-     * bridge does not own the list of libraries arc may need, so it has no reason to rename one.
+     * {@link BridgeOptions#arcNativeFolder} for the JVM side. Which libraries there are to stage is
+     * {@link Libraries#list}'s answer; none of them is renamed, because the bridge does not own the list of
+     * libraries arc may need.
      *
      * <p>The caller has to hand the files over already spelled the way arc asks, including the ABI infix:
      * arc asks for {@code libarc-filedialogsarm64.so}, not for {@code libarc-filedialogs.so}. A wrong name is

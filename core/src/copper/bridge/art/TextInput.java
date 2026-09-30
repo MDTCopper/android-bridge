@@ -1,8 +1,10 @@
 package copper.bridge.art;
 
 import android.app.*;
-import android.text.InputFilter;
-import android.text.InputType;
+import android.content.*;
+import android.text.*;
+import android.view.*;
+import android.view.inputmethod.*;
 import android.widget.*;
 
 import copper.bridge.annotation.*;
@@ -25,6 +27,10 @@ public class TextInput {
                           boolean multiline, int maxLength, boolean allowEmpty) {
         EditText field = new EditText(activity);
         field.setText(text == null ? "" : text);
+        if (text != null && !text.isEmpty())
+            field.setSelection(text.length());
+        field.setFocusedByDefault(true);
+
         if (numeric)
             field.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL
                     | InputType.TYPE_NUMBER_FLAG_SIGNED);
@@ -42,10 +48,20 @@ public class TextInput {
             builder.setMessage(message);
 
         AlertDialog dialog = builder.create();
+        if (dialog.getWindow() != null)
+            dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+
         final boolean[] reported = {false};
         // Back and a tap outside are cancellations like any other, and they are the only paths that
         // do not go through one of the buttons.
         dialog.setOnCancelListener(d -> reportTextInput(reported, request, null));
+
+        dialog.setOnShowListener(dialogInterface -> {
+            field.requestFocus();
+            InputMethodManager imm = (InputMethodManager) activity.getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null)
+                imm.showSoftInput(field, 0);
+        });
         dialog.show();
 
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {

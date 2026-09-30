@@ -51,6 +51,8 @@ public class BridgeActivity extends android.app.Activity {
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         hideStatusBar();
+        // break force landscape set by some launchers
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_USER);
 
         root = new FrameLayout(this);
         setContentView(root);

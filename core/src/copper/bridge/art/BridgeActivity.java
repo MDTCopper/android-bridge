@@ -1,11 +1,11 @@
 package copper.bridge.art;
 
-import android.app.*;
 import android.content.*;
 import android.content.pm.*;
+import android.graphics.*;
 import android.os.*;
 import android.view.*;
-import android.view.inputmethod.InputMethodManager;
+import android.view.inputmethod.*;
 import android.widget.*;
 
 import copper.bridge.*;
@@ -65,11 +65,7 @@ public class BridgeActivity extends android.app.Activity {
         ArtBus.start();
 
         registerBack();
-
-        android.util.DisplayMetrics metrics = getResources().getDisplayMetrics();
-        Bridge.options.density = metrics.density;
-        Bridge.options.xdpi = metrics.xdpi;
-        Bridge.options.ydpi = metrics.ydpi;
+        updatePpi();
 
         Thread bootstrap = new Thread(this::startJvm, "copper-bridge-jvm");
         bootstrap.setDaemon(true);
@@ -261,6 +257,32 @@ public class BridgeActivity extends android.app.Activity {
     }
     //endregion
 
+    //region display
+
+    private boolean insetsAttached = false;
+
+    private void updatePpi() {
+        android.util.DisplayMetrics metrics = getResources().getDisplayMetrics();
+        Bridge.options.density = metrics.density;
+        Bridge.options.xdpi = metrics.xdpi;
+        Bridge.options.ydpi = metrics.ydpi;
+    }
+
+    private void attachSafeInsetsListener() {
+        if (insetsAttached)
+            return;
+        View decorView = getWindow().getDecorView();
+        decorView.setOnApplyWindowInsetsListener((v, insets) -> {
+            Insets cutout = insets.getInsets(WindowInsets.Type.displayCutout());
+            ArtCall.safeInsetsUpdated(cutout.top, cutout.bottom, cutout.left, cutout.right);
+            return insets;
+        });
+        insetsAttached = true;
+        decorView.requestApplyInsets();
+    }
+
+    //endregion
+
     //region input
 
     /** Forwards a key press. Repeated {@code ACTION_DOWN} events are dropped here as well as on the JVM side. */
@@ -357,10 +379,12 @@ public class BridgeActivity extends android.app.Activity {
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        if (hasFocus)
+        if (hasFocus) {
             hideStatusBar();
-        else if (input != null)
+            attachSafeInsetsListener();
+        } else if (input != null) {
             input.cancelAllPointers();
+        }
     }
     //endregion
 }

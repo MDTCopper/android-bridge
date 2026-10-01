@@ -79,6 +79,11 @@ public class BridgeEvents implements Events {
     }
 
     @Override
+    public void safeInsetsUpdated(int top, int bottom, int left, int right) {
+        graphics.safeInsetsUpdated(top, bottom, left, right);
+    }
+
+    @Override
     public void surfaceDestroyed() {
         Surface.destroyed();
         graphics.destroySurface();

@@ -9,6 +9,7 @@ import arc.func.*;
  * and native. Living in a class that never mentions {@code FileChooserParams} is what keeps those epochs
  * loadable.
  */
+@SuppressWarnings("unused")
 public class BridgeLauncherLegacy extends BridgeLauncher {
 
     /**

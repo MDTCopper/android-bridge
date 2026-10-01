@@ -48,6 +48,7 @@ public class BridgeGraphics extends Graphics {
 
     private int width;
     private int height;
+    private int safeInsetLeft, safeInsetRight, safeInsetTop, safeInsetBottom;
 
     private long frameId = -1;
     private long lastFrameTime = -1;
@@ -314,6 +315,13 @@ public class BridgeGraphics extends Graphics {
         resumed = true;
     }
 
+    public void safeInsetsUpdated(int top, int bottom, int left, int right) {
+        safeInsetTop = top;
+        safeInsetBottom = bottom;
+        safeInsetLeft = left;
+        safeInsetRight = right;
+    }
+
     public void beginFrame() {
         long time = System.nanoTime();
         if (lastFrameTime == -1)
@@ -391,6 +399,11 @@ public class BridgeGraphics extends Graphics {
     @Override
     public int getBackBufferHeight() {
         return height;
+    }
+
+    @Override
+    public int[] getSafeInsets(){
+        return new int[]{safeInsetLeft, safeInsetRight, safeInsetTop, safeInsetBottom};
     }
 
     @Override

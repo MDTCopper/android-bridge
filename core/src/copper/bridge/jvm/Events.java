@@ -16,6 +16,10 @@ public interface Events {
     }
 
     @JvmEventHandler
+    default void safeInsetsUpdated(int top, int bottom, int left, int right) {
+    }
+
+    @JvmEventHandler
     default void surfaceDestroyed() {
     }
 

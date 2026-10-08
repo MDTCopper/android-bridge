@@ -1,5 +1,6 @@
 package copper.bridge.v1;
 
+import arc.*;
 import arc.files.*;
 import arc.func.*;
 
@@ -7,6 +8,7 @@ import copper.bridge.gen.*;
 import copper.bridge.util.*;
 import mindustry.*;
 import mindustry.core.*;
+import mindustry.game.*;
 
 /**
  * The game launcher for this branch, minus the file chooser: the game's own {@link ClientLauncher}, so start-up
@@ -16,9 +18,9 @@ import mindustry.core.*;
  */
 public abstract class BridgeLauncher extends ClientLauncher implements Platform {
 
-    /** Installs the game's crash reporting, which the stock launcher installs for itself. The handler already in
-     *  place is kept and called after the report: the host app owns the activity and the process. */
     public BridgeLauncher() {
+        // Installs the game's crash reporting, which the stock launcher installs for itself. The handler already in
+        // place is kept and called after the report: the host app owns the activity and the process.
         Thread.UncaughtExceptionHandler handler = Thread.getDefaultUncaughtExceptionHandler();
         Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
             handleCrash(error);
@@ -28,6 +30,12 @@ public abstract class BridgeLauncher extends ClientLauncher implements Platform 
                 arc.util.Log.err(error);
                 System.exit(1);
             }
+        });
+
+        // break force landscape set by some launchers
+        Events.on(EventType.ClientLoadEvent.class, e -> {
+            if (!Core.settings.getBool("landscape"))
+                endForceLandscape();
         });
     }
 
@@ -75,12 +83,12 @@ public abstract class BridgeLauncher extends ClientLauncher implements Platform 
      *  portrait. */
     @Override
     public void beginForceLandscape() {
-        JvmCall.orientation(true);
+        JvmCall.forceLandscape(true);
     }
 
     @Override
     public void endForceLandscape() {
-        JvmCall.orientation(false);
+        JvmCall.forceLandscape(false);
     }
 
     /** Left empty on purpose: a share sheet would need a {@code FileProvider} in the host app's manifest. */

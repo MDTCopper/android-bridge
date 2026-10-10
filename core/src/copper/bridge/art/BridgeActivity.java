@@ -293,14 +293,16 @@ public class BridgeActivity extends android.app.Activity {
             pressBack();
             return true;
         }
-        return input != null && input.keyDown(keyCode, event.getRepeatCount());
+        boolean forwarded = input != null && input.keyDown(keyCode, event.getRepeatCount());
+        return forwarded && !frameworkKey(keyCode);
     }
 
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_BACK)
             return true;
-        return input != null && input.keyUp(keyCode, BridgeInput.characters(event));
+        boolean forwarded = input != null && input.keyUp(keyCode, BridgeInput.characters(event));
+        return forwarded && !frameworkKey(keyCode);
     }
 
     @Override
@@ -333,9 +335,18 @@ public class BridgeActivity extends android.app.Activity {
 
     private boolean consumes(int keyCode) {
         return keyCode == KeyEvent.KEYCODE_BACK
-                || keyCode == KeyEvent.KEYCODE_VOLUME_UP
-                || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN
                 || keyCode == KeyEvent.KEYCODE_MENU;
+    }
+
+    /**
+     * Keys the framework has to keep. Reporting one handled ends it at this activity: an unhandled key is what
+     * the system's own volume handling waits for, so a swallowed volume key moves nothing. The game binds none
+     * of them, and vanilla arc forwards them the same way - the down travels on, the return value stays false.
+     */
+    private static boolean frameworkKey(int keyCode) {
+        return keyCode == KeyEvent.KEYCODE_VOLUME_UP
+                || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN
+                || keyCode == KeyEvent.KEYCODE_VOLUME_MUTE;
     }
 
     /**

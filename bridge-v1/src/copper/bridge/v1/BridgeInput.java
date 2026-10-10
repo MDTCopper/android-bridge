@@ -141,8 +141,6 @@ public class BridgeInput extends Input {
         }
     }
 
-    private final Events schema = new Events();
-
     private final int[] touchX = new int[MAX_TOUCHES];
     private final int[] touchY = new int[MAX_TOUCHES];
     private final int[] deltaX = new int[MAX_TOUCHES];
@@ -164,7 +162,7 @@ public class BridgeInput extends Input {
 
     public BridgeInput() {
         Arrays.fill(realId, -1);
-        JvmBatch.bind(schema);
+        JvmBatch.bind(new Events());
     }
 
     /** One back tap through the normal input path, used when no dialog is open. */

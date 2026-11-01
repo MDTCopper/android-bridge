@@ -11,6 +11,8 @@ import copper.bridge.gen.*;
 import copper.bridge.jvm.Surface;
 import copper.bridge.util.*;
 
+import java.io.File;
+
 /**
  * arc's application object for the JVM side of the bridge. On Android arc is driven by ART - the activity owns the
  * lifecycle callbacks, a {@code GLSurfaceView} owns the render thread - and neither exists here, so this class owns
@@ -29,6 +31,9 @@ public class BridgeApplication implements Application {
     private final Seq<Runnable> executedRunnables = new Seq<>();
 
     private Thread mainThread;
+
+    /** Set once the first frame was handed to the surface: ART uses it to fade its launch veil. */
+    private boolean firstFrameMarked;
 
     public BridgeApplication() {
         this.graphics = new BridgeGraphics();
@@ -105,6 +110,23 @@ public class BridgeApplication implements Application {
                 listener.update();
             input.processDevices();
             graphics.swapBuffers();
+
+            if (!firstFrameMarked) {
+                firstFrameMarked = true;
+                markFirstFrame();
+            }
+        }
+    }
+
+    /** Leaves a marker the ART side polls: the game's first frame is on the surface, fade the veil. */
+    private void markFirstFrame() {
+        File cache = Bridge.options.cacheFolder;
+        if (cache == null)
+            return;
+        try {
+            cache.mkdirs();
+            new File(cache, "first-frame").createNewFile();
+        } catch (Throwable ignored) {
         }
     }
 
@@ -204,6 +226,11 @@ public class BridgeApplication implements Application {
     @Override
     public void exit() {
         JvmCall.finishActivity();
+        // Give ART time to fade the game picture out before the process goes away.
+        try {
+            Thread.sleep(350);
+        } catch (InterruptedException ignored) {
+        }
         events.destroy();
     }
 }

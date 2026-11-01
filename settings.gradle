@@ -28,6 +28,9 @@ include 'processor'
 // .arc/ - never against sources - and run on every version from 146.0 up.
 include 'bridge-v1'
 
+// Mindustry 9: Arc merged into the game repository.
+include 'bridge-v2'
+
 // libcopperbridge.so for every ABI, in the same task graph so its result is staged where pack
 // expects it; not a Java module.
 include 'native'

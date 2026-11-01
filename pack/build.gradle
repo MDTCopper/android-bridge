@@ -34,7 +34,7 @@ def androidJar = new File(androidPlatform, 'android.jar')
 def minApi = property('minAndroidApi')
 
 /** The branches that have code, and therefore the ones this jar ships. */
-def branchNames = ['v1'].findAll { rootProject.ext.branchHasSources(it) }
+def branchNames = ['v1', 'v2'].findAll { rootProject.ext.branchHasSources(it) }
 
 def coreJar = project(':core').tasks.named('jar', Jar)
 
@@ -153,6 +153,7 @@ def versionBlocks = branchNames.collect { String branch ->
             target          : "Mindustry ${property("${branch}.mindustryTag")}",
             mindustryTag    : property("${branch}.mindustryTag"),
             arcVersion      : findProperty("${branch}.arcTag") ?: property("${branch}.arcHash"),
+            major           : findProperty("${branch}.major") ?: '',
             minVersionNumber: property("${branch}.minVersionNumber"),
             maxVersionNumber: findProperty("${branch}.maxVersionNumber") ?: '',
             minBeBuild      : property("${branch}.minBeBuild"),
@@ -174,7 +175,7 @@ def versionTable = tasks.register('versionTable') {
         blocks.eachWithIndex { block, index ->
             text.append("\n# ${block.name} vs ${block.target}\n")
             def prefix = "branch.${index}."
-            ['name', 'target', 'mindustryTag', 'arcVersion',
+            ['name', 'target', 'mindustryTag', 'arcVersion', 'major',
              'minVersionNumber', 'maxVersionNumber', 'minBeBuild', 'maxBeBuild'].each { String key ->
                 text.append("${prefix}${key}=${block[key]}\n")
             }

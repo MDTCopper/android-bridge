@@ -1,0 +1,51 @@
+/**
+ * v2: Mindustry 9, the epoch where Arc was merged into the game repository.
+ *
+ * There is no v9 entry in the upstream epoch table yet (the game jar is a bleeding-edge build, not a
+ * tag), so this module takes the game jar directly: -Pv2GameJar=/path/to/mindustry-<build>.jar, or
+ * .mindustry/v9/mindustry.jar. Everything is compile only: the game jar arrives at runtime.
+ */
+def branch = 'v2'
+def gameJar = findProperty('v2GameJar')
+        ? file(property('v2GameJar'))
+        : file("${rootProject.projectDir}/.mindustry/v9/mindustry.jar")
+
+sourceSets {
+    main {
+        java.srcDirs = ["src"]
+    }
+}
+
+dependencies {
+    api project(':core')
+
+    // android.jar supplies android.*; the JVM side never loads these classes.
+    def sdkRoot = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")
+    def androidJarRoot = sdkRoot ? new File("$sdkRoot/platforms/")
+            .listFiles()?.sort()?.reverse()?.find { f -> new File(f, "android.jar").exists() }
+            : null
+    if (androidJarRoot == null) {
+        throw new GradleException("No valid Android SDK found. Set ANDROID_HOME or ANDROID_SDK_ROOT.")
+    }
+    compileOnly files(new File(androidJarRoot, "android.jar"))
+
+    // v9 has arc inside the game jar, so one file replaces the v1 epoch's game + arc pair.
+    compileOnly files(gameJar)
+
+    // what the arc backend reaches EGL and GLES through. The version has to match the android natives
+    // pack downloads, so both read lwjglVersion.
+    compileOnly platform("org.lwjgl:lwjgl-bom:${property('lwjglVersion')}")
+    compileOnly "org.lwjgl:lwjgl"
+    compileOnly "org.lwjgl:lwjgl-egl"
+    compileOnly "org.lwjgl:lwjgl-opengles"
+}
+
+tasks.named('compileJava') {
+    // without the v9 jar javac reports a wall of missing arc/mindustry symbols instead.
+    doFirst {
+        if (!gameJar.isFile()) {
+            throw new GradleException("v2: no game jar at ${gameJar}. " +
+                    "Pass -Pv2GameJar=/path/to/mindustry-<build>.jar, or place it at .mindustry/v9/mindustry.jar.")
+        }
+    }
+}

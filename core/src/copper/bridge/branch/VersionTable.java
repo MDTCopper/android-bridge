@@ -70,6 +70,7 @@ public class VersionTable {
             entry.target = props.getProperty(prefix + "target", "").trim();
             entry.mindustryTag = props.getProperty(prefix + "mindustryTag", "").trim();
             entry.arcVersion = props.getProperty(prefix + "arcVersion", "").trim();
+            entry.major = Numbers.parseInt(props.getProperty(prefix + "major"), 0);
             // release ranges are written as number.minor, bleeding-edge ranges as build ids
             entry.minVersionNumber = Numbers.parseDouble(
                     first(props, prefix, "minVersionNumber", "minVersion"), 0);

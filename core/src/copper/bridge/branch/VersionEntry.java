@@ -1,6 +1,7 @@
 package copper.bridge.branch;
 
 import copper.bridge.*;
+import copper.bridge.util.*;
 
 /**
  * One supported game version epoch. Two independent ranges, because the two release kinds are identified by different
@@ -14,6 +15,9 @@ public class VersionEntry {
     public String mindustryTag = "";
     public String arcVersion = "";
 
+    /** Major series from version.properties (number); 0 means the range bounds decide. */
+    public int major = 0;
+
     /** Inclusive release bounds as {@code number.minor}; zero means unbounded. */
     public double minVersionNumber = 0;
     public double maxVersionNumber = 0;
@@ -24,6 +28,8 @@ public class VersionEntry {
     public boolean matches(GameVersion version) {
         if (version == null)
             return false;
+        if (major > 0)
+            return Numbers.digits(version.rawNumber, -1) == major;
         if (version.isBleedingEdge())
             return withinBe(version.beBuild);
         return withinRelease(version.releaseValue());

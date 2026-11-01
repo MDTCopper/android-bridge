@@ -148,6 +148,8 @@ Just to see the task list:
 
 Any kind of contribution is welcome. For code changes, open a pull request that says what it does and how you verified it.
 
+The full guidelines are in [CONTRIBUTING.md](./CONTRIBUTING.md).
+
 Run the full build after a change:
 
 ```bash
@@ -162,7 +164,7 @@ Questions and suggestions go to this repository's issue tracker; read [Known iss
 
 ## License
 
-Released under [GPL-3.0](LICENSE).
+Released under [MIT](LICENSE).
 
 ## Credits & Dependencies
 

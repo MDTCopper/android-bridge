@@ -14,13 +14,24 @@ import copper.bridge.gen.*;
 import copper.bridge.util.*;
 
 /**
- * The activity the launcher returns to the system: it owns the surface, the input path and its own lifecycle.
+ * The activity the host returns to the system: it owns the surface, the input path and its own lifecycle.
+ *
+ * <p>Draws nothing itself. A host that shows something over the surface until the game appears subclasses it and
+ * overrides {@link #onFirstFrameDrawn()}; {@link #root} and {@link #handler} are the room it gets.</p>
  */
 public class BridgeActivity extends android.app.Activity {
     private BridgeSurfaceView view;
     private BridgeInput input;
-    private ViewGroup root;
     private FileChooser fileChooser;
+
+    /** The activity's content root; the surface lives here, so a subclass adds its views on top of the game. */
+    protected ViewGroup root;
+
+    /** A handler on the thread every callback of this class runs on; a subclass's timed work belongs here. */
+    protected final Handler handler = new Handler(Looper.getMainLooper());
+
+    /** Guards {@link #leave()}: a repeated request - the VM ending itself while the host asked - is a no-op. */
+    protected boolean leaving;
 
     public BridgeActivity() {
         if (Bridge.options == null)
@@ -70,6 +81,14 @@ public class BridgeActivity extends android.app.Activity {
         bootstrap.start();
     }
 
+    /**
+     * Called on the ART main thread once the game has handed its first frame to the surface. Empty: this class draws
+     * nothing, so a subclass overrides it to take down whatever it showed until then.
+     */
+    @ArtEventHandler
+    public void onFirstFrameDrawn() {
+    }
+
     private void startJvm() {
         try {
             Bootstrap.start();
@@ -104,12 +123,19 @@ public class BridgeActivity extends android.app.Activity {
         activity.runOnUiThread(activity::leave);
     }
 
-    /** Finishes this screen so the host below comes back; only this activity, never the host's task. */
-    private void leave() {
-        if (isFinishing())
+    /** Leaves this screen so the host below comes back; the guard makes a repeated request a no-op. */
+    protected void leave() {
+        if (isFinishing() || leaving)
             return;
+        leaving = true;
 
         Log.info("leaving this screen");
+        performLeave();
+    }
+
+    /** The transition and the {@code finish()}. A subclass that animates out overrides this and calls
+     *  {@code super.performLeave()} when the animation ends. */
+    protected void performLeave() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
             overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, RETURN_ENTER, RETURN_EXIT);
         else
@@ -202,17 +228,17 @@ public class BridgeActivity extends android.app.Activity {
             long window = nativeWindow(holder.getSurface());
             if (Bridge.options.debug)
                 Log.info("surface created, window=0x" + Long.toHexString(window));
-            ArtCall.surfaceCreated(view.getWidth(), view.getHeight(), window);
+            ArtCall.onSurfaceCreated(view.getWidth(), view.getHeight(), window);
         }
 
         @Override
         public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-            ArtCall.surfaceResized(width, height);
+            ArtCall.onSurfaceChanged(width, height);
         }
 
         @Override
         public void surfaceDestroyed(SurfaceHolder holder) {
-            ArtCall.surfaceDestroyed();
+            ArtCall.onSurfaceDestroyed();
         }
     }
     //endregion
@@ -229,14 +255,14 @@ public class BridgeActivity extends android.app.Activity {
     @Override
     protected void onPause() {
         super.onPause();
-        ArtCall.pause();
+        ArtCall.onPause();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         hideStatusBar();
-        ArtCall.resume();
+        ArtCall.onResume();
     }
 
     @Override
@@ -244,7 +270,7 @@ public class BridgeActivity extends android.app.Activity {
         // the pump first: it runs on this thread, and stopping it releases a caller still waiting for an answer
         ArtBus.stop();
         super.onDestroy();
-        ArtCall.destroy();
+        ArtCall.onDestroy();
         current = null;
     }
 
@@ -272,7 +298,7 @@ public class BridgeActivity extends android.app.Activity {
         View decorView = getWindow().getDecorView();
         decorView.setOnApplyWindowInsetsListener((v, insets) -> {
             Insets cutout = insets.getInsets(WindowInsets.Type.displayCutout());
-            ArtCall.safeInsetsUpdated(cutout.top, cutout.bottom, cutout.left, cutout.right);
+            ArtCall.onSafeInsetsChanged(cutout.top, cutout.bottom, cutout.left, cutout.right);
             return insets;
         });
         insetsAttached = true;
@@ -330,7 +356,7 @@ public class BridgeActivity extends android.app.Activity {
     }
 
     private void pressBack() {
-        ArtCall.back();
+        ArtCall.onBackPressed();
     }
 
     private boolean consumes(int keyCode) {

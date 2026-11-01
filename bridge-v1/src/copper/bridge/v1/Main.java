@@ -3,10 +3,8 @@ package copper.bridge.v1;
 import arc.util.*;
 import copper.bridge.*;
 import copper.bridge.jvm.Launch;
-import copper.bridge.jvm.LwjglNatives;
 import copper.bridge.util.Log;
 import mindustry.*;
-import org.lwjgl.system.*;
 
 import java.io.*;
 
@@ -27,7 +25,6 @@ public class Main {
         // staged libraries by name or extracts its own copy, and where arc puts its data folder.
         setOsType();
 
-        prepareLwjglNatives();
         prepareArcNatives();
         prepareGameFolders();
 
@@ -56,20 +53,6 @@ public class Main {
                 Log.error(e);
                 throw e;
             }
-        }
-    }
-
-    /** Makes LWJGL's natives loadable: they sit inside the bridge jar, so they are unpacked and that folder becomes
-     *  LWJGL's search path. The hash check is off because LWJGL did not ship them. */
-    private static void prepareLwjglNatives() {
-        File lwjgl = LwjglNatives.extract();
-        if (lwjgl != null) {
-            Configuration.DISABLE_HASH_CHECKS.set(true);
-            Configuration.LIBRARY_PATH.set(
-                    new File(lwjgl, "org" + File.separator + "lwjgl").getAbsolutePath()
-                            + File.pathSeparator
-                            + new File(lwjgl, "org" + File.separator + "lwjgl" + File.separator + "opengles").getAbsolutePath());
-            Log.info("GL", "lwjgl natives: " + lwjgl);
         }
     }
 

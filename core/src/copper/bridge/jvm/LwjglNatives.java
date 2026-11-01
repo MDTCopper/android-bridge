@@ -31,8 +31,9 @@ public final class LwjglNatives {
         try (Archive jar = Archive.open(Bridge.jar())) {
             for (String name : LWJGL_LIBRARIES) {
                 Archive.Entry entry = jar.entry("native/lwjgl/linux/" + arch + "/" + name);
-                File target = new File(root, name);
-                Log.verbose("extracting the lwjgl native library (name=" + name + ", crc=0x"
+                String baseName = name.substring(name.lastIndexOf('/') + 1);
+                File target = new File(root, baseName);
+                Log.verbose("extracting the lwjgl native library (name=" + baseName + ", crc=0x"
                         + Long.toHexString(entry.crc()) + ", " + entry.size() + " bytes)");
                 Libraries.extract(entry::read, target);
             }

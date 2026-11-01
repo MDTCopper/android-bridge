@@ -1,0 +1,55 @@
+/**
+ * v2: Mindustry 9, the epoch where Arc was merged into the game repository.
+ *
+ * The ref it compiles against is a commit rather than a tag - upstream has not tagged v9 yet - and arc
+ * no longer has a commit of its own: it is built out of the game's own tree, as an included build, and
+ * the epoch stages those jars beside the game's. That is what the empty arc ref in gradle.properties
+ * declares; the shared epoch machinery does the rest.
+ *
+ * Everything is compile only: the jars arrive at runtime.
+ */
+def branch = name.startsWith('bridge-') ? name.substring('bridge-'.length()) : name
+def jars = rootProject.ext.epochJars(branch)
+def epoch = rootProject.ext.epochInfo(branch)
+
+sourceSets {
+    main {
+        java.srcDirs = ["src"]
+    }
+}
+
+dependencies {
+    api project(':core')
+
+    // android.jar supplies android.*; the JVM side never loads these classes.
+    def sdkRoot = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")
+    def androidJarRoot = sdkRoot ? new File("$sdkRoot/platforms/")
+            .listFiles()?.sort()?.reverse()?.find { f -> new File(f, "android.jar").exists() }
+            : null
+    if (androidJarRoot == null) {
+        throw new GradleException("No valid Android SDK found. Set ANDROID_HOME or ANDROID_SDK_ROOT.")
+    }
+    compileOnly files(new File(androidJarRoot, "android.jar"))
+
+    // the game, and the arc jars built out of the game's own tree: the epoch stages both, whichever
+    // shape the epoch has.
+    compileOnly jars.game
+    compileOnly jars.arc
+
+    // what the arc backend reaches EGL and GLES through. The version has to match the android natives
+    // pack downloads, so both read lwjglVersion.
+    compileOnly platform("org.lwjgl:lwjgl-bom:${property('lwjglVersion')}")
+    compileOnly "org.lwjgl:lwjgl"
+    compileOnly "org.lwjgl:lwjgl-egl"
+    compileOnly "org.lwjgl:lwjgl-opengles"
+}
+
+tasks.named('compileJava') {
+    // without the epoch's jars javac reports a wall of missing arc/mindustry symbols instead.
+    doFirst {
+        if (jars.game.isEmpty() || jars.arc.isEmpty()) {
+            throw new GradleException("epoch ${branch}: no jars in ${epoch.gameOut} or ${epoch.arcOut}. " +
+                    "Run :prepareEpoch${branch.capitalize()}, or drop -PskipEpochPrepare.")
+        }
+    }
+}

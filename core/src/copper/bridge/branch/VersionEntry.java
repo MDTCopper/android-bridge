@@ -6,18 +6,23 @@ import copper.bridge.*;
  * One supported game version epoch. Two independent ranges, because the two release kinds are identified by different
  * numbers: releases compare as {@code number.minor}, so a range reads like {@code 146.0 .. 150.1}, while
  * bleeding-edge bounds are build ids, far finer, because where a branch stops matching is a specific build.
+ *
+ * <p>A scale with both bounds empty is not claimed at all: the branch does not accept that kind of build. That is
+ * how a branch that only has bleeding-edge builds so far (v9) avoids answering for releases it was never tried on.
  */
 public class VersionEntry {
     /** Branch name, used as the dex suffix and the {@code copper.bridge.<name>} package. */
     public String branch;
     public String target = "";
-    public String mindustryTag = "";
-    public String arcVersion = "";
+    /** The game ref this branch was compiled against: a Mindustry tag, or a commit when the epoch has no tag. */
+    public String mindustryRef = "";
+    /** The arc ref, or {@code merged} when arc ships inside the game jar and has no checkout of its own. */
+    public String arcRef = "";
 
-    /** Inclusive release bounds as {@code number.minor}; zero means unbounded. */
+    /** Inclusive release bounds as {@code number.minor}; zero means unbounded, both zero means not claimed. */
     public double minVersionNumber = 0;
     public double maxVersionNumber = 0;
-    /** Inclusive bleeding-edge build id bounds; zero means unbounded. */
+    /** Inclusive bleeding-edge build id bounds; zero means unbounded, both zero means not claimed. */
     public int minBeBuild = 0;
     public int maxBeBuild = 0;
 
@@ -25,16 +30,19 @@ public class VersionEntry {
         if (version == null)
             return false;
         if (version.isBleedingEdge())
-            return withinBe(version.beBuild);
-        return withinRelease(version.releaseValue());
+            return claimsBe() && withinBe(version.beBuild);
+        return claimsRelease() && withinRelease(version.releaseValue());
     }
 
     /** How far the version is outside its applicable range, in the units of that range. Never mixes the scales: a
-     *  bleeding-edge build is only compared against bleeding-edge bounds. */
+     *  bleeding-edge build is only compared against bleeding-edge bounds. A scale this entry does not claim has no
+     *  distance either, so the fallback cannot pick a branch that never declared it. */
     public double distance(GameVersion version) {
         if (version == null)
             return Double.MAX_VALUE;
         if (version.isBleedingEdge()) {
+            if (!claimsBe())
+                return Double.MAX_VALUE;
             int value = version.beBuild;
             if (minBeBuild > 0 && value < minBeBuild)
                 return minBeBuild - value;
@@ -42,12 +50,22 @@ public class VersionEntry {
                 return value - maxBeBuild;
             return 0;
         }
+        if (!claimsRelease())
+            return Double.MAX_VALUE;
         double value = version.releaseValue();
         if (minVersionNumber > 0 && value < minVersionNumber)
             return minVersionNumber - value;
         if (maxVersionNumber > 0 && value > maxVersionNumber)
             return value - maxVersionNumber;
         return 0;
+    }
+
+    private boolean claimsRelease() {
+        return minVersionNumber > 0 || maxVersionNumber > 0;
+    }
+
+    private boolean claimsBe() {
+        return minBeBuild > 0 || maxBeBuild > 0;
     }
 
     private boolean withinRelease(double value) {
@@ -64,6 +82,6 @@ public class VersionEntry {
 
     @Override
     public String toString() {
-        return branch + " [" + (target.isEmpty() ? mindustryTag : target) + "]";
+        return branch + " [" + (target.isEmpty() ? mindustryRef : target) + "]";
     }
 }

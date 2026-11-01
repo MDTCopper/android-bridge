@@ -98,22 +98,26 @@ configure(subprojects - project(':native')) {
 
 // --- epochs -----------------------------------------------------------------
 //
-// A branch compiles against one game/arc epoch, which nothing here can produce: the epoch is checked
+// A branch compiles against one game/arc epoch, which nothing here can produce: the refs are checked
 // out to a temporary directory (a sibling pair, because the game only enables local-arc mode when it
-// finds ../Arc beside itself), built by its own Gradle wrapper, and its jars copied to .mindustry/
-// and .arc/. This runs at configuration time, at most once per epoch, so an IDE import ends with a
-// resolvable classpath: a task would run only after the import had already failed.
+// finds ../Arc beside itself - an epoch whose arc is merged into the game has no second checkout at
+// all), built by its own Gradle wrapper, and its jars copied to .mindustry/ and .arc/. This runs at
+// configuration time, at most once per epoch, so an IDE import ends with a resolvable classpath: a
+// task would run only after the import had already failed.
 
 /** Where one epoch's jars go, and which refs produce them. */
 ext.epochInfo = { String branch ->
-    def tag = property("${branch}.mindustryTag")
+    def gameRef = property("${branch}.mindustryRef")
+    def arcRef = (findProperty("${branch}.arcRef") ?: '').toString().trim()
     return [
             branch : branch,
-            tag    : tag,
-            // an official release uses its arc release tag, anything else the archash
-            arcRef : findProperty("${branch}.arcTag") ?: property("${branch}.arcHash"),
-            gameOut: new File(rootProject.projectDir, ".mindustry/${tag}"),
-            arcOut : new File(rootProject.projectDir, ".arc/${tag}")
+            // a tag, or a commit for an epoch that upstream has not tagged yet
+            gameRef: gameRef,
+            // empty means arc ships inside the game repository: there is nothing to check out beside the game
+            arcRef : arcRef,
+            merged : arcRef.isEmpty(),
+            gameOut: new File(rootProject.projectDir, ".mindustry/${gameRef}"),
+            arcOut : new File(rootProject.projectDir, ".arc/${gameRef}")
     ]
 }
 
@@ -249,41 +253,45 @@ ext.prepareEpoch = { String branch ->
     if (epochIsBuilt(branch))
         return false
 
-    def log = new File(buildRoot(), "epoch/${info.tag}.log")
-    def tmp = new File(buildRoot(), "epoch/${info.tag}")
+    def log = new File(buildRoot(), "epoch/${info.gameRef}.log")
+    def tmp = new File(buildRoot(), "epoch/${info.gameRef}")
     def gameDir = new File(tmp, 'Mindustry')
     def arcDir = new File(tmp, 'Arc')
     def marker = new File(tmp, 'refs.txt')
-    def refs = "${property('mindustryDir')}@${info.tag}${System.lineSeparator()}" +
-            "${property('arcDir')}@${info.arcRef}${System.lineSeparator()}"
+    def refs = "${property('mindustryDir')}@${info.gameRef}${System.lineSeparator()}" +
+            (info.merged ? "" : "${property('arcDir')}@${info.arcRef}${System.lineSeparator()}")
 
     if (!(marker.isFile() && marker.text == refs)) {
-        logger.lifecycle("epoch ${branch}: preparing ${info.tag} once (log: ${log})")
-        logger.lifecycle("  checks out ${property('mindustryDir')}@${info.tag} and " +
-                "${property('arcDir')}@${info.arcRef}, then builds with the game's own Gradle")
+        logger.lifecycle("epoch ${branch}: preparing ${info.gameRef} once (log: ${log})")
+        logger.lifecycle("  checks out ${property('mindustryDir')}@${info.gameRef}" + (info.merged
+                ? " (arc is inside the game repository)"
+                : " and ${property('arcDir')}@${info.arcRef}") + ", then builds with the game's own Gradle")
 
         // one log per preparation attempt, so a failed one leaves the whole story behind
         log.parentFile.mkdirs()
         log.text = ""
         dropCheckout(tmp, log)
-        checkout('mindustryDir', info.tag, gameDir, log)
-        checkout('arcDir', info.arcRef, arcDir, log)
+        checkout('mindustryDir', info.gameRef, gameDir, log)
 
-        // Arc's backend-sdl downloads GLEW and an SDL-mingw archive while its build is *configured*,
-        // waiting on curl with no timeout, so a fresh epoch can stall there forever. We never build
-        // those natives and the module only needs the two files to exist, so empty placeholders do.
-        def sdlJni = new File(arcDir, 'backends/backend-sdl/jni')
-        sdlJni.mkdirs()
-        ['glew.zip', 'sdlmingw.tar.gz'].each { String name ->
-            def placeholder = new File(sdlJni, name)
-            if (!placeholder.exists())
-                placeholder.createNewFile()
+        if (!info.merged) {
+            checkout('arcDir', info.arcRef, arcDir, log)
+
+            // Arc's backend-sdl downloads GLEW and an SDL-mingw archive while its build is *configured*,
+            // waiting on curl with no timeout, so a fresh epoch can stall there forever. We never build
+            // those natives and the module only needs the two files to exist, so empty placeholders do.
+            def sdlJni = new File(arcDir, 'backends/backend-sdl/jni')
+            sdlJni.mkdirs()
+            ['glew.zip', 'sdlmingw.tar.gz'].each { String name ->
+                def placeholder = new File(sdlJni, name)
+                if (!placeholder.exists())
+                    placeholder.createNewFile()
+            }
         }
 
         marker.parentFile.mkdirs()
         marker.text = refs
     } else {
-        logger.lifecycle("epoch ${branch}: reusing the ${info.tag} checkout in ${tmp}")
+        logger.lifecycle("epoch ${branch}: reusing the ${info.gameRef} checkout in ${tmp}")
     }
 
     def windows = System.getProperty('os.name').toLowerCase().contains('windows')
@@ -304,8 +312,11 @@ ext.prepareEpoch = { String branch ->
         exclude '*-sources.jar'
         exclude '*-javadoc.jar'
     }
+    // A merged epoch builds arc out of the game's own tree, as an included build: the wrapper's :core:jar
+    // depends on it, and its jar lands under arc/. Both layouts then look the same from here.
+    def arcRoot = info.merged ? new File(gameDir, 'arc') : arcDir
     // arc-core sits at the top level and the extensions one level down; arc's own backends/ is not matched.
-    def arcJars = fileTree(arcDir) {
+    def arcJars = fileTree(arcRoot) {
         include '*/build/libs/*.jar'
         include 'extensions/*/build/libs/*.jar'
         exclude '*-sources.jar'
@@ -313,14 +324,14 @@ ext.prepareEpoch = { String branch ->
     }
 
     if (gameJars.isEmpty() || arcJars.isEmpty())
-        throw new GradleException("epoch ${branch}: the build produced no jars under ${gameDir} " +
-                "or ${arcDir}")
+        throw new GradleException("epoch ${branch}: the build produced no jars under ${gameDir}/core" +
+                " or ${arcRoot}")
     copyJarsOut(gameJars, info.gameOut)
     copyJarsOut(arcJars, info.arcOut)
 
     if (!epochIsBuilt(branch))
-        throw new GradleException("epoch ${branch}: nothing was copied to ${info.gameOut} / ${info.arcOut}")
-    logger.lifecycle("epoch ${branch}: jars are in .mindustry/${info.tag} and .arc/${info.tag}")
+        throw new GradleException("epoch ${branch}: nothing was copied to ${info.gameOut} or ${info.arcOut}")
+    logger.lifecycle("epoch ${branch}: jars are in .mindustry/${info.gameRef} and .arc/${info.gameRef}")
 
     dropCheckout(tmp, log)
     return true
@@ -336,24 +347,24 @@ ext.branchHasSources = { String branch ->
 if (!project.hasProperty('skipEpochPrepare')) {
     def wanted = project.hasProperty('epochs')
             ? project.property('epochs').split(',').collect { it.trim() }.findAll { it }
-            : ['v1'].findAll { branchHasSources(it) }
+            : ['v1', 'v2'].findAll { branchHasSources(it) }
     wanted.each { String branch -> prepareEpoch(branch) }
 }
 
 // 'verify' is not a branch: it has no sources and nothing in the jar is compiled against it, but its
 // jars let the same sources be compiled against an older interface shape as a check.
-def epochNames = ['v1', 'verify']
+def epochNames = ['v1', 'v2', 'verify']
 
 // The escape hatch for rebuilding an epoch by hand, after a failure or because a ref moved.
 epochNames.each { String branch ->
     tasks.register("prepareEpoch${branch.capitalize()}") {
         group = 'epoch'
-        description = "Rebuilds the ${branch} epoch and refreshes .mindustry/ and .arc/."
+        description = "Rebuilds the ${branch} epoch and refreshes the staged jars."
         doLast {
             // asking for it means the cached jars are stale: start from scratch, checkout included
             def info = epochInfo(branch)
-            def tmp = new File(buildRoot(), "epoch/${info.tag}")
-            def log = new File(buildRoot(), "epoch/${info.tag}.log")
+            def tmp = new File(buildRoot(), "epoch/${info.gameRef}")
+            def log = new File(buildRoot(), "epoch/${info.gameRef}.log")
             delete info.gameOut
             delete info.arcOut
             // through git, so the worktree registration goes with the directory

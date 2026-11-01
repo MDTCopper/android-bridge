@@ -30,6 +30,9 @@ public class BridgeApplication implements Application {
 
     private Thread mainThread;
 
+    /** Set once the first frame was handed to the surface: the ART side takes down whatever it showed until then. */
+    private boolean firstFrameMarked;
+
     public BridgeApplication() {
         this.graphics = new BridgeGraphics();
         this.input = new BridgeInput();
@@ -105,6 +108,12 @@ public class BridgeApplication implements Application {
                 listener.update();
             input.processDevices();
             graphics.swapBuffers();
+
+            if (!firstFrameMarked) {
+                firstFrameMarked = true;
+                // the ART side owns whatever it shows over the surface, and this is the only thing it waits for
+                JvmCall.onFirstFrameDrawn();
+            }
         }
     }
 
@@ -204,6 +213,6 @@ public class BridgeApplication implements Application {
     @Override
     public void exit() {
         JvmCall.finishActivity();
-        events.destroy();
+        events.onDestroy();
     }
 }

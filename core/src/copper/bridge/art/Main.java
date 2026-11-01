@@ -55,14 +55,8 @@ public class Main {
         Log.setBackend(new NativeLogBackend());
     }
 
-    /**
-     * Creates the game activity on the ART main thread, the JVM being started by the activity itself. Reaching
-     * {@link BridgeActivity} directly is safe because nothing on the JVM side ever loads this class.
-     */
-    public static Object launch() {
-        requireOptions();
-        return new BridgeActivity();
-    }
+    // no activity factory here: building the activity is the host's step, so a host with a screen of its own returns
+    // a subclass. See BridgeActivity#onFirstFrameDrawn.
 
     //region argument parsing
 
@@ -97,8 +91,11 @@ public class Main {
                 abi -> Bridge.options.abi = abi);
 
         parser.addFlag(null, "angle", "Use the device's own ANGLE libraries for EGL and GLES", () -> Bridge.options.angle = true);
-        parser.addFlag(null, "gl3", "Request an OpenGL ES 3 context", () -> Bridge.options.useGL30 = true);
-        parser.addFlag(null, "gl2", "Request an OpenGL ES 2 context", () -> Bridge.options.useGL30 = false);
+        // a request, not a promise: a branch gives what the device supports, and one that needs ES3 refuses --gl2
+        parser.addFlag(null, "gl3", "Request an OpenGL ES 3 context",
+                () -> Bridge.options.glMode = BridgeOptions.GLMode.GL3);
+        parser.addFlag(null, "gl2", "Request an OpenGL ES 2 context",
+                () -> Bridge.options.glMode = BridgeOptions.GLMode.GL2);
         parser.addFlag(null, "no-jvm-args", "Disable the injected JVM arguments",
                 () -> Bridge.options.noJvmArgs = true);
         parser.addFlag("d", "debug", "Debug logging: this bridge's, and the game's own",
@@ -168,11 +165,6 @@ public class Main {
         if (bin != null && "bin".equals(bin.getName()) && bin.getParentFile() != null)
             return bin.getParentFile();
         return bin == null ? javaExecutable.getAbsoluteFile() : bin;
-    }
-
-    private static void requireOptions() {
-        if (Bridge.options == null)
-            throw new RuntimeException("copper.bridge.art.Main.main has not run yet");
     }
 
     private static void require(boolean empty, String message) {

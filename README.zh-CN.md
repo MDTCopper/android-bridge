@@ -148,6 +148,8 @@ arcDir=../Arc
 
 欢迎任何形式的贡献。代码改动请提 Pull Request，说明改了什么、怎么验证的。
 
+完整的要求见 [CONTRIBUTING.zh-CN.md](./CONTRIBUTING.zh-CN.md)。
+
 改动之后跑一遍完整构建：
 
 ```bash
@@ -162,7 +164,7 @@ arcDir=../Arc
 
 ## 许可
 
-本项目以 [GPL-3.0](LICENSE) 发布。
+本项目以 [MIT](LICENSE) 许可发布。
 
 ## 致谢与依赖
 

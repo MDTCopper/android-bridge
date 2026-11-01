@@ -50,13 +50,18 @@ namespace copper::bridge::jre::Launcher {
     } // namespace
 
     /**
-     * Ends what the VM left behind, in the way its exit code asks for. A non-zero status means it could not do its
-     * job: {@code _exit} runs no teardown - that teardown takes ART down, an ART thread touching the destroyed state
-     * dying of FORTIFY/SIGABRT (measured). A clean return is the game ending on its own terms.
+     * Ends what the VM left behind, in the way its exit code asks for.
+     *
+     * <p>A non-zero status is a failure the VM cannot recover from: the process ends here, synchronously, with that
+     * status - no teardown, no animation, nothing said to ART. {@code _exit} is deliberate: the destructors of the
+     * libraries loaded here take ART's state down while ART threads still run on it (FORTIFY/SIGABRT, measured), and a
+     * process that is leaving has nothing to unwind. A clean return hands the screen to ART and parks this thread; the
+     * host clears the process before the next launch.</p>
      */
     [[noreturn]] void EndProcessNow(int status) {
         if (status != 0) {
             Log::InfoF("LAUNCHER", "the JVM exited with %d, exiting", status);
+            // Unrecoverable: end the process here and now, before anything else can run.
             _exit(status);
         }
 

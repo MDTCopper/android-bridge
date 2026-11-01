@@ -3,39 +3,41 @@ package copper.bridge.jvm;
 import copper.bridge.annotation.*;
 
 /**
- * The events ART posts, declared here and implemented by the branch. The annotation processor runs in core
- * and cannot see a version branch, so this is the only place the declaration can live.
+ * The events ART posts, implemented by the branch. Declared in core because the processor cannot see a branch.
+ *
+ * <p>Names follow Android's callbacks ({@code onXxx}); each one is a no-op default, so a branch that cannot serve an
+ * event leaves it empty.</p>
  */
 public interface Events {
     @JvmEventHandler
-    default void surfaceCreated(int width, int height, long window) {
+    default void onSurfaceCreated(int width, int height, long window) {
     }
 
     @JvmEventHandler
-    default void surfaceResized(int width, int height) {
+    default void onSurfaceChanged(int width, int height) {
     }
 
     @JvmEventHandler
-    default void safeInsetsUpdated(int top, int bottom, int left, int right) {
+    default void onSafeInsetsChanged(int top, int bottom, int left, int right) {
     }
 
     @JvmEventHandler
-    default void surfaceDestroyed() {
+    default void onSurfaceDestroyed() {
     }
 
     @JvmEventHandler
-    default void pause() {
+    default void onPause() {
     }
 
     @JvmEventHandler
-    default void resume() {
+    default void onResume() {
     }
 
     @JvmEventHandler
-    default void destroy() {
+    default void onDestroy() {
     }
 
     @JvmEventHandler
-    default void back() {
+    default void onBackPressed() {
     }
 }

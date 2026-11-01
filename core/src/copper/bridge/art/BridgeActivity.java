@@ -1,13 +1,10 @@
 package copper.bridge.art;
 
-import android.animation.*;
 import android.content.*;
 import android.content.pm.*;
 import android.graphics.*;
-import android.graphics.drawable.GradientDrawable;
 import android.os.*;
 import android.view.*;
-import android.view.animation.*;
 import android.view.inputmethod.*;
 import android.widget.*;
 
@@ -16,56 +13,25 @@ import copper.bridge.annotation.*;
 import copper.bridge.gen.*;
 import copper.bridge.util.*;
 
-import java.io.*;
-import java.util.*;
-import java.util.zip.*;
-
 /**
- * The activity the launcher returns to the system: it owns the surface, the input path and its own lifecycle.
+ * The activity the host returns to the system: it owns the surface, the input path and its own lifecycle.
+ *
+ * <p>Draws nothing itself. A host that shows something over the surface until the game appears subclasses it and
+ * overrides {@link #onFirstFrameDrawn()}; {@link #root} and {@link #handler} are the room it gets.</p>
  */
 public class BridgeActivity extends android.app.Activity {
     private BridgeSurfaceView view;
     private BridgeInput input;
-    /** Copper defaults: the launcher's dark page and brand color, so the mask needs no handoff. */
-    private static final int COPPER_BG = 0xFF121212;
-    private static final int COPPER_ACCENT = 0xFFC8A06E;
-    private static final long INTERACTION_AFTER_MS = 6000;
-    private static final long HINT_VISIBLE_MS = 1000;
-    private static final long RING_FULL_MS = 2500;
-    private static final long STATUS_AFTER_MS = 3000;
-
-    private ViewGroup root;
     private FileChooser fileChooser;
 
-    /** Black layer over the surface, faded out once the JVM reports the game's first frame. */
-    private View veil;
-    private TextView statusText;
-    private ObjectAnimator breath;
-    private ImageView copperIcon;
-    private TextView hintText;
-    private ProgressRingView ringView;
-    private ValueAnimator ringAnimator;
-    private Runnable hintTimeout;
-    private boolean interactionEnabled;
-    private boolean hintVisible;
-    private int framePolls;
-    private boolean leaving;
-    private static final int MAX_FRAME_POLLS = 60;
-    private final Handler frameHandler = new Handler(Looper.getMainLooper());
-    private final Runnable framePoll = new Runnable() {
-        @Override
-        public void run() {
-            File cache = Bridge.options.cacheFolder;
-            File marker = cache == null ? null : new File(cache, "first-frame");
-            if (marker == null || marker.isFile() || framePolls++ >= MAX_FRAME_POLLS) {
-                if (marker != null)
-                    marker.delete();
-                fadeVeil();
-                return;
-            }
-            frameHandler.postDelayed(this, 50);
-        }
-    };
+    /** The activity's content root; the surface lives here, so a subclass adds its views on top of the game. */
+    protected ViewGroup root;
+
+    /** A handler on the thread every callback of this class runs on; a subclass's timed work belongs here. */
+    protected final Handler handler = new Handler(Looper.getMainLooper());
+
+    /** Guards {@link #leave()}: a repeated request - the VM ending itself while the host asked - is a no-op. */
+    protected boolean leaving;
 
     public BridgeActivity() {
         if (Bridge.options == null)
@@ -103,68 +69,6 @@ public class BridgeActivity extends android.app.Activity {
         // must happen here: the JVM waits for the window pointer, so a surface left to a JVM request never arrives
         surfaceCreate();
 
-        // The game's first frame lands a moment after the surface exists: a copper layer stays
-        // until the JVM marks that frame, then fades out so the picture eases in instead of a
-        // black gap. Copper colors are the launcher's default palette, independent of its theme.
-        File cache = Bridge.options.cacheFolder;
-        if (cache != null)
-            new File(cache, "first-frame").delete();
-        FrameLayout veilLayer = new FrameLayout(this);
-        veilLayer.setBackgroundColor(COPPER_BG);
-        veilLayer.setAlpha(0f);
-        veilLayer.addView(buildVeilContent(),
-                new FrameLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT));
-
-        ringView = new ProgressRingView(this);
-        ringView.setVisibility(View.GONE);
-        veilLayer.addView(ringView, new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-
-        // Status text waits in the bottom-right corner: only a launch that is still on the copper
-        // screen after STATUS_AFTER_MS gets it, and it fades in and then breathes.
-        statusText = new TextView(this);
-        statusText.setText("正在启动游戏…");
-        statusText.setTextSize(14);
-        statusText.setTextColor(0xFFF0F0F0);
-        statusText.setAlpha(0f);
-        FrameLayout.LayoutParams statusParams = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.BOTTOM | Gravity.END);
-        statusParams.rightMargin = dp(24);
-        statusParams.bottomMargin = dp(24);
-        veilLayer.addView(statusText, statusParams);
-        frameHandler.postDelayed(() -> {
-            if (veil != null && !isFinishing()) {
-                statusText.animate()
-                        .alpha(1f)
-                        .setDuration(300)
-                        .withEndAction(this::startBreathing)
-                        .start();
-            }
-        }, STATUS_AFTER_MS);
-
-        // Only a launch still on the copper screen after INTERACTION_AFTER_MS accepts the
-        // tap/long-press escape hatch.
-        frameHandler.postDelayed(() -> {
-            if (veil != null && !isFinishing())
-                interactionEnabled = true;
-        }, INTERACTION_AFTER_MS);
-
-        View touchLayer = new View(this);
-        touchLayer.setClickable(true);
-        touchLayer.setOnTouchListener(this::handleVeilTouch);
-        veilLayer.addView(touchLayer, new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-
-        veil = veilLayer;
-        root.addView(veil, new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        veilLayer.animate().alpha(1f).setDuration(200).start();
-        frameHandler.post(framePoll);
-
         fileChooser.clearStaged();
 
         ArtBus.start();
@@ -177,275 +81,12 @@ public class BridgeActivity extends android.app.Activity {
         bootstrap.start();
     }
 
-    /** Fades the launch veil out and removes it: the game picture is under it. */
-    private void fadeVeil() {
-        View fading = veil;
-        if (fading == null)
-            return;
-        veil = null;
-        stopRing();
-        if (hintTimeout != null) {
-            frameHandler.removeCallbacks(hintTimeout);
-            hintTimeout = null;
-        }
-        if (breath != null) {
-            breath.cancel();
-            breath = null;
-        }
-        fading.animate()
-                .alpha(0f)
-                .setDuration(250)
-                .withEndAction(() -> root.removeView(fading))
-                .start();
-    }
-
-    /** Slow breathing of the status text: on-off alpha while the game is still coming up. */
-    private void startBreathing() {
-        if (statusText == null)
-            return;
-        breath = ObjectAnimator.ofFloat(statusText, View.ALPHA, 1f, 0.65f);
-        breath.setDuration(2400);
-        breath.setInterpolator(new AccelerateDecelerateInterpolator());
-        breath.setRepeatMode(ValueAnimator.REVERSE);
-        breath.setRepeatCount(ValueAnimator.INFINITE);
-        breath.start();
-    }
-
-    /** Center: the Copper icon, swapped for the long-press hint on a tap. */
-    private View buildVeilContent() {
-        FrameLayout center = new FrameLayout(this);
-
-        copperIcon = new ImageView(this);
-        copperIcon.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        try {
-            copperIcon.setImageDrawable(getPackageManager().getApplicationIcon(getPackageName()));
-        } catch (Throwable ignored) {
-            TextView fallback = new TextView(this);
-            fallback.setText("C");
-            fallback.setTextSize(48);
-            fallback.setTextColor(COPPER_ACCENT);
-            center.addView(fallback, new FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    Gravity.CENTER));
-        }
-        center.addView(copperIcon, new FrameLayout.LayoutParams(dp(64), dp(64), Gravity.CENTER));
-        loadMindustryLogo();
-
-        hintText = new TextView(this);
-        hintText.setText("长按任意位置以取消此次启动...");
-        hintText.setTextSize(16);
-        hintText.setTextColor(0xFFF0F0F0);
-        hintText.setGravity(Gravity.CENTER);
-        hintText.setAlpha(0f);
-        hintText.setVisibility(View.GONE);
-        center.addView(hintText, new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.CENTER));
-        return center;
-    }
-
-    /** The Mindustry logo is inside the game jar: icons/icon.png. */
-    private void loadMindustryLogo() {
-        List<File> jars = Bridge.options.gameJars;
-        if (jars == null || jars.isEmpty())
-            return;
-        new Thread(() -> {
-            for (File jar : jars) {
-                if (jar == null || !jar.isFile())
-                    continue;
-                try (ZipFile zip = new ZipFile(jar)) {
-                    ZipEntry entry = zip.getEntry("icons/icon.png");
-                    if (entry == null)
-                        continue;
-                    try (InputStream in = zip.getInputStream(entry)) {
-                        Bitmap bitmap = BitmapFactory.decodeStream(in);
-                        if (bitmap != null) {
-                            runOnUiThread(() -> {
-                                if (copperIcon != null)
-                                    copperIcon.setImageBitmap(bitmap);
-                            });
-                        }
-                    }
-                    return;
-                } catch (Throwable ignored) {
-                }
-            }
-        }, "copper-logo").start();
-    }
-
-    private boolean handleVeilTouch(View v, MotionEvent event) {
-        if (veil == null)
-            return false;
-        if (!interactionEnabled)
-            return true;
-        switch (event.getActionMasked()) {
-            case MotionEvent.ACTION_DOWN:
-                showHint();
-                startRing(event.getX(), event.getY());
-                return true;
-            case MotionEvent.ACTION_UP:
-            case MotionEvent.ACTION_CANCEL:
-                stopRing();
-                return true;
-            default:
-                return true;
-        }
-    }
-
-    private void showHint() {
-        if (hintText == null || veil == null)
-            return;
-        if (!hintVisible) {
-            hintVisible = true;
-            copperIcon.animate().alpha(0f).setDuration(150).start();
-            hintText.setVisibility(View.VISIBLE);
-            hintText.setAlpha(0f);
-            hintText.animate().alpha(1f).setDuration(150).start();
-            frameHandler.postDelayed(this::pulseHint, 160);
-        } else {
-            pulseHint();
-        }
-        if (hintTimeout == null)
-            hintTimeout = this::hideHint;
-        frameHandler.removeCallbacks(hintTimeout);
-        frameHandler.postDelayed(hintTimeout, HINT_VISIBLE_MS);
-    }
-
-    private void hideHint() {
-        if (!hintVisible)
-            return;
-        hintVisible = false;
-        hintText.animate()
-                .alpha(0f)
-                .setDuration(150)
-                .withEndAction(() -> {
-                    if (!hintVisible)
-                        hintText.setVisibility(View.GONE);
-                })
-                .start();
-        copperIcon.animate().alpha(1f).setDuration(150).start();
-    }
-
-    private void pulseHint() {
-        if (hintText == null || !hintVisible || veil == null)
-            return;
-        hintText.animate().cancel();
-        hintText.setAlpha(1f);
-        hintText.setScaleX(1f);
-        hintText.setScaleY(1f);
-        hintText.animate()
-                .scaleX(1.12f)
-                .scaleY(1.12f)
-                .setDuration(160)
-                .setInterpolator(new OvershootInterpolator(2f))
-                .withEndAction(() -> hintText.animate()
-                        .scaleX(1f)
-                        .scaleY(1f)
-                        .setDuration(180)
-                        .setInterpolator(new OvershootInterpolator(2f))
-                        .start())
-                .start();
-    }
-
-    private void startRing(float x, float y) {
-        if (ringView == null)
-            return;
-        stopRing();
-        ringView.setCenter(x, y);
-        ringView.setProgress(0f);
-        ringView.setVisibility(View.VISIBLE);
-        ValueAnimator animator = ValueAnimator.ofFloat(0f, 1f);
-        animator.setDuration(RING_FULL_MS);
-        animator.setInterpolator(new LinearInterpolator());
-        animator.addUpdateListener(a -> ringView.setProgress((float) a.getAnimatedValue()));
-        animator.addListener(new AnimatorListenerAdapter() {
-            @Override
-            public void onAnimationEnd(Animator animation) {
-                if (ringAnimator != animation)
-                    return;
-                ringAnimator = null;
-                ringView.setVisibility(View.GONE);
-                cancelLaunch();
-            }
-        });
-        ringAnimator = animator;
-        animator.start();
-    }
-
-    private void stopRing() {
-        if (ringAnimator != null) {
-            ValueAnimator animator = ringAnimator;
-            ringAnimator = null;
-            animator.cancel();
-        }
-        if (ringView != null)
-            ringView.setVisibility(View.GONE);
-    }
-
-    /** Fills from the touch point; the game is canceled when it completes. */
-    private static class ProgressRingView extends View {
-        private final Paint track = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final Paint arc = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final float radius;
-        private float cx;
-        private float cy;
-        private float progress;
-
-        ProgressRingView(Context context) {
-            super(context);
-            float density = getResources().getDisplayMetrics().density;
-            radius = 36f * density;
-            float stroke = 4f * density;
-            track.setStyle(Paint.Style.STROKE);
-            track.setStrokeWidth(stroke);
-            track.setColor(0x33C8A06E);
-            arc.setStyle(Paint.Style.STROKE);
-            arc.setStrokeWidth(stroke);
-            arc.setStrokeCap(Paint.Cap.ROUND);
-            arc.setColor(0xFFC8A06E);
-        }
-
-        void setCenter(float x, float y) {
-            cx = x;
-            cy = y;
-            invalidate();
-        }
-
-        void setProgress(float value) {
-            progress = value;
-            invalidate();
-        }
-
-        @Override
-        protected void onDraw(Canvas canvas) {
-            if (progress <= 0f)
-                return;
-            canvas.drawCircle(cx, cy, radius, track);
-            canvas.drawArc(cx - radius, cy - radius, cx + radius, cy + radius,
-                    -90f, 360f * progress, false, arc);
-        }
-    }
-
-    /** Lets the player stop a launch that is taking too long. */
-    private void cancelLaunch() {
-        Log.info("launch canceled by user");
-        File cache = Bridge.options.cacheFolder;
-        if (cache != null) {
-            try {
-                cache.mkdirs();
-                new File(cache, "launch-canceled").createNewFile();
-            } catch (Throwable ignored) {
-            }
-        }
-        leave();
-        frameHandler.postDelayed(
-                () -> android.os.Process.killProcess(android.os.Process.myPid()), 500);
-    }
-
-    private int dp(int value) {
-        return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
+    /**
+     * Called on the ART main thread once the game has handed its first frame to the surface. Empty: this class draws
+     * nothing, so a subclass overrides it to take down whatever it showed until then.
+     */
+    @ArtEventHandler
+    public void onFirstFrameDrawn() {
     }
 
     private void startJvm() {
@@ -468,8 +109,8 @@ public class BridgeActivity extends android.app.Activity {
 
     private static BridgeActivity current;
 
-    private static final int RETURN_ENTER = android.R.anim.fade_in;
-    private static final int RETURN_EXIT = android.R.anim.fade_out;
+    private static final int RETURN_ENTER = android.R.anim.slide_in_left;
+    private static final int RETURN_EXIT = android.R.anim.slide_out_right;
 
     /** Leaves this screen when the VM ends itself, called from native at the head of its {@code exit()}. */
     @UsedByNative(side = UsedByNative.Side.ART, detaches = true)
@@ -482,29 +123,24 @@ public class BridgeActivity extends android.app.Activity {
         activity.runOnUiThread(activity::leave);
     }
 
-    /** Fades the game picture out, then finishes so the host below comes back. */
-    private void leave() {
+    /** Leaves this screen so the host below comes back; the guard makes a repeated request a no-op. */
+    protected void leave() {
         if (isFinishing() || leaving)
             return;
         leaving = true;
 
         Log.info("leaving this screen");
-        View fade = new View(this);
-        fade.setBackgroundColor(COPPER_BG);
-        fade.setAlpha(0f);
-        root.addView(fade, new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
-        fade.animate()
-                .alpha(1f)
-                .setDuration(300)
-                .withEndAction(() -> {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
-                        overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, RETURN_ENTER, RETURN_EXIT);
-                    else
-                        legacyTransition();
-                    finish();
-                })
-                .start();
+        performLeave();
+    }
+
+    /** The transition and the {@code finish()}. A subclass that animates out overrides this and calls
+     *  {@code super.performLeave()} when the animation ends. */
+    protected void performLeave() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+            overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, RETURN_ENTER, RETURN_EXIT);
+        else
+            legacyTransition();
+        finish();
     }
 
     @SuppressWarnings("deprecation")
@@ -592,17 +228,17 @@ public class BridgeActivity extends android.app.Activity {
             long window = nativeWindow(holder.getSurface());
             if (Bridge.options.debug)
                 Log.info("surface created, window=0x" + Long.toHexString(window));
-            ArtCall.surfaceCreated(view.getWidth(), view.getHeight(), window);
+            ArtCall.onSurfaceCreated(view.getWidth(), view.getHeight(), window);
         }
 
         @Override
         public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-            ArtCall.surfaceResized(width, height);
+            ArtCall.onSurfaceChanged(width, height);
         }
 
         @Override
         public void surfaceDestroyed(SurfaceHolder holder) {
-            ArtCall.surfaceDestroyed();
+            ArtCall.onSurfaceDestroyed();
         }
     }
     //endregion
@@ -619,32 +255,22 @@ public class BridgeActivity extends android.app.Activity {
     @Override
     protected void onPause() {
         super.onPause();
-        ArtCall.pause();
+        ArtCall.onPause();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         hideStatusBar();
-        ArtCall.resume();
+        ArtCall.onResume();
     }
 
     @Override
     protected void onDestroy() {
-        frameHandler.removeCallbacks(framePoll);
-        if (hintTimeout != null) {
-            frameHandler.removeCallbacks(hintTimeout);
-            hintTimeout = null;
-        }
-        stopRing();
-        if (breath != null) {
-            breath.cancel();
-            breath = null;
-        }
         // the pump first: it runs on this thread, and stopping it releases a caller still waiting for an answer
         ArtBus.stop();
         super.onDestroy();
-        ArtCall.destroy();
+        ArtCall.onDestroy();
         current = null;
     }
 
@@ -672,7 +298,7 @@ public class BridgeActivity extends android.app.Activity {
         View decorView = getWindow().getDecorView();
         decorView.setOnApplyWindowInsetsListener((v, insets) -> {
             Insets cutout = insets.getInsets(WindowInsets.Type.displayCutout());
-            ArtCall.safeInsetsUpdated(cutout.top, cutout.bottom, cutout.left, cutout.right);
+            ArtCall.onSafeInsetsChanged(cutout.top, cutout.bottom, cutout.left, cutout.right);
             return insets;
         });
         insetsAttached = true;
@@ -730,7 +356,7 @@ public class BridgeActivity extends android.app.Activity {
     }
 
     private void pressBack() {
-        ArtCall.back();
+        ArtCall.onBackPressed();
     }
 
     private boolean consumes(int keyCode) {

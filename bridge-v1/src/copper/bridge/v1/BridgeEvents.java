@@ -49,7 +49,7 @@ public class BridgeEvents implements Events {
     }
 
     @Override
-    public void surfaceCreated(int width, int height, long window) {
+    public void onSurfaceCreated(int width, int height, long window) {
         Surface.created(window, width, height);
 
         if (window == 0) {
@@ -67,7 +67,7 @@ public class BridgeEvents implements Events {
     }
 
     @Override
-    public void surfaceResized(int width, int height) {
+    public void onSurfaceChanged(int width, int height) {
         Surface.resized(width, height);
 
         if (!surfaceReady)
@@ -79,12 +79,12 @@ public class BridgeEvents implements Events {
     }
 
     @Override
-    public void safeInsetsUpdated(int top, int bottom, int left, int right) {
+    public void onSafeInsetsChanged(int top, int bottom, int left, int right) {
         graphics.safeInsetsUpdated(top, bottom, left, right);
     }
 
     @Override
-    public void surfaceDestroyed() {
+    public void onSurfaceDestroyed() {
         Surface.destroyed();
         graphics.destroySurface();
         // surfaceReady deliberately stays true: it means "the render loop owns GL", not "an EGL surface is bound".
@@ -92,7 +92,7 @@ public class BridgeEvents implements Events {
     }
 
     @Override
-    public void pause() {
+    public void onPause() {
         if (paused)
             return;
         paused = true;
@@ -105,7 +105,7 @@ public class BridgeEvents implements Events {
     }
 
     @Override
-    public void resume() {
+    public void onResume() {
         if (!paused)
             return;
         paused = false;
@@ -118,7 +118,7 @@ public class BridgeEvents implements Events {
     }
 
     @Override
-    public void destroy() {
+    public void onDestroy() {
         running = false;
     }
 
@@ -126,7 +126,7 @@ public class BridgeEvents implements Events {
      *  key event let the dialog close and {@code Control} then saw "no dialog" in the same frame and hid the app.
      *  With no dialog open the press goes through the normal input path. */
     @Override
-    public void back() {
+    public void onBackPressed() {
         if (Core.scene != null && Core.scene.hasDialog()) {
             Core.scene.keyDown(arc.input.KeyCode.back);
             Core.scene.keyUp(arc.input.KeyCode.back);

@@ -37,7 +37,17 @@ public class BridgeOptions {
     public boolean angle = false;
     public File anglePath;
 
-    public boolean useGL30 = true;
+    /** What the caller asked of the GL context. A branch decides what it can give, and says so when it cannot. */
+    public enum GLMode {
+        /** Nothing asked: the branch picks the highest version the device supports. */
+        Auto,
+        /** An explicit OpenGL ES 2 request. */
+        GL2,
+        /** An explicit OpenGL ES 3 request. */
+        GL3
+    }
+
+    public GLMode glMode = GLMode.Auto;
 
     public String abi;
     public int androidVersion = 0;
@@ -90,7 +100,7 @@ public class BridgeOptions {
         putFile(props, "bridgeLibrary", bridgeLibrary);
         put(props, "angle", Boolean.toString(angle));
         putFile(props, "anglePath", anglePath);
-        put(props, "gl30", Boolean.toString(useGL30));
+        put(props, "glMode", glMode.name());
         put(props, "abi", abi);
         put(props, "androidVersion", Integer.toString(androidVersion));
         put(props, "arch", arch);
@@ -129,7 +139,7 @@ public class BridgeOptions {
         options.bridgeLibrary = getFile(props, "bridgeLibrary");
         options.angle = Boolean.parseBoolean(get(props, "angle", "false"));
         options.anglePath = getFile(props, "anglePath");
-        options.useGL30 = Boolean.parseBoolean(get(props, "gl30", "true"));
+        options.glMode = glMode(get(props, "glMode", GLMode.Auto.name()));
         options.abi = emptyToNull(get(props, "abi"));
         options.androidVersion = Integer.parseInt(get(props, "androidVersion", "0"));
         options.arch = get(props, "arch", "");
@@ -237,5 +247,14 @@ public class BridgeOptions {
 
     private static String emptyToNull(String value) {
         return (value == null || value.isEmpty()) ? null : value;
+    }
+
+    /** The GL request as it crosses: {@code Auto}, {@code GL2} or {@code GL3}, plus the bare number a hand edit may leave. */
+    private static GLMode glMode(String value) {
+        if ("2".equals(value) || "gl2".equalsIgnoreCase(value))
+            return GLMode.GL2;
+        if ("3".equals(value) || "gl3".equalsIgnoreCase(value))
+            return GLMode.GL3;
+        return GLMode.Auto;
     }
 }

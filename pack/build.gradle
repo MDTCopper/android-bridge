@@ -148,12 +148,14 @@ def dexTasks = [declareDex('dexCore', "Dexes the shared half of the bridge into 
 // branch is exactly what that branch was compiled and dexed with. Nothing is inferred at runtime.
 
 def versionBlocks = branchNames.collect { String branch ->
+    def ref = property("${branch}.mindustryRef")
+    def arcRef = (findProperty("${branch}.arcRef") ?: '').toString().trim()
     [
             name            : branch,
-            target          : "Mindustry ${property("${branch}.mindustryTag")}",
-            mindustryTag    : property("${branch}.mindustryTag"),
-            arcVersion      : findProperty("${branch}.arcTag") ?: property("${branch}.arcHash"),
-            major           : findProperty("${branch}.major") ?: '',
+            target          : "Mindustry ${ref}",
+            mindustryRef    : ref,
+            // a merged epoch has no arc of its own: name that rather than writing an empty cell
+            arcRef          : arcRef.isEmpty() ? 'merged' : arcRef,
             minVersionNumber: property("${branch}.minVersionNumber"),
             maxVersionNumber: findProperty("${branch}.maxVersionNumber") ?: '',
             minBeBuild      : property("${branch}.minBeBuild"),
@@ -175,7 +177,7 @@ def versionTable = tasks.register('versionTable') {
         blocks.eachWithIndex { block, index ->
             text.append("\n# ${block.name} vs ${block.target}\n")
             def prefix = "branch.${index}."
-            ['name', 'target', 'mindustryTag', 'arcVersion', 'major',
+            ['name', 'target', 'mindustryRef', 'arcRef',
              'minVersionNumber', 'maxVersionNumber', 'minBeBuild', 'maxBeBuild'].each { String key ->
                 text.append("${prefix}${key}=${block[key]}\n")
             }
@@ -258,7 +260,7 @@ tasks.register('bridgeJar', Jar) {
         exclude 'module-info.class'
     }
 
-    // lwjgl android natives, in the layout lwjgl's own loader expects
+    // lwjgl android natives, under the prefix the bridge's own mapper adds to LWJGL's bundled lookup
     from(fetchLwjglNatives) {
         into 'native/lwjgl'
     }

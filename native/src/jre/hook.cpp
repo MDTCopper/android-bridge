@@ -23,6 +23,8 @@ namespace copper::bridge::jre::Hook {
     namespace {
         namespace Log = util::Log;
 
+        // The one place the VM's own exit is seen; the status picks the ending, and why is in
+        // Launcher::EndProcessNow.
         void ExitFromJvm(int status) {
             Log::InfoF("HOOK", "the VM's exit(%d) reached the hook", status);
             Launcher::EndProcessNow(status);

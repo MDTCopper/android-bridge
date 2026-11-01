@@ -3,15 +3,13 @@ package copper.bridge.v2;
 import arc.util.*;
 import copper.bridge.*;
 import copper.bridge.jvm.Launch;
-import copper.bridge.jvm.LwjglNatives;
 import copper.bridge.util.Log;
 import mindustry.*;
-import org.lwjgl.system.*;
 
 import java.io.*;
 
 /**
- * The v1 branch entry point, reached reflectively by the JVM side once the branch is chosen; both classpath rules
+ * The v2 branch entry point, reached reflectively by the JVM side once the branch is chosen; both classpath rules
  * arrive at {@link #main(String[])}, so nothing here has to know which one applied.
  */
 public class Main {
@@ -27,7 +25,6 @@ public class Main {
         // staged libraries by name or extracts its own copy, and where arc puts its data folder.
         setOsType();
 
-        prepareLwjglNatives();
         prepareArcNatives();
         prepareGameFolders();
 
@@ -56,22 +53,6 @@ public class Main {
                 Log.error(e);
                 throw e;
             }
-        }
-    }
-
-    /** Makes LWJGL's natives loadable: they sit inside the bridge jar, so they are unpacked and that folder becomes
-     *  LWJGL's search path. The hash check is off because LWJGL did not ship them. */
-    private static void prepareLwjglNatives() {
-        File lwjgl = LwjglNatives.extract();
-        if (lwjgl != null) {
-            String libPath = new File(lwjgl, "org" + File.separator + "lwjgl").getAbsolutePath()
-                    + File.pathSeparator
-                    + new File(lwjgl, "org" + File.separator + "lwjgl" + File.separator + "opengles").getAbsolutePath();
-            Configuration.DISABLE_HASH_CHECKS.set(true);
-            Configuration.LIBRARY_PATH.set(libPath);
-            // v9's jar carries lwjgl natives too; without this, SharedLibraryLoader extracts the Linux one first
-            System.setProperty("java.library.path", libPath + File.pathSeparator + System.getProperty("java.library.path", ""));
-            Log.info("GL", "lwjgl natives: " + lwjgl);
         }
     }
 

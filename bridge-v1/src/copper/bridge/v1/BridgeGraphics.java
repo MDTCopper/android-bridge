@@ -6,6 +6,8 @@ import arc.graphics.*;
 import arc.graphics.gl.*;
 
 import copper.bridge.*;
+import copper.bridge.BridgeOptions.GLMode;
+import copper.bridge.jvm.*;
 import copper.bridge.util.*;
 import org.lwjgl.*;
 import org.lwjgl.egl.*;
@@ -66,10 +68,12 @@ public class BridgeGraphics extends Graphics {
     }
 
     /**
-     * Points LWJGL at this device's EGL and GLES libraries and loads them: LWJGL would otherwise load its own bundled
-     * natives, which do not exist for Android. A pair that is not there is reported and the system's used instead.
+     * Points LWJGL at this device's EGL and GLES libraries and loads them; LWJGL's own bundled natives do not exist
+     * for Android. A pair that is not there is reported and the system's used instead.
      */
     public void configure() {
+        prepareLwjglNatives();
+
         String egl = SYSTEM_EGL;
         String gles = SYSTEM_GLES;
 
@@ -113,6 +117,16 @@ public class BridgeGraphics extends Graphics {
         Log.info("GL", "EGL library: " + egl);
         Log.info("GL", "GLES library: " + gles);
         GLES.create();
+    }
+
+    /** Unpacks the LWJGL natives from the bridge jar and points both loaders at them: LWJGL's own search path, and
+     *  {@code java.library.path} for arc's {@code SharedLibraryLoader}, which would otherwise extract the game jar's
+     *  Linux copy. */
+    private void prepareLwjglNatives() {
+        File lwjgl = LwjglNatives.extract();
+        if (lwjgl == null)
+            return;
+        Configuration.LIBRARY_PATH.set(lwjgl.getAbsolutePath());
     }
 
     /** Finds the device's own ANGLE pair: the system's library directories in turn, the first holding both winning. */
@@ -183,16 +197,29 @@ public class BridgeGraphics extends Graphics {
         long config = chooseConfig();
         logConfig(config);
 
+        // An explicit request is honoured; with none, the highest version this device can give is tried, and
+        // only a failed creation steps down.
+        eglContext = createContext(config, Bridge.options.glMode == GLMode.GL2 ? 2 : 3);
+        if (eglContext == EGL10.EGL_NO_CONTEXT && Bridge.options.glMode == GLMode.Auto) {
+            Log.warn("GL", "no OpenGL ES 3 context; falling back to OpenGL ES 2");
+            eglContext = createContext(config, 2);
+        }
+        if (eglContext == EGL10.EGL_NO_CONTEXT)
+            throw new IllegalStateException("eglCreateContext failed: 0x" + Integer.toHexString(EGL10.eglGetError())
+                    + (Bridge.options.glMode == GLMode.Auto ? "" : " (an OpenGL ES "
+                    + (Bridge.options.glMode == GLMode.GL2 ? "2" : "3") + " context was requested)"));
+
+        createWindowSurface(window);
+    }
+
+    /** Creates a context of exactly this ES version: the config's renderable bit is not the context version. */
+    private long createContext(long config, int esVersion) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             // ES2 is requested even for an ES3 context: every driver that can give an ES3 context
             // reports the ES2 bit, and asking for an ES3 bit is not portable.
-            int[] attribs = {EGL13.EGL_CONTEXT_CLIENT_VERSION, Bridge.options.useGL30 ? 3 : 2, EGL10.EGL_NONE};
-            eglContext = EGL10.eglCreateContext(eglDisplay, config, EGL10.EGL_NO_CONTEXT, stack.ints(attribs));
+            int[] attribs = {EGL13.EGL_CONTEXT_CLIENT_VERSION, esVersion, EGL10.EGL_NONE};
+            return EGL10.eglCreateContext(eglDisplay, config, EGL10.EGL_NO_CONTEXT, stack.ints(attribs));
         }
-        if (eglContext == EGL10.EGL_NO_CONTEXT)
-            throw new IllegalStateException("eglCreateContext failed: 0x" + Integer.toHexString(EGL10.eglGetError()));
-
-        createWindowSurface(window);
     }
 
     private void createWindowSurface(long window) {
@@ -262,7 +289,12 @@ public class BridgeGraphics extends Graphics {
         String renderer = gl20.glGetString(GL20.GL_RENDERER);
         glVersion = new GLVersion(Application.ApplicationType.android, version, vendor, renderer);
 
-        if (Bridge.options.useGL30 && glVersion.atLeast(3, 0) && glVersion.majorVersion > 2) {
+        boolean supportsES3 = glVersion.atLeast(3, 0) && glVersion.majorVersion > 2;
+        // an explicit request is not quietly downgraded: the caller asked for a version this context cannot be
+        if (Bridge.options.glMode == GLMode.GL3 && !supportsES3)
+            throw new IllegalStateException("OpenGL ES 3 was requested, but the context is " + version);
+
+        if (Bridge.options.glMode != GLMode.GL2 && supportsES3) {
             gl30 = new BridgeGL30();
             gl20 = gl30;
             Core.gl = gl30;

@@ -1,15 +1,22 @@
 package copper.bridge.annotation;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import java.lang.annotation.*;
 
 /**
- * An ART-side handler of a direct call: it runs on the calling thread, in the caller's frame, with no queue
- * and no wake-up. Safe only for a method that neither touches a view nor starts an activity - a thread ART
- * has never seen has no Looper.
+ * An ART-side handler of a direct call: it runs on the calling thread, no queue, no wake-up.
+ *
+ * <pre>{@code
+ * @ArtDirectHandler                                   // JvmCall.getOsVersion()
+ * public int getOsVersion() {
+ *     return Build.VERSION.SDK_INT;
+ * }
+ * }</pre>
+ *
+ * <p>Only for a method that touches no view and starts no activity - a thread ART has never seen has no
+ * {@code Looper}. Binder calls and static reads are fine; {@code startActivity} belongs on {@link ArtPostHandler},
+ * even when the method returns a value. Instance method of a class, not static, not private.</p>
  */
+@Documented
 @Retention(RetentionPolicy.CLASS)
 @Target(ElementType.METHOD)
 public @interface ArtDirectHandler {

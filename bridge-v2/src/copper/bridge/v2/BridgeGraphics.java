@@ -7,6 +7,8 @@ import arc.graphics.*;
 import arc.graphics.gl.*;
 
 import copper.bridge.*;
+import copper.bridge.BridgeOptions.GLMode;
+import copper.bridge.jvm.*;
 import copper.bridge.util.*;
 import org.lwjgl.*;
 import org.lwjgl.egl.*;
@@ -15,6 +17,7 @@ import org.lwjgl.system.*;
 
 import java.io.*;
 import java.nio.*;
+import java.util.function.Function;
 
 /**
  * arc's graphics for the JVM side of the bridge. {@code android.opengl} is unreachable in this JVM, so LWJGL's EGL
@@ -68,8 +71,18 @@ public class BridgeGraphics extends Graphics {
     /**
      * Points LWJGL at this device's EGL and GLES libraries and loads them: LWJGL would otherwise load its own bundled
      * natives, which do not exist for Android. A pair that is not there is reported and the system's used instead.
+     *
+     * <p>LWJGL's own natives come first: they sit inside the bridge jar, and every loader in the process has to be
+     * pointed at the unpacked folder before the first library is opened.
      */
     public void configure() {
+        // v9's arc has one GL entry point wrapping ES3, so an ES2 context cannot run the game at all: a caller that
+        // asked for one is told here, before anything is loaded, instead of failing on the first ES3 call later.
+        if (Bridge.options.glMode == GLMode.GL2)
+            throw new IllegalStateException("Mindustry 9 needs OpenGL ES 3; an OpenGL ES 2 launch was requested");
+
+        prepareLwjglNatives();
+
         String egl = SYSTEM_EGL;
         String gles = SYSTEM_GLES;
 
@@ -113,6 +126,27 @@ public class BridgeGraphics extends Graphics {
         Log.info("GL", "EGL library: " + egl);
         Log.info("GL", "GLES library: " + gles);
         GLES.create();
+    }
+
+    /** Unpacks the LWJGL natives from the bridge jar and points both loaders at them: LWJGL's own search path, and
+     *  {@code java.library.path} for arc's {@code SharedLibraryLoader}, which would otherwise extract v9's game jar's
+     *  Linux copy. */
+    private void prepareLwjglNatives() {
+        File lwjgl = LwjglNatives.extract();
+        if (lwjgl == null)
+            return;
+
+        String libPath = lwjgl.getAbsolutePath();
+        Configuration.LIBRARY_PATH.set(libPath);
+        System.setProperty("java.library.path", libPath + File.pathSeparator + System.getProperty("java.library.path", ""));
+
+        // LWJGL looks bundled natives up at linux/<arch>/<module>/<file>; the bridge jar keeps them under
+        // native/lwjgl/ with the same tail, so that prefix is all the mapper has to add. Its extractor is then
+        // pointed at the folder just unpacked: the bytes are the same, the CRC check matches, nothing is written
+        // again.
+        String bundledPrefix = "native/lwjgl/linux/" + lwjgl.getName() + "/";
+        Configuration.BUNDLED_LIBRARY_PATH_MAPPER.set((Function<String, String>) name -> bundledPrefix + name);
+        Configuration.SHARED_LIBRARY_EXTRACT_PATH.set(libPath);
     }
 
     /** Finds the device's own ANGLE pair: the system's library directories in turn, the first holding both winning. */
@@ -183,16 +217,24 @@ public class BridgeGraphics extends Graphics {
         long config = chooseConfig();
         logConfig(config);
 
+        // v9's arc has one GL entry point that wraps the ES3 functions, so an ES2 context would fail on the
+        // first ES3 call instead of at creation - and a --gl2 request was refused in configure() already.
+        eglContext = createContext(config, 3);
+        if (eglContext == EGL10.EGL_NO_CONTEXT)
+            throw new IllegalStateException("eglCreateContext failed: 0x"
+                    + Integer.toHexString(EGL10.eglGetError()) + "; Mindustry 9 needs an OpenGL ES 3 context");
+
+        createWindowSurface(window);
+    }
+
+    /** Creates a context of exactly this ES version: the config's renderable bit is not the context version. */
+    private long createContext(long config, int esVersion) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             // ES2 is requested even for an ES3 context: every driver that can give an ES3 context
             // reports the ES2 bit, and asking for an ES3 bit is not portable.
-            int[] attribs = {EGL13.EGL_CONTEXT_CLIENT_VERSION, Bridge.options.useGL30 ? 3 : 2, EGL10.EGL_NONE};
-            eglContext = EGL10.eglCreateContext(eglDisplay, config, EGL10.EGL_NO_CONTEXT, stack.ints(attribs));
+            int[] attribs = {EGL13.EGL_CONTEXT_CLIENT_VERSION, esVersion, EGL10.EGL_NONE};
+            return EGL10.eglCreateContext(eglDisplay, config, EGL10.EGL_NO_CONTEXT, stack.ints(attribs));
         }
-        if (eglContext == EGL10.EGL_NO_CONTEXT)
-            throw new IllegalStateException("eglCreateContext failed: 0x" + Integer.toHexString(EGL10.eglGetError()));
-
-        createWindowSurface(window);
     }
 
     private void createWindowSurface(long window) {
@@ -253,7 +295,7 @@ public class BridgeGraphics extends Graphics {
     private void setupGL() {
         GLES.createCapabilities();
 
-        gl = new BridgeGL30();
+        gl = new BridgeGLProvider();
         Core.glProvider = gl;
 
         String version = gl.glGetString(Gl.version);
@@ -265,7 +307,11 @@ public class BridgeGraphics extends Graphics {
         Log.info("GL", "renderer: " + renderer);
         Log.info("GL", "vendor: " + vendor);
         Log.info("GL", "version: " + version);
-        Log.info("GL", "using " + (glVersion.atLeast(3, 0) ? "OpenGL ES 3" : "OpenGL ES 2") + " context");
+        Log.info("GL", "using OpenGL ES " + glVersion.majorVersion + " context"
+                + (Bridge.options.glMode == GLMode.Auto ? "" : " (requested " + Bridge.options.glMode + ")"));
+        // the context is created as ES3 above, but a driver that quietly handed out ES2 must not reach the game
+        if (!glVersion.atLeast(3, 0))
+            throw new IllegalStateException("Mindustry 9 needs an OpenGL ES 3 context, but this one is " + version);
     }
 
     /** Releases the window surface but keeps the context, so a resume does not rebuild its objects. */

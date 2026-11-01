@@ -1,15 +1,21 @@
 package copper.bridge.annotation;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import java.lang.annotation.*;
 
 /**
- * An ART-side handler of an event the JVM side posts. Reserved: nothing is declared with it, kept because the
- * two sides crossed with the three channels is the generator's whole grid - a missing cell would cost a
- * mechanism change later, not just a declaration.
+ * An ART-side handler of an event the JVM posts: the ART main thread performs it, and nothing comes back.
+ *
+ * <pre>{@code
+ * @ArtEventHandler                                    // JvmCall.onFirstFrameDrawn()
+ * public void onFirstFrameDrawn() {
+ * }
+ * }</pre>
+ *
+ * <p>Named like an Android callback, {@code onXxx}; a host subclasses the declaring class to serve it, which is why
+ * it may be declared on an interface with a no-op {@code default}. No return value, and the name is the bus name, so
+ * it appears once in the bridge.</p>
  */
+@Documented
 @Retention(RetentionPolicy.CLASS)
 @Target(ElementType.METHOD)
 public @interface ArtEventHandler {

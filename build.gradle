@@ -101,9 +101,10 @@ configure(subprojects - project(':native')) {
 // A branch compiles against one game/arc epoch, which nothing here can produce: the refs are checked
 // out to a temporary directory (a sibling pair, because the game only enables local-arc mode when it
 // finds ../Arc beside itself - an epoch whose arc is merged into the game has no second checkout at
-// all), built by its own Gradle wrapper, and its jars copied to .mindustry/ and .arc/. This runs at
-// configuration time, at most once per epoch, so an IDE import ends with a resolvable classpath: a
-// task would run only after the import had already failed.
+// all), built by its own Gradle wrapper, and its jars copied to .mindustry/ - and to .arc/ for an
+// epoch whose arc is a checkout of its own. This runs at configuration time, at most once per epoch,
+// so an IDE import ends with a resolvable classpath: a task would run only after the import had
+// already failed.
 
 /** Where one epoch's jars go, and which refs produce them. */
 ext.epochInfo = { String branch ->
@@ -117,7 +118,11 @@ ext.epochInfo = { String branch ->
             arcRef : arcRef,
             merged : arcRef.isEmpty(),
             gameOut: new File(rootProject.projectDir, ".mindustry/${gameRef}"),
-            arcOut : new File(rootProject.projectDir, ".arc/${gameRef}")
+            // a merged epoch builds its arc out of the game's own tree, so those jars belong beside the
+            // game's under .mindustry/; only an epoch with an arc of its own fills .arc/.
+            arcOut : arcRef.isEmpty()
+                    ? new File(rootProject.projectDir, ".mindustry/${gameRef}")
+                    : new File(rootProject.projectDir, ".arc/${gameRef}")
     ]
 }
 
@@ -240,9 +245,8 @@ def dropCheckout = { File tmp, File log ->
     delete tmp
 }
 
-/** Copies jars into out by file name, replacing whatever was there. */
+/** Copies jars into out by file name; the caller clears the directory first. */
 def copyJarsOut = { Iterable<File> jars, File out ->
-    delete out
     out.mkdirs()
     jars.each { File jar -> new File(out, jar.name).bytes = jar.bytes }
 }
@@ -313,7 +317,8 @@ ext.prepareEpoch = { String branch ->
         exclude '*-javadoc.jar'
     }
     // A merged epoch builds arc out of the game's own tree, as an included build: the wrapper's :core:jar
-    // depends on it, and its jar lands under arc/. Both layouts then look the same from here.
+    // depends on it, and its jar lands under arc/, staged beside the game's own. Both layouts then look
+    // the same from here.
     def arcRoot = info.merged ? new File(gameDir, 'arc') : arcDir
     // arc-core sits at the top level and the extensions one level down; arc's own backends/ is not matched.
     def arcJars = fileTree(arcRoot) {
@@ -326,12 +331,17 @@ ext.prepareEpoch = { String branch ->
     if (gameJars.isEmpty() || arcJars.isEmpty())
         throw new GradleException("epoch ${branch}: the build produced no jars under ${gameDir}/core" +
                 " or ${arcRoot}")
+    // both outputs are cleared first: a merged epoch's arc jars go into the same directory as its game
+    // jars, so neither copy may remove what the other put there
+    delete info.gameOut
+    delete info.arcOut
     copyJarsOut(gameJars, info.gameOut)
     copyJarsOut(arcJars, info.arcOut)
 
     if (!epochIsBuilt(branch))
         throw new GradleException("epoch ${branch}: nothing was copied to ${info.gameOut} or ${info.arcOut}")
-    logger.lifecycle("epoch ${branch}: jars are in .mindustry/${info.gameRef} and .arc/${info.gameRef}")
+    logger.lifecycle("epoch ${branch}: jars are in .mindustry/${info.gameRef}"
+            + (info.merged ? "" : " and .arc/${info.gameRef}"))
 
     dropCheckout(tmp, log)
     return true

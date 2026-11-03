@@ -3,27 +3,29 @@ package copper.bridge.v2;
 import arc.*;
 import arc.files.*;
 import arc.func.*;
+import arc.struct.*;
 
 import copper.bridge.gen.*;
 import copper.bridge.util.*;
 import mindustry.*;
 import mindustry.core.*;
 import mindustry.game.*;
+import mindustry.net.*;
+import mindustry.ui.FileChooser.*;
 
 /**
- * The game launcher for this branch, minus the file chooser: the game's own {@link ClientLauncher}, so start-up
- * order, loading screen and module list stay what the game expects, and only the platform answers differ. The
- * chooser is absent because its shape changed inside the range - 159 replaced four entry points with one
- * {@code FileChooserParams} request - hence the {@link BridgeLauncherLegacy} / {@link BridgeLauncherParams} split.
+ * The game launcher for this branch: the game's own {@link ClientLauncher}, so start-up order, loading screen and
+ * module list stay what the game expects, and only the platform answers differ.
  */
-public abstract class BridgeLauncher extends ClientLauncher implements Platform {
+public class BridgeLauncher extends ClientLauncher implements Platform {
 
     public BridgeLauncher() {
-        // Installs the game's crash reporting, which the stock launcher installs for itself. The handler already in
-        // place is kept and called after the report: the host app owns the activity and the process.
+        // Installs the game's crash reporting, which the stock launcher installs for itself: into the game's
+        // {@code crashes} folder, and the method swallows its own failures, so nothing can escape here. The handler
+        // already in place is kept and called after the report: the host app owns the activity and the process.
         Thread.UncaughtExceptionHandler handler = Thread.getDefaultUncaughtExceptionHandler();
         Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
-            handleCrash(error);
+            CrashHandler.log(error);
             if (handler != null) {
                 handler.uncaughtException(thread, error);
             } else {
@@ -39,32 +41,9 @@ public abstract class BridgeLauncher extends ClientLauncher implements Platform 
         });
     }
 
-    /**
-     * Writes the crash report through whichever type the running game declares: 146 has {@code CrashSender}, whose
-     * {@code log} became {@code CrashHandler}'s before 147. Reached by name because a plain call would put one of the
-     * two names into this class's constant pool and stop every epoch lacking it from loading the launcher at all.
-     */
-    private void handleCrash(Throwable cause) {
-        try {
-            Class.forName("mindustry.net.CrashHandler")
-                    .getDeclaredMethod("log", Throwable.class)
-                    .invoke(null, cause);
-        } catch (Throwable e) {
-            try {
-                Class.forName("mindustry.net.CrashSender")
-                        .getDeclaredMethod("log", Throwable.class)
-                        .invoke(null, cause);
-            } catch (Throwable E) {
-                arc.util.Log.err(cause);
-                System.exit(1);
-            }
-        }
-    }
-
-    /** Sends one file-picker request and hands the raw answer to the shape-specific caller; the error line lives
-     *  here so the two chooser shapes cannot drift. */
-    protected final void requestFiles(boolean open, boolean allowMultiple, String title, String fileName,
-                                      String[] extensions, Cons<String[]> onPicked) {
+    /** Sends one file-picker request and hands the raw answer to {@code params}. */
+    private void requestFiles(boolean open, boolean allowMultiple, String title, String fileName,
+                              String[] extensions, Cons<String[]> onPicked) {
         JvmCall.showFileChooser(open, allowMultiple, title, fileName, extensions)
                 .onResult(paths -> {
                     if (paths == null)
@@ -72,6 +51,36 @@ public abstract class BridgeLauncher extends ClientLauncher implements Platform 
                     onPicked.get(paths);
                 })
                 .onError(message -> Log.error("file chooser failed: " + message));
+    }
+
+    /**
+     * The whole picker in this epoch is {@code params}: it already carries the direction, the multi-select flag, the
+     * extensions, the default name and the caller's handler, and
+     * {@link FileChooserParams#handleChooseResult(Fi...)} decides between the single and the multiple one, so this
+     * class never has to know which kind of request it is answering.
+     */
+    @Override
+    public void showFileChooser(FileChooserParams params) {
+        String[] filter = params.extensions == null || params.extensions.length == 0
+                ? new String[] {""} : params.extensions;
+
+        requestFiles(params.open, params.allowMultiple, params.title, params.fileName, filter, paths -> {
+            if (paths.length == 0)
+                return;
+
+            // an open request answers with real paths and a save request with document URIs;
+            // a dismissed picker answers with an empty array, which the early return above
+            // turns into "no file chosen" without bothering the caller
+            Seq<Fi> picked = new Seq<>();
+            for (String path : paths) {
+                if (path == null || path.isEmpty())
+                    continue;
+                picked.add(params.open
+                        ? Core.files.absolute(path)
+                        : new UriFi(path, params.fileName == null ? "export" : params.fileName));
+            }
+            params.handleChooseResult(picked.toArray(Fi.class));
+        });
     }
 
     @Override

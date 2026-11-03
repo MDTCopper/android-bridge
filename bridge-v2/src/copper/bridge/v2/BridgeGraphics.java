@@ -459,13 +459,6 @@ public class BridgeGraphics extends Graphics {
         return Bridge.options.density;
     }
 
-    /** Never called: a bridge that only draws into the activity's surface has no window. No {@code @Override} on
-     *  purpose - arc declares it abstract up to v156 and removes it in v157. */
-    @SuppressWarnings("unused")
-    public boolean setWindowedMode(int width, int height) {
-        return false;
-    }
-
     @Override
     public void setTitle(String title) {
     }

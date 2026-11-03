@@ -186,7 +186,7 @@ public class BridgeInput extends Input {
         }
     }
 
-    /** Not a loop over {@code Input.devices}: arc removes that field in v152, and the keyboard is its only device. */
+    /** No device list to walk in this arc: the keyboard is the only device, so it is the only one posted. */
     public void processDevices() {
         keyboard.postUpdate();
     }

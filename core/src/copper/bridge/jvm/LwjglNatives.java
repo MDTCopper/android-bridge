@@ -5,8 +5,9 @@ import copper.bridge.util.*;
 import java.io.*;
 
 /**
- * Unpacks the LWJGL natives carried inside the bridge jar. This runs on the JVM side, the only side that has
- * LWJGL and a loader that can see the bridge jar; what LWJGL is told is the branch's business.
+ * The LWJGL natives carried inside the bridge jar: unpacks this device's two libraries, and names the jar path
+ * LWJGL's bundled lookup has to be mapped to. This runs on the JVM side, the only side that has LWJGL and a loader
+ * that can see the bridge jar; how LWJGL is pointed at it is the branch's business.
  */
 public final class LwjglNatives {
     private LwjglNatives() {
@@ -22,9 +23,11 @@ public final class LwjglNatives {
      * Unpacks the LWJGL natives for this device out of the bridge jar {@link Bridge#jar()} names, through
      * {@link Libraries#extract}.
      *
-     * @return the extracted folder, or {@code null} when the natives could not be unpacked
+     * @return the folder the natives were written to, or {@code null} when they could not be unpacked
      */
     public static File extract() {
+        // flat, under the plain library names: this folder is what the branch hands LWJGL as a path entry, and a
+        // lookup there falls back to <entry>/<lib name>, with no arch or module level in between
         File root = new File(Bridge.options.cacheFolder, "native/lwjgl");
 
         try (Archive jar = Archive.open(Bridge.jar())) {
@@ -45,13 +48,17 @@ public final class LwjglNatives {
         return root;
     }
 
+    /**
+     * Maps the path LWJGL looks a bundled native up at, {@code linux/<arch>/<module>/<file>}, to the copy inside the
+     * bridge jar. {@link #extract()} opens its entries through this too, so the two cannot name different files.
+     */
     public static String mapPath(String name) {
         return "native/lwjgl/linux/" + arch() + "/" + name;
     }
 
     /**
-     * Translates an Android ABI name into the token LWJGL uses for its own native layout: the bridge and the
-     * activity speak Android ABI names, while the LWJGL archives are laid out under LWJGL's own.
+     * Translates the device's Android ABI name into the token LWJGL uses for its own native layout: the bridge and
+     * the activity speak Android ABI names, while the LWJGL archives are laid out under LWJGL's own.
      */
     private static String arch() {
         if (Bridge.options.abi == null)

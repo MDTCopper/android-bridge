@@ -140,10 +140,11 @@ public class BridgeGraphics extends Graphics {
         Configuration.LIBRARY_PATH.set(libPath);
         System.setProperty("java.library.path", libPath + File.pathSeparator + System.getProperty("java.library.path", ""));
 
-        // LWJGL looks bundled natives up at linux/<arch>/<module>/<file>; the bridge jar keeps them under
-        // native/lwjgl/ with the same tail, so that prefix is all the mapper has to add. Its extractor is then
-        // pointed at the folder just unpacked: the bytes are the same, the CRC check matches, nothing is written
-        // again.
+        // LWJGL looks a bundled native up at linux/<arch>/<module>/<file>; the bridge jar keeps the same tail under
+        // native/lwjgl/, and LwjglNatives::mapPath is the one place that layout is written down. LWJGL is then told
+        // to extract into the folder just unpacked, where the bytes are the same and its CRC check matches: nothing
+        // is written again.
+        // LWJGL captures the mapper when Platform initializes, so it must be set here, before the first GL call.
         Configuration.BUNDLED_LIBRARY_PATH_MAPPER.set((Function<String, String>) LwjglNatives::mapPath);
         Configuration.SHARED_LIBRARY_EXTRACT_PATH.set(libPath);
     }

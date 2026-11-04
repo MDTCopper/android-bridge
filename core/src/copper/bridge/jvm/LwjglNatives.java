@@ -22,15 +22,14 @@ public final class LwjglNatives {
      * Unpacks the LWJGL natives for this device out of the bridge jar {@link Bridge#jar()} names, through
      * {@link Libraries#extract}.
      *
-     * @return the extracted {@code linux/<arch>} folder, or {@code null} when the natives could not be unpacked
+     * @return the extracted folder, or {@code null} when the natives could not be unpacked
      */
     public static File extract() {
-        String arch = arch(Bridge.options.abi);
-        File root = new File(Bridge.options.cacheFolder, "native/lwjgl/linux/" + arch);
+        File root = new File(Bridge.options.cacheFolder, "native/lwjgl");
 
         try (Archive jar = Archive.open(Bridge.jar())) {
             for (String name : LWJGL_LIBRARIES) {
-                Archive.Entry entry = jar.entry("native/lwjgl/linux/" + arch + "/" + name);
+                Archive.Entry entry = jar.entry(mapPath(name));
                 String baseName = name.substring(name.lastIndexOf('/') + 1);
                 File target = new File(root, baseName);
                 Log.verbose("extracting the lwjgl native library (name=" + baseName + ", crc=0x"
@@ -43,21 +42,21 @@ public final class LwjglNatives {
             return null;
         }
 
-        if (!new File(root, LWJGL_LIBRARIES[0]).isFile()) {
-            Log.warn("GL", "no lwjgl natives were extracted; GL will not be able to load");
-            return null;
-        }
         return root;
+    }
+
+    public static String mapPath(String name) {
+        return "native/lwjgl/linux/" + arch() + "/" + name;
     }
 
     /**
      * Translates an Android ABI name into the token LWJGL uses for its own native layout: the bridge and the
      * activity speak Android ABI names, while the LWJGL archives are laid out under LWJGL's own.
      */
-    private static String arch(String abi) {
-        if (abi == null)
+    private static String arch() {
+        if (Bridge.options.abi == null)
             return "arm64";
-        switch (abi) {
+        switch (Bridge.options.abi) {
             case "armeabi-v7a":
                 return "arm32";
             case "x86_64":

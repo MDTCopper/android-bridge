@@ -144,8 +144,7 @@ public class BridgeGraphics extends Graphics {
         // native/lwjgl/ with the same tail, so that prefix is all the mapper has to add. Its extractor is then
         // pointed at the folder just unpacked: the bytes are the same, the CRC check matches, nothing is written
         // again.
-        String bundledPrefix = "native/lwjgl/linux/" + lwjgl.getName() + "/";
-        Configuration.BUNDLED_LIBRARY_PATH_MAPPER.set((Function<String, String>) name -> bundledPrefix + name);
+        Configuration.BUNDLED_LIBRARY_PATH_MAPPER.set((Function<String, String>) LwjglNatives::mapPath);
         Configuration.SHARED_LIBRARY_EXTRACT_PATH.set(libPath);
     }
 

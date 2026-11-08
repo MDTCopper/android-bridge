@@ -1,7 +1,6 @@
 package copper.bridge.v1;
 
 import arc.*;
-import arc.audio.*;
 import arc.struct.*;
 
 import copper.bridge.*;
@@ -52,7 +51,7 @@ public class BridgeApplication implements Application {
         Core.input = input;
         Core.files = files;
         Core.settings = new Settings();
-        Core.audio = new Audio(true);
+        initAudio();
         initNet();
 
         graphics.configure();
@@ -130,7 +129,7 @@ public class BridgeApplication implements Application {
         }
         for (ApplicationListener listener : listeners) {
             try {
-                listener.exit();
+                exit(listener);
                 listener.dispose();
             } catch (Throwable t) {
                 // a failing dispose must not stop the rest of the shutdown
@@ -172,6 +171,52 @@ public class BridgeApplication implements Application {
             Object net = Class.forName("arc.Net").getConstructor().newInstance();
             Core.class.getField("net").set(null, net);
         } catch (Throwable ignored) {
+        }
+    }
+
+    /**
+     * Installs the audio implementation the running game declares. 114 moved Audio into arc.audio and made it a
+     * SoLoud wrapper; before that it is the abstract arc.Audio, which the headless MockAudio implements. The
+     * boolean constructor only exists from 127, so the class is probed, not versioned. Every step is reflective:
+     * naming any of those types here would put it in this class's constant pool, and this class is loaded on
+     * every version in the range.
+     */
+    private static void initAudio() {
+        Object audio;
+        try {
+            Class<?> type = Class.forName("arc.audio.Audio");
+            try {
+                audio = type.getConstructor(boolean.class).newInstance(true);
+            } catch (NoSuchMethodException noBoolean) {
+                audio = type.getConstructor().newInstance();
+            }
+        } catch (Throwable newer) {
+            try {
+                audio = Class.forName("arc.mock.MockAudio").getConstructor().newInstance();
+            } catch (Throwable older) {
+                Log.error("audio", older);
+                return;
+            }
+        }
+
+        try {
+            Core.class.getField("audio").set(null, audio);
+        } catch (Throwable t) {
+            Log.error("audio", t);
+        }
+    }
+
+    /**
+     * Calls exit() when the running listener declares it: the callback was added inside this branch's range, so
+     * a plain call would not link on the older versions it still covers.
+     */
+    private static void exit(ApplicationListener listener) {
+        try {
+            ApplicationListener.class.getMethod("exit").invoke(listener);
+        } catch (NoSuchMethodException ignored) {
+            // older versions have no exit()
+        } catch (Throwable t) {
+            Log.error(t);
         }
     }
 

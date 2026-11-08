@@ -75,11 +75,14 @@ public final class JavaApi {
                 MethodTree method = (MethodTree) declaration;
                 String name = method.getReturnType() == null ? "<init>" : method.getName().toString();
                 if (name.equals(member))
-                    found.add(new MemberSignature(methodSignature(method), method.getParameters().size()));
+                    found.add(new MemberSignature(methodSignature(method), method.getParameters().size(),
+                            method.getParameters().stream()
+                                    .map(parameter -> typeText(parameter.getType()))
+                                    .collect(Collectors.toList())));
             } else if (declaration instanceof VariableTree) {
                 VariableTree field = (VariableTree) declaration;
                 if (field.getName().contentEquals(member))
-                    found.add(new MemberSignature(fieldSignature(field), -1));
+                    found.add(new MemberSignature(fieldSignature(field), -1, Collections.emptyList()));
             }
         }
         return found;

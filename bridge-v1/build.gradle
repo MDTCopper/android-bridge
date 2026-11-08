@@ -1,7 +1,9 @@
 
 /**
- * The main version branch: the whole 7 and 8 line - releases 127.0 and up, bleeding-edge builds 21100 and
- * up, open at the top for releases and stopping at the last 8 build.
+ * The main version branch: the whole 6, 7 and 8 line - releases 105.0 and up, bleeding-edge builds 8774 and
+ * up, open at the top for releases and stopping at the last 8 build. 8774 is the first build after the 6
+ * line's API reshape completed (4a8be42258, "Lowercase enums"); before it the declarations the branch
+ * references still had the old shape.
  *
  * It compiles against the v159 epoch, the newest shape it has to survive and deliberately not the range
  * floor, so one source satisfies both directions: implement what the newest epoch demands and reference

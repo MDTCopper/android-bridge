@@ -32,10 +32,7 @@ public class Main {
         // turning the process's stdout and stderr into logcat and the log file. Vars.loadFileLogger checks this flag.
         Vars.loadedFileLogger = true;
 
-        arc.util.Log.useColors = false;
-
-        if (Bridge.options.debug || Bridge.options.verbose)
-            arc.util.Log.level = arc.util.Log.LogLevel.debug;
+        configureLog();
 
         BridgeApplication application = new BridgeApplication();
         application.addListener(BridgeLaunchers.create());
@@ -53,6 +50,40 @@ public class Main {
                 Log.error(e);
                 throw e;
             }
+        }
+    }
+
+    /**
+     * Turns the game's log colors off and, when asked, its level up. The fields are private on the older versions
+     * and the setters are gone on the newer ones, so neither a plain write nor a plain call links across the whole
+     * range; the setters are tried first, then the fields.
+     */
+    private static void configureLog() {
+        try {
+            Class<?> log = Class.forName("arc.util.Log");
+            try {
+                log.getMethod("setUseColors", boolean.class).invoke(null, false);
+            } catch (NoSuchMethodException noSetter) {
+                log.getField("useColors").setBoolean(null, false);
+            }
+        } catch (Throwable t) {
+            Log.error("log", t);
+        }
+
+        if (!Bridge.options.debug && !Bridge.options.verbose)
+            return;
+
+        try {
+            Class<?> log = Class.forName("arc.util.Log");
+            Class<?> levelType = Class.forName("arc.util.Log$LogLevel");
+            Object debug = levelType.getField("debug").get(null);
+            try {
+                log.getMethod("setLogLevel", levelType).invoke(null, debug);
+            } catch (NoSuchMethodException noSetter) {
+                log.getField("level").set(null, debug);
+            }
+        } catch (Throwable t) {
+            Log.error("log", t);
         }
     }
 

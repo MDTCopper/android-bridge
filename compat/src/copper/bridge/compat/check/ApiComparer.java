@@ -90,8 +90,10 @@ public final class ApiComparer {
             }
 
             int arity = arity(ref.descriptor);
-            Set<MemberSignature> floorSignatures = withArity(JavaApi.members(floorType.tree, ref.name), arity);
-            Set<MemberSignature> ceilingSignatures = withArity(JavaApi.members(ceilingType.tree, ref.name), arity);
+            Set<MemberSignature> floorSignatures = matching(
+                    withArity(JavaApi.members(floorType.tree, ref.name), arity), ref.descriptor);
+            Set<MemberSignature> ceilingSignatures = matching(
+                    withArity(JavaApi.members(ceilingType.tree, ref.name), arity), ref.descriptor);
 
             if (floorSignatures.isEmpty()) {
                 if (ref.name.equals("<init>") && arity == 0)
@@ -141,5 +143,94 @@ public final class ApiComparer {
         return signatures.stream()
                 .filter(signature -> arity < 0 ? signature.arity < 0 : signature.arity == arity)
                 .collect(Collectors.toCollection(HashSet::new));
+    }
+
+    /**
+     * Narrows a method's overloads to the one the reference's descriptor names. The descriptor is erased and the
+     * source text is not, so the comparison is on simple type names with generics stripped. No match keeps the whole
+     * set, which is the conservative behaviour for anything the matching cannot express (varargs, type variables).
+     */
+    private static Set<MemberSignature> matching(Set<MemberSignature> signatures, String descriptor) {
+        List<String> wanted = descriptorParams(descriptor);
+        if (wanted.isEmpty())
+            return signatures;
+
+        Set<MemberSignature> matched = signatures.stream()
+                .filter(signature -> signature.params.size() == wanted.size())
+                .filter(signature -> {
+                    for (int i = 0; i < wanted.size(); i++) {
+                        if (!simple(signature.params.get(i)).equals(wanted.get(i)))
+                            return false;
+                    }
+                    return true;
+                })
+                .collect(Collectors.toCollection(HashSet::new));
+        return matched.isEmpty() ? signatures : matched;
+    }
+
+    /** Parameter type names from a method descriptor, as the source would spell them; empty for a field. */
+    private static List<String> descriptorParams(String descriptor) {
+        List<String> params = new ArrayList<>();
+        if (descriptor.isEmpty() || descriptor.charAt(0) != '(')
+            return params;
+
+        int i = 1;
+        while (i < descriptor.length() && descriptor.charAt(i) != ')') {
+            int dimensions = 0;
+            while (descriptor.charAt(i) == '[') {
+                dimensions++;
+                i++;
+            }
+            String name;
+            if (descriptor.charAt(i) == 'L') {
+                int end = descriptor.indexOf(';', i);
+                String internal = descriptor.substring(i + 1, end);
+                int separator = Math.max(internal.lastIndexOf('/'), internal.lastIndexOf('$'));
+                name = separator < 0 ? internal : internal.substring(separator + 1);
+                i = end + 1;
+            } else {
+                name = primitive(descriptor.charAt(i));
+                i++;
+            }
+            StringBuilder text = new StringBuilder(name);
+            for (int d = 0; d < dimensions; d++)
+                text.append("[]");
+            params.add(text.toString());
+        }
+        return params;
+    }
+
+    private static String simple(String type) {
+        String text = type.trim();
+        int generic = text.indexOf('<');
+        if (generic >= 0)
+            text = text.substring(0, generic).trim();
+        int dimensions = 0;
+        while (text.endsWith("[]")) {
+            dimensions++;
+            text = text.substring(0, text.length() - 2).trim();
+        }
+        int separator = Math.max(text.lastIndexOf('.'), text.lastIndexOf('$'));
+        if (separator >= 0)
+            text = text.substring(separator + 1);
+        StringBuilder full = new StringBuilder(text);
+        for (int d = 0; d < dimensions; d++)
+            full.append("[]");
+        return full.toString();
+    }
+
+    private static String primitive(char descriptor) {
+        switch (descriptor) {
+            case 'Z': return "boolean";
+            case 'B': return "byte";
+            case 'C': return "char";
+            case 'S': return "short";
+            case 'I': return "int";
+            case 'J': return "long";
+            case 'F': return "float";
+            case 'D': return "double";
+            case 'V': return "void";
+            default: return String.valueOf(descriptor);
+        }
     }
 }

@@ -1,0 +1,28 @@
+package copper.bridge.compat.api;
+
+/** One declaration as the check compares it: signature text without parameter names or annotations. */
+public final class MemberSignature {
+    public final String text;
+    /** Parameter count for a method, -1 for a field. */
+    public final int arity;
+
+    public MemberSignature(String text, int arity) {
+        this.text = text;
+        this.arity = arity;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        return other instanceof MemberSignature && ((MemberSignature) other).text.equals(text);
+    }
+
+    @Override
+    public int hashCode() {
+        return text.hashCode();
+    }
+
+    @Override
+    public String toString() {
+        return text;
+    }
+}

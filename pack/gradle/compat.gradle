@@ -1,0 +1,43 @@
+// --- API check ---------------------------------------------------------------
+//
+// The bridge is compiled against one epoch but runs on every version of the branch's range, so a symbol
+// whose declaration changed inside the range still compiles here and only fails on the older device. This
+// task reads the compiled branch classes and compares their arc/mindustry references at the two ends of the
+// branch's bleeding-edge range. The ends come from gradle.properties; a class can override them with
+// @CompatRange.
+
+def compatClasses = project(':compat').sourceSets.main.output
+def checkedBranches = ['v1', 'v2'].findAll {
+    rootProject.ext.branchHasSources(it) && findProperty("${it}.compatMindustryFloor")
+}
+def propertiesPath = rootProject.file('gradle.properties').absolutePath
+def arcClonePath = rootProject.file(property('arcDir')).absolutePath
+def gameClonePath = rootProject.file(property('mindustryDir')).absolutePath
+
+checkedBranches.each { String branch ->
+    def bridgeClasses = project(":bridge-${branch}").sourceSets.main.output.classesDirs.singleFile
+    tasks.register("checkBridgeApi${branch.capitalize()}", JavaExec) {
+        group = 'pack'
+        description = "Checks ${branch}'s arc/mindustry references against its API range."
+        dependsOn ":bridge-${branch}:compileJava", ':compat:classes'
+        classpath = files(compatClasses)
+        mainClass = 'copper.bridge.compat.Check'
+        args = [
+                '--branch', branch,
+                '--properties', propertiesPath,
+                '--bridge', bridgeClasses.absolutePath,
+                '--arc', arcClonePath,
+                '--mindustry', gameClonePath
+        ]
+        inputs.files(compatClasses)
+        inputs.file(propertiesPath)
+        inputs.dir(bridgeClasses)
+    }
+}
+
+tasks.register('checkBridgeApi') {
+    group = 'pack'
+    description = "Runs every branch's API check."
+    dependsOn checkedBranches.collect { "checkBridgeApi${it.capitalize()}" }
+}
+

@@ -1,6 +1,7 @@
 
 /**
- * The single version branch: releases 146.0 and up, bleeding-edge builds 24369 and up, open at the top.
+ * The main version branch: the whole 7 and 8 line - releases 127.0 and up, bleeding-edge builds 21100 and
+ * up, open at the top for releases and stopping at the last 8 build.
  *
  * It compiles against the v159 epoch, the newest shape it has to survive and deliberately not the range
  * floor, so one source satisfies both directions: implement what the newest epoch demands and reference

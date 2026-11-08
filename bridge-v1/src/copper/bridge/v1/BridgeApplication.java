@@ -3,13 +3,13 @@ package copper.bridge.v1;
 import arc.*;
 import arc.audio.*;
 import arc.struct.*;
-import arc.util.Threads;
-
 
 import copper.bridge.*;
 import copper.bridge.gen.*;
 import copper.bridge.jvm.Surface;
 import copper.bridge.util.*;
+
+import java.util.*;
 
 /**
  * arc's application object for the JVM side of the bridge. On Android arc is driven by ART - the activity owns the
@@ -25,8 +25,10 @@ public class BridgeApplication implements Application {
     public final BridgeEvents events;
 
     protected final Seq<ApplicationListener> listeners = new Seq<>();
-    protected final Seq<Runnable> runnables = new Seq<>();
-    private final Seq<Runnable> executedRunnables = new Seq<>();
+
+    //plain lists, not Seq: Seq.add's return type differs across the supported range, so one compiled call cannot bind both
+    protected final List<Runnable> runnables = new ArrayList<>();
+    private final List<Runnable> executedRunnables = new ArrayList<>();
 
     private Thread mainThread;
 
@@ -51,6 +53,7 @@ public class BridgeApplication implements Application {
         Core.files = files;
         Core.settings = new Settings();
         Core.audio = new Audio(true);
+        initNet();
 
         graphics.configure();
 
@@ -85,7 +88,7 @@ public class BridgeApplication implements Application {
                 return true;
             if (System.currentTimeMillis() >= deadline)
                 return false;
-            Threads.sleep(2);
+            sleep(2);
         }
         return true;
     }
@@ -97,7 +100,7 @@ public class BridgeApplication implements Application {
 
             if (events.paused() || !events.surfaceReady()) {
                 // nothing may be drawn without a current surface, but events must keep flowing
-                Threads.sleep(4);
+                sleep(4);
                 continue;
             }
 
@@ -146,12 +149,29 @@ public class BridgeApplication implements Application {
             executedRunnables.addAll(runnables);
             runnables.clear();
         }
-        for (int i = 0; i < executedRunnables.size; i++) {
+        for (Runnable executedRunnable : executedRunnables) {
             try {
-                executedRunnables.get(i).run();
+                executedRunnable.run();
             } catch (Throwable t) {
                 Log.error(t);
             }
+        }
+    }
+
+    /** {@code Thread.sleep} with arc's old semantics: an interrupt is swallowed, not re-armed. */
+    private static void sleep(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException ignored) {
+        }
+    }
+
+    /** Installs arc's Net for the 127 line's Core.net; the class left arc-core later, so it is created by name. */
+    private static void initNet() {
+        try {
+            Object net = Class.forName("arc.Net").getConstructor().newInstance();
+            Core.class.getField("net").set(null, net);
+        } catch (Throwable ignored) {
         }
     }
 

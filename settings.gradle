@@ -25,7 +25,7 @@ include 'core'
 include 'processor'
 
 // the arc backend and the game launcher, compiled against one epoch's jars from .mindustry/ and
-// .arc/ - never against sources - and run on every version from 146.0 up.
+// .arc/ - never against sources - and run on every version from 127.0 up.
 include 'bridge-v1'
 
 // Mindustry 9: Arc merged into the game repository.
@@ -37,6 +37,10 @@ include 'native'
 
 // the deployable jar: dex, the lwjgl classes and natives, the .so, the version table.
 include 'pack'
+
+// the build-time API guard: reads the bridge's compiled references and compares the arc/mindustry
+// declarations at the branch's floor and ceiling commits. No game or arc build is involved.
+include 'compat'
 
 // No includeBuild for ../Mindustry and ../Arc: a composite build is configured by the including
 // build's Gradle, and the epochs do not share one - v151's arc applies gdx-jnigen, which Gradle 9

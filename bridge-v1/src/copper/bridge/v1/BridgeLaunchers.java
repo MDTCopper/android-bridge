@@ -2,7 +2,7 @@ package copper.bridge.v1;
 
 /**
  * Picks the launcher whose file chooser matches the game that is running. The choice is probed, not versioned: this
- * jar declares a single branch covering everything from 146.0 up, so it cannot answer "which file-chooser shape",
+ * jar declares a single branch covering everything from 127.0 up, so it cannot answer "which file-chooser shape",
  * and a threshold hardcoded here would be a second, invisible copy of a boundary the version table owns.
  */
 public final class BridgeLaunchers {

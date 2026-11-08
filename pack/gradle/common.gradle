@@ -1,0 +1,29 @@
+// Values every pack script needs: the Android tools and the branches this jar ships.
+
+def exe = System.getProperty('os.name').toLowerCase().contains('windows') ? '.bat' : ''
+
+def sdkRoot = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")
+if (!sdkRoot)
+    throw new GradleException("No Android SDK found. Set ANDROID_HOME or ANDROID_SDK_ROOT.")
+def sdk = new File(sdkRoot)
+
+/**
+ * d8, from the newest installed build-tools: it is not pinned the way the NDK is, because the platform
+ * level comes from --min-api rather than from its own version.
+ */
+def buildTools = new File(sdk, 'build-tools').listFiles()?.sort { it.name }?.reverse()
+        ?.find { dir -> new File(dir, "d8${exe}").isFile() }
+if (buildTools == null)
+    throw new GradleException("No d8 under ${sdk}/build-tools. Install Android build-tools.")
+
+/** android.jar is a library to d8: it is what the dexed classes are resolved against. */
+def androidPlatform = new File(sdk, 'platforms').listFiles()?.sort { it.name }?.reverse()
+        ?.find { dir -> new File(dir, 'android.jar').isFile() }
+if (androidPlatform == null)
+    throw new GradleException("No android.jar under ${sdk}/platforms.")
+
+ext.exe = exe
+ext.d8 = new File(buildTools, "d8${exe}")
+ext.androidJar = new File(androidPlatform, 'android.jar')
+ext.minApi = property('minAndroidApi')
+ext.branchNames = ['v1', 'v2'].findAll { rootProject.ext.branchHasSources(it) }

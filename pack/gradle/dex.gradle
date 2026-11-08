@@ -1,0 +1,53 @@
+// --- dex ---------------------------------------------------------------------
+//
+// d8 takes a directory or a .zip, not a plain file name, so the run writes classes.dex into a scratch
+// directory the task then moves. That also makes a module outgrowing one dex visible: d8 would write
+// classes2.dex silently, while the jar carries exactly one.
+
+def d8 = project.ext.d8
+def minApi = project.ext.minApi
+def androidJar = project.ext.androidJar
+def coreJar = project(':core').tasks.named('jar', Jar)
+
+/** Declares one d8 run: {@code inputTask} is dexed, {@code libs} are only resolved against. */
+tasks.register('dexCore', Exec) {
+    def scratch = layout.buildDirectory.dir("d8/dexCore").get().asFile
+    def output = layout.buildDirectory.file("dex/classes.dex").get().asFile
+    def libs = project.files(androidJar)
+
+    group = 'pack'
+    description = 'Dexes the shared half of the bridge into classes.dex.'
+
+    inputs.files(coreJar)
+    inputs.files(libs)
+    outputs.file(output)
+    doFirst {
+        // the whole output directory goes, not just this task's file: the jar picks up whatever is
+        // in there, so an artifact left by an earlier layout must not survive into a new jar.
+        delete output.parentFile
+        // a rename onto an existing file fails on Windows, so the old output goes first
+        delete scratch
+        delete output
+        scratch.mkdirs()
+        output.parentFile.mkdirs()
+    }
+
+    // assembled here: two of its parts are file collections that only resolve at execution time
+    def command = [d8.absolutePath, '--min-api', minApi, '--output', scratch.absolutePath]
+    // a library is resolved against, not dexed: everything else arrives at runtime
+    libs.files.sort { it.name }.each { File lib -> command.addAll(['--lib', lib.absolutePath]) }
+    coreJar.get().outputs.files.files.sort { it.name }
+            .each { File file -> command.add(file.absolutePath) }
+    commandLine(command)
+
+    doLast {
+        def produced = new File(scratch, 'classes.dex')
+        if (!produced.isFile())
+            throw new GradleException("${taskName}: d8 produced no ${produced}")
+        if (new File(scratch, 'classes2.dex').isFile())
+            throw new GradleException("${taskName}: d8 produced a second dex. The launcher reads " +
+                    "only classes.dex, so the module has to shrink or the contract has to change.")
+        produced.renameTo(output)
+    }
+}
+

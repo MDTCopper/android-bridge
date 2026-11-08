@@ -3,12 +3,14 @@ package copper.bridge.v1;
 import arc.*;
 import arc.files.*;
 import arc.struct.*;
+import copper.bridge.annotation.CompatRange;
 import mindustry.ui.FileChooser.*;
 
 /**
  * The file chooser as Mindustry 159 and later declare it: one {@code FileChooserParams} request object
  * instead of four entry points.
  */
+@CompatRange(floor = "v159")
 public class BridgeLauncherParams extends BridgeLauncher {
 
     /**

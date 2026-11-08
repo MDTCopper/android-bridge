@@ -1,0 +1,56 @@
+// lwjgl's Java classes and Android natives. The natives are downloaded, never committed.
+
+configurations {
+    lwjglJava
+}
+
+dependencies {
+    lwjglJava platform("org.lwjgl:lwjgl-bom:${property('lwjglVersion')}")
+    lwjglJava "org.lwjgl:lwjgl"
+    lwjglJava "org.lwjgl:lwjgl-egl"
+    lwjglJava "org.lwjgl:lwjgl-opengles"
+}
+
+/** Layout of the lwjgl natives archive for one Android ABI. */
+def lwjglArch = ['arm64-v8a': 'arm64', 'armeabi-v7a': 'arm32', 'x86_64': 'x64']
+
+/**
+ * Downloads and unpacks one lwjgl natives archive per ABI. Never committed to the repository.
+ *
+ * The properties are read outside the task configuration: inside it the closure's delegate is the task,
+ * where property('lwjglVersion') is an unknown property and breaks even gradlew tasks.
+ */
+def lwjglVersion = property('lwjglVersion')
+def lwjglReleaseBase = property('lwjglReleaseBase')
+
+tasks.register('fetchLwjglNatives') {
+    def version = lwjglVersion
+    def base = lwjglReleaseBase
+    def outputDir = layout.buildDirectory.dir('lwjgl-natives')
+    // stamped per version, outside the directory that becomes native/lwjgl in the jar: a version bump
+    // has to re-download even though the file names stay the same.
+    def stampDir = layout.buildDirectory.dir('lwjgl-stamps')
+
+    inputs.property('lwjglVersion', version)
+    outputs.dir(outputDir)
+    doLast {
+        def root = outputDir.get().asFile
+        def stamps = stampDir.get().asFile
+        root.mkdirs()
+        stamps.mkdirs()
+        lwjglArch.each { abi, arch ->
+            def stamp = new File(stamps, "${version}-${abi}")
+            if (!stamp.exists()) {
+                def url = "$base/$version/lwjgl-$version-android-${abi}.zip"
+                def zip = new File(root, "lwjgl-$version-${abi}.zip")
+                logger.lifecycle("downloading $url")
+                zip.parentFile.mkdirs()
+                new URI(url).toURL().withInputStream { input -> zip.withOutputStream { output -> output << input } }
+                copy { from zipTree(zip); into root }
+                zip.delete()
+                stamp.createNewFile()
+            }
+            return null
+        }
+    }
+}

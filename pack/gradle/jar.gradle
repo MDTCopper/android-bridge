@@ -1,0 +1,57 @@
+// --- the jar -----------------------------------------------------------------
+
+def branchNames = project.ext.branchNames
+
+// The class output of every module the jar carries, taken here rather than inside the task: a from {}
+// closure is evaluated while the jar is built, and reaching for the project then is what the
+// configuration cache refuses.
+def coreOutput = project(':core').sourceSets.main.output
+def branchOutputs = branchNames.collect { String branch ->
+    project(":bridge-${branch}").sourceSets.main.output
+}
+
+tasks.register('bridgeJar', Jar) {
+    dependsOn ':core:jar'
+    dependsOn 'checkBridgeApi'
+    dependsOn 'fetchLwjglNatives'
+    dependsOn ':native:assemble'
+    dependsOn 'dexCore'
+    dependsOn 'versionTable'
+    dependsOn 'bridgeProperties'
+
+    archiveFileName = "bridge-${project.version}.jar"
+    destinationDirectory = layout.buildDirectory.dir('libs')
+
+    // ART payload: the shared half only; a branch is never loaded on ART.
+    from(layout.buildDirectory.dir('dex')) { include '*.dex' }
+
+    // what both VMs read back: the branch ranges and the bridge version
+    from(layout.buildDirectory.file('version-table/bridge-versions.properties'))
+    from(layout.buildDirectory.file('bridge/bridge.properties'))
+
+    // JVM payload: every class of every module, unchanged. Source set outputs rather than module jars,
+    // which would drag their own manifests into the bridge jar.
+    from(coreOutput)
+    branchOutputs.each { output -> from(output) }
+
+    // The native bridge, at the resource path copper.bridge.Bridge.prepare() reads back at runtime:
+    // "native/bridge/<abi>/libcopperbridge.so". The staged libraries come from the native build.
+    from(rootProject.file('native/build/output')) {
+        into 'native/bridge'
+    }
+
+    // lwjgl java classes keep their package layout so arc can link against them
+    from {
+        configurations.lwjglJava.collect { zipTree(it) }
+    } {
+        exclude 'META-INF/**'
+        exclude 'module-info.class'
+    }
+
+    // lwjgl android natives, under the prefix the bridge's own mapper adds to LWJGL's bundled lookup
+    from(fetchLwjglNatives) {
+        into 'native/lwjgl'
+    }
+
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}

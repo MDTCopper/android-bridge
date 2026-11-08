@@ -40,4 +40,9 @@ public interface Events {
     @JvmEventHandler
     default void onBackPressed() {
     }
+
+    /** A music handle reached the end of its track; the audio path turns that into its listener's call. */
+    @JvmEventHandler
+    default void onMusicComplete(int music) {
+    }
 }

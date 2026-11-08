@@ -5,6 +5,7 @@ import arc.struct.*;
 
 import copper.bridge.gen.*;
 import copper.bridge.jvm.Events;
+import copper.bridge.jvm.MusicListeners;
 import copper.bridge.jvm.Surface;
 import copper.bridge.util.*;
 
@@ -79,11 +80,6 @@ public class BridgeEvents implements Events {
     }
 
     @Override
-    public void onSafeInsetsChanged(int top, int bottom, int left, int right) {
-        graphics.safeInsetsUpdated(top, bottom, left, right);
-    }
-
-    @Override
     public void onSurfaceDestroyed() {
         Surface.destroyed();
         graphics.destroySurface();
@@ -134,5 +130,10 @@ public class BridgeEvents implements Events {
         }
 
         input.backTap();
+    }
+
+    @Override
+    public void onMusicComplete(int music) {
+        MusicListeners.complete(music);
     }
 }

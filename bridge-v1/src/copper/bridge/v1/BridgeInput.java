@@ -241,32 +241,11 @@ public class BridgeInput extends Input {
     /** Shows the text input dialog ART owns; the answer arrives on the game loop. */
     @Override
     public void getTextInput(TextInput info) {
-        // message arrived at 147 and allowEmpty at 130, and this branch runs from 127: neither field is read
-        // directly, because a field the running Input does not declare is a NoSuchFieldError at the call.
-        // A dialog before 147 had no message line, and before 130 an empty answer was refused.
-        JvmCall.textInput(info.title, message(info), info.text, info.numeric, info.multiline,
-                info.maxLength, allowEmpty(info))
+        // the 6 line's TextInput has no hint line and no empty-answer flag, so the dialog gets neither
+        JvmCall.textInput(info.title, "", info.text, info.numeric, info.multiline,
+                info.maxLength, false)
                 .onResult(value -> info.accepted.get(value))
                 .onCanceled(info.canceled);
-    }
-
-    /** The hint line, where the running Input declares it; the field is absent before 147. */
-    private static String message(TextInput info) {
-        try {
-            Object value = TextInput.class.getField("message").get(info);
-            return value == null ? "" : (String)value;
-        } catch (Throwable ignored) {
-            return "";
-        }
-    }
-
-    /** Whether an empty answer is accepted, where the running Input declares the flag; before 130 it was refused. */
-    private static boolean allowEmpty(TextInput info) {
-        try {
-            return (boolean)TextInput.class.getField("allowEmpty").get(info);
-        } catch (Throwable ignored) {
-            return false;
-        }
     }
 
     @Override

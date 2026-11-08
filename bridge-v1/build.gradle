@@ -1,20 +1,22 @@
 
 /**
- * The main version branch: the whole 6, 7 and 8 line - releases 105.0 and up, bleeding-edge builds 8774 and
- * up, open at the top for releases and stopping at the last 8 build. 8774 is the first build after the 6
- * line's API reshape completed (4a8be42258, "Lowercase enums"); before it the declarations the branch
- * references still had the old shape.
+ * The 6 line's old audio shape: releases 105.0 up to 113.2, bleeding-edge builds 8774 up to 11234.
+ * 8774 is the first build after the API reshape completed (4a8be42258, "Lowercase enums"); before it the
+ * declarations this branch references still had the old shape. 11234 is the last build that still
+ * declares the abstract arc.Audio with newSound/newMusic, which is what this branch implements; 11247 is
+ * the first without it and belongs to v2.
  *
- * It compiles against the v159 epoch, the newest shape it has to survive and deliberately not the range
- * floor, so one source satisfies both directions: implement what the newest epoch demands and reference
- * only symbols the oldest still has. Mindustry 159 replaced four file-chooser entry points with
- * FileChooserParams, which needs a different class rather than a different epoch, hence the
- * BridgeLauncherLegacy / BridgeLauncherParams split and the run-time probe in BridgeLaunchers.
+ * It compiles against v112, the newest release whose arc.Audio is still that abstract class. 113 turned it
+ * into the SoLoud shape, so this branch cannot compile against it, and 11234 already carries
+ * arc.audio.SoloudAudio, which BridgeApplication reaches by name. :pack:checkBridgeApi compares every
+ * reference at both ends of the range, so nothing here may use what 8774 lacks.
+ *
+ * The file chooser has one shape here (the four-entry one), so the launcher has no probe.
  *
  * Everything is compile only: the game and arc jars arrive on the command line at runtime.
  */
 def branch = name.startsWith('bridge-') ? name.substring('bridge-'.length()) : name
-def jars = rootProject.ext.epochJars(branch)
+def epochClasspath = rootProject.ext.epochClasspath(branch)
 def epoch = rootProject.ext.epochInfo(branch)
 
 sourceSets {
@@ -36,9 +38,8 @@ dependencies {
     }
     compileOnly files(new File(androidJarRoot, "android.jar"))
 
-    // the game, and arc with its extensions: two directories of jars the epoch preparation fills.
-    compileOnly jars.game
-    compileOnly jars.arc
+    // the official desktop jar, which carries both game and arc.
+    compileOnly epochClasspath
 
     // what the arc backend reaches EGL and GLES through. The version has to match the android natives
     // pack downloads, so both read lwjglVersion.
@@ -49,10 +50,10 @@ dependencies {
 }
 
 tasks.named('compileJava') {
-    // without the epoch's jars javac reports a wall of missing arc/mindustry symbols instead.
+    // without the epoch's jar javac reports a wall of missing arc/mindustry symbols instead.
     doFirst {
-        if (jars.game.isEmpty() || jars.arc.isEmpty()) {
-            throw new GradleException("epoch ${branch}: no jars in ${epoch.gameOut} or ${epoch.arcOut}. " +
+        if (epochClasspath.isEmpty()) {
+            throw new GradleException("epoch ${branch}: no jar in ${epoch.gameOut}. " +
                     "Run :prepareEpoch${branch.capitalize()}, or drop -PskipEpochPrepare.")
         }
     }

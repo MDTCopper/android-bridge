@@ -13,7 +13,6 @@
 * [Building](#building)
   * [Quick build](#quick-build)
   * [Detailed build](#detailed-build)
-* [Known issues](#known-issues)
 * [FAQ](#faq)
 * [Contributing](#contributing)
 * [Support](#support)
@@ -25,7 +24,7 @@
 * android-bridge is a JVM bridge that runs the **desktop version** of Mindustry on Android
 * **Several games or versions in one app**, with as many isolated sets of data and mod configuration
 * **Bytecode patchers such as Mixin keep working**, and loaders such as CopperLoader and Fabric run as they are
-* It runs vanilla Mindustry: official releases 127.0 and up, bleeding-edge builds 21100 and up
+* It runs vanilla Mindustry: official releases 105.0 and up, bleeding-edge builds 8774 and up
 * The game itself needs no changes and no repackaging — it runs the official release jar as it is
 * This repository is the bridge alone; the host app is yours to write, or to pick an existing one
 
@@ -57,7 +56,7 @@
 
 | Item | Range |
 |---|---|
-| Game version | Official releases **127.0 and up** <br> Bleeding-edge builds **21100 and up** <br> (the two numbering schemes are independent and not comparable) |
+| Game version | Official releases **105.0 and up** <br> Bleeding-edge builds **8774 and up** <br> (the two numbering schemes are independent and not comparable) |
 | Android | **11 (API 30) and up** |
 | ABI | `arm64-v8a`, `armeabi-v7a`, `x86_64` |
 | Game jar | Must be a **desktop release build with assets**; a classes-only one does not run |
@@ -74,13 +73,11 @@ cd android-bridge
 
 On Windows use `gradlew.bat`.
 
-The jar lands in `pack/build/libs/bridge-snapshot.jar`: **without `-Prelease` the version is `snapshot`** — `buildVersion` in `gradle.properties` belongs to a release, and only a tagged build should use it. Pass `-Prelease` for an artifact that carries a version number (which is what CI does for a tag build):
+The jar lands in `pack/build/libs/bridge-snapshot.jar`:
 
 ```bash
-./gradlew :pack:bridgeJar -Prelease
+./gradlew :pack:bridgeJar
 ```
-
-The first build checks out and compiles Mindustry and Arc at v159 by itself, which takes a few minutes and a network connection; after that it reuses what is in `.mindustry/` and `.arc/`.
 
 ### Detailed build
 
@@ -99,27 +96,6 @@ ndkVersion=29.0.14206865
 cmakeVersion=3.22.1
 ```
 
-Both versions are pinned in `gradle.properties` — a different NDK produces a different binary. The SDK location goes in `sdk.dir` in `local.properties`, or in `ANDROID_HOME`.
-
-#### Mindustry and Arc
-
-A **full clone** of each, next to this project, and with tags (the build checks out by tag):
-
-```properties
-mindustryDir=../Mindustry
-arcDir=../Arc
-```
-
-Those are the default paths; they live in `gradle.properties` and can be changed.
-
-#### LWJGL Android natives
-
-Nothing to prepare. The build downloads them and packs them into the jar alongside the `.so`.
-
-#### JRE
-
-The bridge does **not** need a JRE to build. It is a payload the host carries at runtime; the tested one is an Android build of OpenJDK 25.
-
 #### Build
 
 ```bash
@@ -132,14 +108,11 @@ Just to see the task list:
 ./gradlew tasks -PskipEpochPrepare
 ```
 
-## Known issues
+## FAQ
 
 * The game jar must be a **release build with assets**; a classes-only one does not run
 * The bridge ships no app; the host is yours to write
 * The bridge is not a mod loader; loading mods is up to the loader the host provides
-
-## FAQ
-
 * **Can I use Mixin?** Yes. Have the bridge start a custom loader (CopperLoader, Fabric, and so on), and that loader patches bytecode as the game loads.
 * **Does it need root?** No.
 * **Can it run other games?** Only vanilla Mindustry for now.
@@ -153,14 +126,14 @@ The full guidelines are in [CONTRIBUTING.md](./CONTRIBUTING.md).
 Run the full build after a change:
 
 ```bash
-./gradlew :processor:compileJava :core:compileJava :bridge-v1:compileJava :native:assemble :pack:bridgeJar
+./gradlew :pack:bridgeJar
 ```
 
 After touching `bridge-vX` sources, **run the game on the oldest versions of the range with a real jar** —compiling is not running.
 
 ## Support
 
-Questions and suggestions go to this repository's issue tracker; read [Known issues](#known-issues) and the [FAQ](#faq) first.
+Questions and suggestions go to this repository's issue tracker; read the [FAQ](#faq) first.
 
 ## License
 

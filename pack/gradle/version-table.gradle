@@ -7,13 +7,10 @@ def branchNames = project.ext.branchNames
 
 def versionBlocks = branchNames.collect { String branch ->
     def ref = property("${branch}.mindustryRef")
-    def arcRef = (findProperty("${branch}.arcRef") ?: '').toString().trim()
     [
             name            : branch,
             target          : "Mindustry ${ref}",
             mindustryRef    : ref,
-            // a merged epoch has no arc of its own: name that rather than writing an empty cell
-            arcRef          : arcRef.isEmpty() ? 'merged' : arcRef,
             minVersionNumber: property("${branch}.minVersionNumber"),
             maxVersionNumber: findProperty("${branch}.maxVersionNumber") ?: '',
             minBeBuild      : property("${branch}.minBeBuild"),
@@ -35,7 +32,7 @@ tasks.register('versionTable') {
         blocks.eachWithIndex { block, index ->
             text.append("\n# ${block.name} vs ${block.target}\n")
             def prefix = "branch.${index}."
-            ['name', 'target', 'mindustryRef', 'arcRef',
+            ['name', 'target', 'mindustryRef',
              'minVersionNumber', 'maxVersionNumber', 'minBeBuild', 'maxBeBuild'].each { String key ->
                 text.append("${prefix}${key}=${block[key]}\n")
             }

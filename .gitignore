@@ -1,7 +1,6 @@
-# Epoch build products: game and arc jars produced from the reference clones. They are large, they
-# are reproducible with :prepareEpochVn, and they are not sources.
+# Epoch products: the official desktop jar fetched for a release tag or a bleeding-edge build. It is
+# large, it is reproducible with :prepareEpochVn, and it is not a source.
 .mindustry/
-.arc/
 
 # Gradle build trees and caches, one per module plus this root: every one of them is reproducible
 # and the jar alone is several megabytes. Covers core/build, pack/build and build/ alike, and

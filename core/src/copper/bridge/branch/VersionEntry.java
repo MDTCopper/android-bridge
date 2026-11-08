@@ -14,10 +14,8 @@ public class VersionEntry {
     /** Branch name, used as the dex suffix and the {@code copper.bridge.<name>} package. */
     public String branch;
     public String target = "";
-    /** The game ref this branch was compiled against: a Mindustry tag, or a commit when the epoch has no tag. */
+    /** The game ref this branch was compiled against: a Mindustry tag, or a bleeding-edge build id. */
     public String mindustryRef = "";
-    /** The arc ref, or {@code merged} when arc ships inside the game jar and has no checkout of its own. */
-    public String arcRef = "";
 
     /** Inclusive release bounds as {@code number.minor}; zero means unbounded, both zero means not claimed. */
     public double minVersionNumber = 0;

@@ -3,32 +3,45 @@
 // The bridge is compiled against one epoch but runs on every version of the branch's range, so a symbol
 // whose declaration changed inside the range still compiles here and only fails on the older device. This
 // task reads the compiled branch classes and compares their arc/mindustry references at the two ends of the
-// branch's bleeding-edge range. The ends come from gradle.properties; a class can override them with
-// @CompatRange.
+// branch's range. Both ends are official desktop jars staged by the epoch machinery, which is the only
+// place that fetches them; the check is handed the staged files. A class can narrow its ends with
+// @CompatRange, and a ref such a class names beyond the ones below is listed in <branch>.compatRefs.
 
 def compatClasses = project(':compat').sourceSets.main.output
-def checkedBranches = ['v1', 'v2'].findAll {
-    rootProject.ext.branchHasSources(it) && findProperty("${it}.compatMindustryFloor")
+def checkedBranches = ['v1', 'v2', 'v3'].findAll {
+    rootProject.ext.branchHasSources(it) && findProperty("${it}.compatFloor")
 }
 def propertiesPath = rootProject.file('gradle.properties').absolutePath
-def arcClonePath = rootProject.file(property('arcDir')).absolutePath
-def gameClonePath = rootProject.file(property('mindustryDir')).absolutePath
+
+// Both ends of the range, the epoch the branch compiles against - which is where a class that only has
+// the newer shape starts - and whatever @CompatRange names beyond those.
+def compatRefs = { String branch ->
+    def refs = [findProperty("${branch}.compatFloor"), findProperty("${branch}.compatCeiling"),
+                findProperty("${branch}.mindustryRef")]
+    refs.addAll((findProperty("${branch}.compatRefs") ?: '').toString().split(','))
+    return refs.collect { it.toString().trim() }.findAll { it }.unique()
+}
 
 checkedBranches.each { String branch ->
     def bridgeClasses = project(":bridge-${branch}").sourceSets.main.output.classesDirs.singleFile
+    def refs = compatRefs(branch)
     tasks.register("checkBridgeApi${branch.capitalize()}", JavaExec) {
         group = 'pack'
         description = "Checks ${branch}'s arc/mindustry references against its API range."
         dependsOn ":bridge-${branch}:compileJava", ':compat:classes'
-        classpath = files(compatClasses)
+        classpath = project(':compat').sourceSets.main.runtimeClasspath
         mainClass = 'copper.bridge.compat.Check'
         args = [
                 '--branch', branch,
                 '--properties', propertiesPath,
-                '--bridge', bridgeClasses.absolutePath,
-                '--arc', arcClonePath,
-                '--mindustry', gameClonePath
+                '--bridge', bridgeClasses.absolutePath
         ]
+        // staged here, at build time; a ref that is already there costs nothing
+        doFirst {
+            refs.each { String ref ->
+                args '--jar', "${ref}=${rootProject.ext.fetchEpoch(ref).absolutePath}"
+            }
+        }
         inputs.files(compatClasses)
         inputs.file(propertiesPath)
         inputs.dir(bridgeClasses)
@@ -40,4 +53,3 @@ tasks.register('checkBridgeApi') {
     description = "Runs every branch's API check."
     dependsOn checkedBranches.collect { "checkBridgeApi${it.capitalize()}" }
 }
-

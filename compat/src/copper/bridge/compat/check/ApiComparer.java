@@ -1,28 +1,18 @@
 package copper.bridge.compat.check;
 
-import copper.bridge.compat.api.JavaApi;
-import copper.bridge.compat.api.MemberSignature;
+import copper.bridge.compat.api.*;
 import copper.bridge.compat.refs.ClassRef;
-import copper.bridge.compat.sources.Git;
-import copper.bridge.compat.sources.SourceTree;
+import copper.bridge.compat.sources.RefJars;
 
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.*;
 
 /**
  * Compares the declarations the branch references between the two ends of its range.
  *
  * <p>A reference compiled against the epoch must resolve at the floor too, so every floor declaration must also
  * exist at the ceiling. Additions at the ceiling are fine; a changed or removed floor declaration is an issue.
- * A reference from a class with {@code @CompatFloor} uses that class's own range instead of the branch's.
- * Members inherited from a supertype the check does not read are skipped, as is an implicit default constructor.
+ * A reference from a class with {@code @CompatRange} uses that class's own range instead of the branch's.
+ * Members inherited from a supertype the check does not read are skipped.
  */
 public final class ApiComparer {
     private static final Set<String> OBJECT_METHODS = new HashSet<>(Arrays.asList(
@@ -33,10 +23,8 @@ public final class ApiComparer {
     }
 
     public static List<String> compare(List<ClassRef> refs, Range branch, Map<String, Range> overrides,
-                                       Path gameClone, Path arcClone) {
+                                       RefJars jars) {
         List<String> issues = new ArrayList<>();
-        Map<String, SourceTree> trees = new HashMap<>();
-        Map<String, JavaApi.Type> types = new HashMap<>();
 
         for (ClassRef ref : refs) {
             Range range = ref.overrideKey == null ? branch : overrides.get(ref.overrideKey);
@@ -44,193 +32,36 @@ public final class ApiComparer {
                 issues.add("no range for @CompatRange " + ref.overrideKey + " on " + ref.sourceClass);
                 continue;
             }
-            boolean arc = ref.isArc();
-            String floor = arc ? range.arcFloor : range.gameFloor;
-            String ceiling = arc ? range.arcCeiling : range.gameCeiling;
-            Path floorClone = arc && !range.arcFloorMerged ? arcClone : gameClone;
-            Path ceilingClone = arc && !range.arcCeilingMerged ? arcClone : gameClone;
 
-            String classPath = ref.owner.contains("$")
-                    ? ref.owner.substring(0, ref.owner.indexOf('$'))
-                    : ref.owner;
-            String outerName = classPath.substring(classPath.lastIndexOf('/') + 1);
-            String nestedName = ref.owner.contains("$")
-                    ? ref.owner.substring(ref.owner.lastIndexOf('$') + 1)
-                    : null;
-
-            String floorKey = floorClone + "|" + floor + "|" + arc;
-            String ceilingKey = ceilingClone + "|" + ceiling + "|" + arc;
-            SourceTree floorTree = trees.computeIfAbsent(floorKey,
-                    key -> new SourceTree(new Git(floorClone.toString()), floor, arc));
-            SourceTree ceilingTree = trees.computeIfAbsent(ceilingKey,
-                    key -> new SourceTree(new Git(ceilingClone.toString()), ceiling, arc));
-
-            String floorPath = floorTree.resolve(classPath);
-            String ceilingPath = ceilingTree.resolve(classPath);
-            if (floorPath == null) {
+            ClassInfo floor = jars.jar(range.floor).classInfo(ref.owner);
+            if (floor == null) {
                 issues.add("class missing at floor: " + ref.owner);
                 continue;
             }
-            if (ceilingPath == null) {
+            ClassInfo ceiling = jars.jar(range.ceiling).classInfo(ref.owner);
+            if (ceiling == null) {
                 issues.add("class missing at ceiling: " + ref.owner);
                 continue;
             }
 
-            JavaApi.Type floorType = types.computeIfAbsent(floorKey + "|" + classPath + "|" + nestedName,
-                    key -> JavaApi.type(floorTree.source(floorPath), floorPath, outerName, nestedName));
-            JavaApi.Type ceilingType = types.computeIfAbsent(ceilingKey + "|" + classPath + "|" + nestedName,
-                    key -> JavaApi.type(ceilingTree.source(ceilingPath), ceilingPath, outerName, nestedName));
-            if (floorType == null || ceilingType == null) {
-                issues.add("type not found in source: " + ref.owner);
-                continue;
-            }
-            if (!floorType.kind.equals(ceilingType.kind)) {
-                issues.add("type kind changed: " + ref.owner + " " + floorType.kind + " -> " + ceilingType.kind);
-                continue;
-            }
-
-            int arity = arity(ref.descriptor);
-            Set<MemberSignature> floorSignatures = matching(
-                    withArity(JavaApi.members(floorType.tree, ref.name), arity), ref.descriptor);
-            Set<MemberSignature> ceilingSignatures = matching(
-                    withArity(JavaApi.members(ceilingType.tree, ref.name), arity), ref.descriptor);
-
-            if (floorSignatures.isEmpty()) {
-                if (ref.name.equals("<init>") && arity == 0)
-                    continue;
-                if (OBJECT_METHODS.contains(ref.name) && ceilingSignatures.isEmpty())
+            MemberInfo floorMember = floor.member(ref.name, ref.descriptor);
+            if (floorMember == null) {
+                if (OBJECT_METHODS.contains(ref.name) && ceiling.member(ref.name, ref.descriptor) == null)
                     continue;
                 issues.add("member missing at floor: " + ref.owner + "." + ref.name + " " + ref.descriptor);
                 continue;
             }
-            if (ceilingSignatures.isEmpty())
-                continue;
 
-            for (MemberSignature signature : floorSignatures) {
-                if (!ceilingSignatures.contains(signature)) {
-                    issues.add("declaration changed or removed: " + ref.owner + "." + ref.name
-                            + " floor=" + signature.text);
-                    break;
-                }
+            MemberInfo ceilingMember = ceiling.member(ref.name, ref.descriptor);
+            if (ceilingMember == null) {
+                issues.add("declaration changed or removed: " + ref.owner + "." + ref.name + " " + ref.descriptor);
+                continue;
+            }
+            if (floorMember.access != ceilingMember.access) {
+                issues.add("declaration changed: " + ref.owner + "." + ref.name + " " + ref.descriptor
+                        + " access " + floorMember.access + " -> " + ceilingMember.access);
             }
         }
         return issues;
-    }
-
-    /** Parameter count for a method descriptor, -1 for a field. */
-    private static int arity(String descriptor) {
-        if (descriptor.isEmpty() || descriptor.charAt(0) != '(')
-            return -1;
-        int count = 0;
-        for (int i = 1; i < descriptor.length(); i++) {
-            char c = descriptor.charAt(i);
-            if (c == ')')
-                break;
-            if (c == '[')
-                continue;
-            if (c == 'L') {
-                while (i < descriptor.length() && descriptor.charAt(i) != ';')
-                    i++;
-                count++;
-            } else {
-                count++;
-            }
-        }
-        return count;
-    }
-
-    private static Set<MemberSignature> withArity(Set<MemberSignature> signatures, int arity) {
-        return signatures.stream()
-                .filter(signature -> arity < 0 ? signature.arity < 0 : signature.arity == arity)
-                .collect(Collectors.toCollection(HashSet::new));
-    }
-
-    /**
-     * Narrows a method's overloads to the one the reference's descriptor names. The descriptor is erased and the
-     * source text is not, so the comparison is on simple type names with generics stripped. No match keeps the whole
-     * set, which is the conservative behaviour for anything the matching cannot express (varargs, type variables).
-     */
-    private static Set<MemberSignature> matching(Set<MemberSignature> signatures, String descriptor) {
-        List<String> wanted = descriptorParams(descriptor);
-        if (wanted.isEmpty())
-            return signatures;
-
-        Set<MemberSignature> matched = signatures.stream()
-                .filter(signature -> signature.params.size() == wanted.size())
-                .filter(signature -> {
-                    for (int i = 0; i < wanted.size(); i++) {
-                        if (!simple(signature.params.get(i)).equals(wanted.get(i)))
-                            return false;
-                    }
-                    return true;
-                })
-                .collect(Collectors.toCollection(HashSet::new));
-        return matched.isEmpty() ? signatures : matched;
-    }
-
-    /** Parameter type names from a method descriptor, as the source would spell them; empty for a field. */
-    private static List<String> descriptorParams(String descriptor) {
-        List<String> params = new ArrayList<>();
-        if (descriptor.isEmpty() || descriptor.charAt(0) != '(')
-            return params;
-
-        int i = 1;
-        while (i < descriptor.length() && descriptor.charAt(i) != ')') {
-            int dimensions = 0;
-            while (descriptor.charAt(i) == '[') {
-                dimensions++;
-                i++;
-            }
-            String name;
-            if (descriptor.charAt(i) == 'L') {
-                int end = descriptor.indexOf(';', i);
-                String internal = descriptor.substring(i + 1, end);
-                int separator = Math.max(internal.lastIndexOf('/'), internal.lastIndexOf('$'));
-                name = separator < 0 ? internal : internal.substring(separator + 1);
-                i = end + 1;
-            } else {
-                name = primitive(descriptor.charAt(i));
-                i++;
-            }
-            StringBuilder text = new StringBuilder(name);
-            for (int d = 0; d < dimensions; d++)
-                text.append("[]");
-            params.add(text.toString());
-        }
-        return params;
-    }
-
-    private static String simple(String type) {
-        String text = type.trim();
-        int generic = text.indexOf('<');
-        if (generic >= 0)
-            text = text.substring(0, generic).trim();
-        int dimensions = 0;
-        while (text.endsWith("[]")) {
-            dimensions++;
-            text = text.substring(0, text.length() - 2).trim();
-        }
-        int separator = Math.max(text.lastIndexOf('.'), text.lastIndexOf('$'));
-        if (separator >= 0)
-            text = text.substring(separator + 1);
-        StringBuilder full = new StringBuilder(text);
-        for (int d = 0; d < dimensions; d++)
-            full.append("[]");
-        return full.toString();
-    }
-
-    private static String primitive(char descriptor) {
-        switch (descriptor) {
-            case 'Z': return "boolean";
-            case 'B': return "byte";
-            case 'C': return "char";
-            case 'S': return "short";
-            case 'I': return "int";
-            case 'J': return "long";
-            case 'F': return "float";
-            case 'D': return "double";
-            case 'V': return "void";
-            default: return String.valueOf(descriptor);
-        }
     }
 }

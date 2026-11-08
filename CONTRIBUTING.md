@@ -89,7 +89,7 @@ v2: add the Mindustry 9 branch (arc merged into the game repository)
 For a large change, or one that touches host conventions (options, log format, exit behaviour, how the
 activity is created), open an issue with the plan first.
 
-Do not commit `.mindustry/`, `.arc/`, `build/`, `*.so`, the lwjgl natives, `native/src/gen/` or any jar,
+Do not commit `.mindustry/`, `build/`, `*.so`, the lwjgl natives, `native/src/gen/` or any jar,
 and do not include changes that only reformat or reorder code.
 
 After touching `@Native` or `@UsedByNative`: the processor generates the names and descriptors from the

@@ -76,7 +76,7 @@ v2: add the Mindustry 9 branch (arc merged into the game repository)
 
 改动较大，或涉及宿主约定（选项、日志格式、退出行为、活动创建方式）时，应先提 issue 说明方案。
 
-提交中不应包含 `.mindustry/`、`.arc/`、`build/`、`*.so`、lwjgl 原生库、`native/src/gen/` 与任何 jar，
+提交中不应包含 `.mindustry/`、`build/`、`*.so`、lwjgl 原生库、`native/src/gen/` 与任何 jar，
 也不应包含仅做格式化或重排的改动。
 
 动过 `@Native` 或 `@UsedByNative` 时，名字和描述符都由注解处理器从 Java 声明生成，JNI 注册表和

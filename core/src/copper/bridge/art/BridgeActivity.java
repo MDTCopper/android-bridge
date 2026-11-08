@@ -44,6 +44,7 @@ public class BridgeActivity extends android.app.Activity {
         ArtBus.bind(this);
         ArtBus.bind(new Vibration(this));
         ArtBus.bind(new Clipboard(this));
+        ArtBus.bind(new Audio());
         ArtBus.bind(new OsInfo(this));
         ArtBus.bind(new UriLauncher(this));
         ArtBus.bind(new UriFiles(this));
@@ -61,6 +62,8 @@ public class BridgeActivity extends android.app.Activity {
 
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        // the game's sound and music both play on the music stream, so the volume keys have to move that one
+        setVolumeControlStream(android.media.AudioManager.STREAM_MUSIC);
         hideStatusBar();
 
         root = new FrameLayout(this);

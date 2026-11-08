@@ -26,4 +26,4 @@ ext.exe = exe
 ext.d8 = new File(buildTools, "d8${exe}")
 ext.androidJar = new File(androidPlatform, 'android.jar')
 ext.minApi = property('minAndroidApi')
-ext.branchNames = ['v1', 'v2'].findAll { rootProject.ext.branchHasSources(it) }
+ext.branchNames = ['v1', 'v2', 'v3'].findAll { rootProject.ext.branchHasSources(it) }

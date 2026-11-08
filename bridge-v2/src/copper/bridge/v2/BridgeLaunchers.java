@@ -1,4 +1,4 @@
-package copper.bridge.v1;
+package copper.bridge.v2;
 
 /**
  * Picks the launcher whose file chooser matches the game that is running. The choice is probed, not versioned: this
@@ -8,7 +8,7 @@ package copper.bridge.v1;
 public final class BridgeLaunchers {
     private static final String PARAMS_TYPE = "mindustry.ui.FileChooser$FileChooserParams";
     /** The launcher that answers that request. Reached by name, never as a type. */
-    private static final String PARAMS_LAUNCHER = "copper.bridge.v1.BridgeLauncherParams";
+    private static final String PARAMS_LAUNCHER = "copper.bridge.v2.BridgeLauncherParams";
 
     private BridgeLaunchers() {
     }

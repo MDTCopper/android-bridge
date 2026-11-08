@@ -1,15 +1,21 @@
+
 /**
- * v2: Mindustry 9, the epoch where Arc was merged into the game repository.
+ * v2: the rest of the 6 line and the whole 7 and 8 line - releases 114.0 and up, bleeding-edge builds
+ * 11247 and up, open at the top for releases and stopping at the last 8 build (27928).
  *
- * The ref it compiles against is a commit rather than a tag - upstream has not tagged v9 yet - and arc
- * no longer has a commit of its own: it is built out of the game's own tree, as an included build, and
- * the epoch stages those jars beside the game's. That is what the empty arc ref in gradle.properties
- * declares; the shared epoch machinery does the rest.
+ * 11247 is the first build with the concrete arc.audio.Audio and without the abstract one; the 6 line's
+ * low end, which has the abstract class and needs an implementation of it, is v1's range.
  *
- * Everything is compile only: the jars arrive at runtime.
+ * It compiles against the v159 epoch, the newest shape it has to survive and deliberately not the range
+ * floor, so one source satisfies both directions: implement what the newest epoch demands and reference
+ * only symbols the oldest still has. Mindustry 159 replaced four file-chooser entry points with
+ * FileChooserParams, which needs a different class rather than a different epoch, hence the
+ * BridgeLauncherLegacy / BridgeLauncherParams split and the run-time probe in BridgeLaunchers.
+ *
+ * Everything is compile only: the game jar, which carries arc, arrives on the command line at runtime.
  */
 def branch = name.startsWith('bridge-') ? name.substring('bridge-'.length()) : name
-def jars = rootProject.ext.epochJars(branch)
+def epochClasspath = rootProject.ext.epochClasspath(branch)
 def epoch = rootProject.ext.epochInfo(branch)
 
 sourceSets {
@@ -31,10 +37,8 @@ dependencies {
     }
     compileOnly files(new File(androidJarRoot, "android.jar"))
 
-    // the game, and the arc jars built out of the game's own tree: the epoch stages both, whichever
-    // shape the epoch has.
-    compileOnly jars.game
-    compileOnly jars.arc
+    // the official desktop jar, which carries both game and arc.
+    compileOnly epochClasspath
 
     // what the arc backend reaches EGL and GLES through. The version has to match the android natives
     // pack downloads, so both read lwjglVersion.
@@ -47,8 +51,8 @@ dependencies {
 tasks.named('compileJava') {
     // without the epoch's jars javac reports a wall of missing arc/mindustry symbols instead.
     doFirst {
-        if (jars.game.isEmpty() || jars.arc.isEmpty()) {
-            throw new GradleException("epoch ${branch}: no jars in ${epoch.gameOut} or ${epoch.arcOut}. " +
+        if (epochClasspath.isEmpty()) {
+            throw new GradleException("epoch ${branch}: no jar in ${epoch.gameOut}. " +
                     "Run :prepareEpoch${branch.capitalize()}, or drop -PskipEpochPrepare.")
         }
     }

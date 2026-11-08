@@ -24,12 +24,15 @@ include 'core'
 // annotations are looked up by name, which is what keeps this from being a cycle.
 include 'processor'
 
-// the arc backend and the game launcher, compiled against one epoch's jars from .mindustry/ and
-// .arc/ - never against sources - and run on every version from 127.0 up.
+// the arc backend and the game launcher, compiled against one epoch's jar from .mindustry/ - never
+// against sources - and run on every version in its branch's range.
 include 'bridge-v1'
 
-// Mindustry 9: Arc merged into the game repository.
+// the 7 and 8 line, compiled against the v159 epoch.
 include 'bridge-v2'
+
+// Mindustry 9: Arc merged into the game repository.
+include 'bridge-v3'
 
 // libcopperbridge.so for every ABI, in the same task graph so its result is staged where pack
 // expects it; not a Java module.
@@ -39,9 +42,8 @@ include 'native'
 include 'pack'
 
 // the build-time API guard: reads the bridge's compiled references and compares the arc/mindustry
-// declarations at the branch's floor and ceiling commits. No game or arc build is involved.
+// declarations at the two ends of the branch's range. No game or arc build is involved.
 include 'compat'
 
-// No includeBuild for ../Mindustry and ../Arc: a composite build is configured by the including
-// build's Gradle, and the epochs do not share one - v151's arc applies gdx-jnigen, which Gradle 9
-// cannot configure. Each epoch is built by its own wrapper, and this build consumes those jars.
+// No includeBuild for the game: an epoch is the desktop jar the game itself ships, which already
+// carries arc, so there is no source tree to configure or compile here.

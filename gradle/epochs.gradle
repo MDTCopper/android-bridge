@@ -1,283 +1,96 @@
 // --- epochs -----------------------------------------------------------------
 //
-// A branch compiles against one game/arc epoch, which nothing here can produce: the refs are checked
-// out to a temporary directory (a sibling pair, because the game only enables local-arc mode when it
-// finds ../Arc beside itself - an epoch whose arc is merged into the game has no second checkout at
-// all), built by its own Gradle wrapper, and its jars copied to .mindustry/ - and to .arc/ for an
-// epoch whose arc is a checkout of its own. This runs at configuration time, at most once per epoch,
-// so an IDE import ends with a resolvable classpath: a task would run only after the import had
-// already failed.
+// A branch compiles against one game epoch: the official desktop jar of a release tag, or of a
+// bleeding-edge build. The desktop jar already contains arc, so no clone is checked out and nothing is
+// built. A jar is fetched once into .mindustry/<ref>/ - which survives clean and is not committed - and
+// read from there by both classpath halves. This file is the only place that knows how a ref becomes a
+// jar; the API check reads the staged files it is handed.
 
-/** Where one epoch's jars go, and which refs produce them. */
+/** Where one ref's jar is staged. */
+ext.epochDir = { String ref -> new File(rootProject.projectDir, ".mindustry/${ref}") }
+
+/** The staged jar of one ref, or null when it has not been fetched. */
+ext.epochJarFile = { String ref ->
+    def dir = epochDir(ref)
+    if (!dir.isDirectory())
+        return null
+    return dir.listFiles()?.find { it.name.endsWith('.jar') }
+}
+
+/** The official desktop jar for a release tag, or for a bleeding-edge build id. */
+ext.epochUrl = { String ref ->
+    if (ref ==~ /\d+/)
+        return "https://github.com/Anuken/MindustryBuilds/releases/download/${ref}/Mindustry-BE-Desktop-${ref}.jar"
+    return "https://github.com/Anuken/Mindustry/releases/download/${ref}/Mindustry.jar"
+}
+
+/** Fetches one ref once. A partial download keeps its .part name, so a failed run is not read as a jar. */
+ext.fetchEpoch = { String ref ->
+    def staged = epochJarFile(ref)
+    if (staged != null)
+        return staged
+
+    def dir = epochDir(ref) as File
+    def url = epochUrl(ref) as String
+    logger.lifecycle("epoch ${ref}: fetching ${url}")
+    dir.mkdirs()
+    def part = new File(dir, 'Mindustry.jar.part')
+    def connection = new URI(url).toURL().openConnection()
+    connection.connectTimeout = 30000
+    connection.readTimeout = 600000
+    connection.inputStream.withStream { input ->
+        part.withOutputStream { output -> output << input }
+    }
+    if (!part.isFile() || part.length() == 0)
+        throw new GradleException("epoch ${ref}: ${url} produced no jar")
+    def jar = new File(dir, 'Mindustry.jar')
+    if (!part.renameTo(jar))
+        throw new GradleException("epoch ${ref}: could not rename ${part} to ${jar}")
+    return jar
+}
+
+/** Where one branch's epoch lives, and which ref produces it. */
 ext.epochInfo = { String branch ->
-    def gameRef = property("${branch}.mindustryRef")
-    def arcRef = (findProperty("${branch}.arcRef") ?: '').toString().trim()
-    return [
-            branch : branch,
-            // a tag, or a commit for an epoch that upstream has not tagged yet
-            gameRef: gameRef,
-            // empty means arc ships inside the game repository: there is nothing to check out beside the game
-            arcRef : arcRef,
-            merged : arcRef.isEmpty(),
-            gameOut: new File(rootProject.projectDir, ".mindustry/${gameRef}"),
-            // a merged epoch builds its arc out of the game's own tree, so those jars belong beside the
-            // game's under .mindustry/; only an epoch with an arc of its own fills .arc/.
-            arcOut : arcRef.isEmpty()
-                    ? new File(rootProject.projectDir, ".mindustry/${gameRef}")
-                    : new File(rootProject.projectDir, ".arc/${gameRef}")
-    ]
+    def ref = property("${branch}.mindustryRef")
+    return [branch: branch, ref: ref, gameOut: epochDir(ref)]
 }
 
-/** The jars one branch compiles against: two directories, no assumptions about file names. */
-ext.epochJars = { String branch ->
-    def info = epochInfo(branch)
-    def jars = { File dir ->
-        fileTree(dir) {
-            include '*.jar'
-            exclude '*-sources.jar'
-            exclude '*-javadoc.jar'
-        }
-    }
-    return [game: jars(info.gameOut), arc: jars(info.arcOut)]
-}
-
-/** Whether an epoch has already been built and copied out. */
-ext.epochIsBuilt = { String branch ->
-    def info = epochInfo(branch)
-    def has = { File dir -> dir.isDirectory() && dir.listFiles()?.any { it.name.endsWith('.jar') } }
-    return has(info.gameOut) && has(info.arcOut)
-}
-
-/** The build directory, without the deprecated Project.getBuildDir(). */
-def buildRoot = { rootProject.layout.buildDirectory.get().asFile }
-
-/**
- * Runs a command, streaming its output into a log file: these epoch builds take minutes, and a tool
- * that buffers its output looks hung.
- *
- * Gradle 9 removed Project.exec and refuses to redirect providers.exec streams, so streaming needs the
- * ExecOperations service.
- */
-def runCommand = { File log, File dir, List<String> command, Closure environment = null ->
-    log.parentFile.mkdirs()
-    def execOps = project.services.get(ExecOperations)
-    def exitCode = 1
-    def stream = new FileOutputStream(log, true)
-    try {
-        def result = execOps.exec { spec ->
-            spec.workingDir = dir
-            spec.commandLine(command)
-            spec.standardOutput = stream
-            spec.errorOutput = stream
-            spec.ignoreExitValue = true
-            if (environment != null)
-                environment(spec.environment)
-        }
-        exitCode = result.exitValue
-    } finally {
-        stream.close()
-    }
-    if (exitCode != 0) {
-        def tail = log.readLines().takeRight(40).join(System.lineSeparator())
-        throw new GradleException("command failed (exit ${exitCode}): ${command.join(' ')}" +
-                System.lineSeparator() + "last lines of ${log}:" + System.lineSeparator() + tail)
-    }
-}
-
-/** Checks one ref out into dir, preferring a worktree of the reference clone because it is cheap. */
-def checkout = { String cloneProperty, String ref, File dir, File log ->
-    def clone = new File(rootProject.projectDir, property(cloneProperty) as String)
-    if (!new File(clone, '.git').exists())
-        throw new GradleException("no clone at ${clone}; ${cloneProperty} must point at a full clone")
-    dir.parentFile.mkdirs()
-
-    // A leftover directory - from a removal whose epoch daemon still held a file open - makes worktree
-    // add refuse the path, and clearing it is all that is needed. Tried before the fallback, which
-    // clones the object database: cheap on disk, but a whole extra checkout to create and delete.
-    for (int attempt = 0; attempt < 2; attempt++) {
-        try {
-            runCommand(log, rootProject.projectDir,
-                    ['git', '-C', clone.absolutePath, 'worktree', 'add', '--detach', dir.absolutePath, ref])
-            return
-        } catch (GradleException ignored) {
-            if (attempt == 0 && dir.exists())
-                delete dir
-            else
-                break
-        }
-    }
-
-    // an older git, or a ref that a worktree cannot take: fall back to a plain checkout
-    delete dir
-    runCommand(log, rootProject.projectDir,
-            ['git', 'clone', '--no-checkout', clone.absolutePath, dir.absolutePath])
-    runCommand(log, dir, ['git', 'checkout', '--detach', ref])
-}
-
-/**
- * Removes an epoch's temporary checkout: nothing reads it once the jars are out, and a failed build
- * keeps it, for the evidence and the incremental state.
- *
- * A worktree checkout is registered in the reference clone, so it must be removed through git: deleting
- * the directory would leave the registration, and the next worktree add at that path would fail.
- */
-def dropCheckout = { File tmp, File log ->
-    [[property('mindustryDir'), new File(tmp, 'Mindustry')],
-     [property('arcDir'), new File(tmp, 'Arc')]].each { List pair ->
-        File clone = new File(rootProject.projectDir, pair[0] as String)
-        File dir = pair[1] as File
-        if (!dir.exists() || !new File(clone, '.git').exists())
-            return
-
-        try {
-            runCommand(log, rootProject.projectDir,
-                    ['git', '-C', clone.absolutePath, 'worktree', 'remove', '--force', dir.absolutePath])
-            return
-        } catch (GradleException ignored) {
-            // not a worktree of this clone, or git refused to remove it: both cases fall through
-        }
-
-        delete dir
-        try {
-            runCommand(log, rootProject.projectDir, ['git', '-C', clone.absolutePath, 'worktree', 'prune'])
-        } catch (GradleException ignored) {
-            // a stale registration is untidy, not fatal: the next checkout deletes the directory again
-        }
-    }
-    delete tmp
-}
-
-/** Copies jars into out by file name; the caller clears the directory first. */
-def copyJarsOut = { Iterable<File> jars, File out ->
-    out.mkdirs()
-    jars.each { File jar -> new File(out, jar.name).bytes = jar.bytes }
-}
-
-/** Builds one epoch and copies its jars out. Returns false when it was already there. */
-ext.prepareEpoch = { String branch ->
-    def info = epochInfo(branch)
-    if (epochIsBuilt(branch))
-        return false
-
-    def log = new File(buildRoot(), "epoch/${info.gameRef}.log")
-    def tmp = new File(buildRoot(), "epoch/${info.gameRef}")
-    def gameDir = new File(tmp, 'Mindustry')
-    def arcDir = new File(tmp, 'Arc')
-    def marker = new File(tmp, 'refs.txt')
-    def refs = "${property('mindustryDir')}@${info.gameRef}${System.lineSeparator()}" +
-            (info.merged ? "" : "${property('arcDir')}@${info.arcRef}${System.lineSeparator()}")
-
-    if (!(marker.isFile() && marker.text == refs)) {
-        logger.lifecycle("epoch ${branch}: preparing ${info.gameRef} once (log: ${log})")
-        logger.lifecycle("  checks out ${property('mindustryDir')}@${info.gameRef}" + (info.merged
-                ? " (arc is inside the game repository)"
-                : " and ${property('arcDir')}@${info.arcRef}") + ", then builds with the game's own Gradle")
-
-        // one log per preparation attempt, so a failed one leaves the whole story behind
-        log.parentFile.mkdirs()
-        log.text = ""
-        dropCheckout(tmp, log)
-        checkout('mindustryDir', info.gameRef, gameDir, log)
-
-        if (!info.merged) {
-            checkout('arcDir', info.arcRef, arcDir, log)
-
-            // Arc's backend-sdl downloads GLEW and an SDL-mingw archive while its build is *configured*,
-            // waiting on curl with no timeout, so a fresh epoch can stall there forever. We never build
-            // those natives and the module only needs the two files to exist, so empty placeholders do.
-            def sdlJni = new File(arcDir, 'backends/backend-sdl/jni')
-            sdlJni.mkdirs()
-            ['glew.zip', 'sdlmingw.tar.gz'].each { String name ->
-                def placeholder = new File(sdlJni, name)
-                if (!placeholder.exists())
-                    placeholder.createNewFile()
-            }
-        }
-
-        marker.parentFile.mkdirs()
-        marker.text = refs
-    } else {
-        logger.lifecycle("epoch ${branch}: reusing the ${info.gameRef} checkout in ${tmp}")
-    }
-
-    def windows = System.getProperty('os.name').toLowerCase().contains('windows')
-    def wrapper = new File(gameDir, windows ? 'gradlew.bat' : 'gradlew')
-    if (!wrapper.isFile())
-        throw new GradleException("epoch ${branch}: no Gradle wrapper in ${gameDir}")
-
-    runCommand(log, gameDir, [wrapper.absolutePath, ':core:jar', '--console=plain']) { environment ->
-        // Mindustry adds its own :android module as soon as ANDROID_HOME is present, and that module
-        // wants arc's android artifacts, which a source checkout does not publish. Only :core is wanted.
-        environment.remove('ANDROID_HOME')
-        environment.remove('ANDROID_SDK_ROOT')
-    }
-
-    // a nested "from(dir) { include ... }" inside a copy is avoided: its patterns silently did not apply.
-    def gameJars = fileTree(new File(gameDir, 'core/build/libs')) {
+/** The one jar a branch compiles against: the desktop jar carries the game and arc together. */
+ext.epochClasspath = { String branch ->
+    fileTree(epochInfo(branch).gameOut) {
         include '*.jar'
         exclude '*-sources.jar'
         exclude '*-javadoc.jar'
     }
-    // A merged epoch builds arc out of the game's own tree, as an included build: the wrapper's :core:jar
-    // depends on it, and its jar lands under arc/, staged beside the game's own. Both layouts then look
-    // the same from here.
-    def arcRoot = info.merged ? new File(gameDir, 'arc') : arcDir
-    // arc-core sits at the top level and the extensions one level down; arc's own backends/ is not matched.
-    def arcJars = fileTree(arcRoot) {
-        include '*/build/libs/*.jar'
-        include 'extensions/*/build/libs/*.jar'
-        exclude '*-sources.jar'
-        exclude '*-javadoc.jar'
-    }
-
-    if (gameJars.isEmpty() || arcJars.isEmpty())
-        throw new GradleException("epoch ${branch}: the build produced no jars under ${gameDir}/core" +
-                " or ${arcRoot}")
-    // both outputs are cleared first: a merged epoch's arc jars go into the same directory as its game
-    // jars, so neither copy may remove what the other put there
-    delete info.gameOut
-    delete info.arcOut
-    copyJarsOut(gameJars, info.gameOut)
-    copyJarsOut(arcJars, info.arcOut)
-
-    if (!epochIsBuilt(branch))
-        throw new GradleException("epoch ${branch}: nothing was copied to ${info.gameOut} or ${info.arcOut}")
-    logger.lifecycle("epoch ${branch}: jars are in .mindustry/${info.gameRef}"
-            + (info.merged ? "" : " and .arc/${info.gameRef}"))
-
-    dropCheckout(tmp, log)
-    return true
 }
+
+/** Stages one branch's epoch. */
+ext.prepareEpoch = { String branch -> fetchEpoch(epochInfo(branch).ref) }
 
 /** Whether a branch subproject has any code yet; pack asks the same question when it builds the jar. */
 ext.branchHasSources = { String branch ->
     !fileTree("bridge-${branch}/src") { include '**/*.java' }.isEmpty()
 }
 
-// Only branches that have code are prepared, so a fresh checkout does not build every epoch to compile
+// The subprojects that carry an epoch: one per version branch.
+def epochNames = ['v1', 'v2', 'v3']
+
+// Only epochs whose code is there are prepared, so a fresh checkout does not fetch every jar to compile
 // one. -Pepochs=v1 picks explicitly.
 if (!project.hasProperty('skipEpochPrepare')) {
     def wanted = project.hasProperty('epochs')
             ? (project.property('epochs') as String).split(',').collect { it.trim() }.findAll { it }
-            : ['v1', 'v2'].findAll { branchHasSources(it) }
+            : epochNames.findAll { branchHasSources(it) }
     wanted.each { String branch -> prepareEpoch(branch) }
 }
 
-// The escape hatch for rebuilding an epoch by hand, after a failure or because a ref moved.
-def epochNames = ['v1', 'v2']
+// The escape hatch for fetching an epoch again, after a failed download or a moved ref.
 epochNames.each { String branch ->
     tasks.register("prepareEpoch${branch.capitalize()}") {
         group = 'epoch'
-        description = "Rebuilds the ${branch} epoch and refreshes the staged jars."
+        description = "Fetches the ${branch} epoch jar again."
         doLast {
-            // asking for it means the cached jars are stale: start from scratch, checkout included
-            def info = epochInfo(branch)
-            def tmp = new File(buildRoot(), "epoch/${info.gameRef}")
-            def log = new File(buildRoot(), "epoch/${info.gameRef}.log")
-            delete info.gameOut
-            delete info.arcOut
-            // through git, so the worktree registration goes with the directory
-            dropCheckout(tmp, log)
+            delete epochDir(epochInfo(branch).ref)
             prepareEpoch(branch)
         }
     }

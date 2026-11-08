@@ -8,8 +8,6 @@ import copper.bridge.gen.*;
 import copper.bridge.jvm.Surface;
 import copper.bridge.util.*;
 
-import java.util.*;
-
 /**
  * arc's application object for the JVM side of the bridge. On Android arc is driven by ART - the activity owns the
  * lifecycle callbacks, a {@code GLSurfaceView} owns the render thread - and neither exists here, so this class owns
@@ -25,11 +23,8 @@ public class BridgeApplication implements Application {
 
     protected final Seq<ApplicationListener> listeners = new Seq<>();
 
-    //plain lists, not Seq: Seq.add's return type differs across the supported range, so one compiled call cannot bind both
-    protected final List<Runnable> runnables = new ArrayList<>();
-    private final List<Runnable> executedRunnables = new ArrayList<>();
-
-    private Thread mainThread;
+    protected final Seq<Runnable> runnables = new Seq<>();
+    private final Seq<Runnable> executedRunnables = new Seq<>();
 
     /** Set once the first frame was handed to the surface: the ART side takes down whatever it showed until then. */
     private boolean firstFrameMarked;
@@ -44,15 +39,13 @@ public class BridgeApplication implements Application {
     /** Runs the game until it exits, blocking the calling thread, which must be the JVM main thread. LWJGL has to be
      *  pointed at the right EGL and GLES libraries before anything asks for a context. */
     public void run() {
-        mainThread = Thread.currentThread();
-
         Core.app = this;
         Core.graphics = graphics;
         Core.input = input;
         Core.files = files;
         Core.settings = new Settings();
         initAudio();
-        initNet();
+        Core.net = new Net();
 
         graphics.configure();
 
@@ -105,7 +98,9 @@ public class BridgeApplication implements Application {
 
             graphics.beginFrame();
             input.processEvents();
-            defaultUpdate();
+            // Application.defaultUpdate does this; the method itself arrived after the floor, so spell it out
+            Core.settings.autosave();
+            arc.util.Time.updateGlobal();
             for (ApplicationListener listener : listeners)
                 listener.update();
             input.processDevices();
@@ -129,7 +124,6 @@ public class BridgeApplication implements Application {
         }
         for (ApplicationListener listener : listeners) {
             try {
-                exit(listener);
                 listener.dispose();
             } catch (Throwable t) {
                 // a failing dispose must not stop the rest of the shutdown
@@ -165,59 +159,25 @@ public class BridgeApplication implements Application {
         }
     }
 
-    /** Installs arc's Net for the 127 line's Core.net; the class left arc-core later, so it is created by name. */
-    private static void initNet() {
-        try {
-            Object net = Class.forName("arc.Net").getConstructor().newInstance();
-            Core.class.getField("net").set(null, net);
-        } catch (Throwable ignored) {
-        }
-    }
-
     /**
-     * Installs the audio implementation the running game declares. 114 moved Audio into arc.audio and made it a
-     * SoLoud wrapper; before that it is the abstract arc.Audio, which the headless MockAudio implements. The
-     * boolean constructor only exists from 127, so the class is probed, not versioned. Every step is reflective:
-     * naming any of those types here would put it in this class's constant pool, and this class is loaded on
-     * every version in the range.
+     * Installs the audio implementation the running game declares: the abstract arc.Audio this branch compiles
+     * against, or the SoloudAudio the 11234 build has under its SoLoud name. No mock - a silent game would hide the
+     * failure it stands for.
      */
     private static void initAudio() {
-        Object audio;
+        arc.Audio audio;
         try {
-            Class<?> type = Class.forName("arc.audio.Audio");
+            audio = (arc.Audio) Class.forName("arc.audio.SoloudAudio").getConstructor().newInstance();
+        } catch (Throwable soloud) {
             try {
-                audio = type.getConstructor(boolean.class).newInstance(true);
-            } catch (NoSuchMethodException noBoolean) {
-                audio = type.getConstructor().newInstance();
-            }
-        } catch (Throwable newer) {
-            try {
-                audio = Class.forName("arc.mock.MockAudio").getConstructor().newInstance();
-            } catch (Throwable older) {
-                Log.error("audio", older);
+                audio = new LegacyAudio();
+            } catch (Throwable legacy) {
+                Log.error("audio", legacy);
                 return;
             }
         }
 
-        try {
-            Core.class.getField("audio").set(null, audio);
-        } catch (Throwable t) {
-            Log.error("audio", t);
-        }
-    }
-
-    /**
-     * Calls exit() when the running listener declares it: the callback was added inside this branch's range, so
-     * a plain call would not link on the older versions it still covers.
-     */
-    private static void exit(ApplicationListener listener) {
-        try {
-            ApplicationListener.class.getMethod("exit").invoke(listener);
-        } catch (NoSuchMethodException ignored) {
-            // older versions have no exit()
-        } catch (Throwable t) {
-            Log.error(t);
-        }
+        Core.audio = audio;
     }
 
     @Override
@@ -228,13 +188,6 @@ public class BridgeApplication implements Application {
     @Override
     public ApplicationType getType() {
         return ApplicationType.android;
-    }
-
-    /** The thread every listener callback arrives on, the one that ran {@link #run()} - and therefore why nothing in
-     *  this class is synchronized. */
-    @Override
-    public Thread getMainThread() {
-        return mainThread;
     }
 
     @Override

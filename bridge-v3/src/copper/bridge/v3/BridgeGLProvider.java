@@ -1,4 +1,4 @@
-package copper.bridge.v2;
+package copper.bridge.v3;
 
 import arc.graphics.*;
 import arc.graphics.gl.*;
@@ -95,15 +95,15 @@ public class BridgeGLProvider implements GLProvider {
     @Override
     public void glBufferData(int target, int size, Buffer data, int usage) {
         if (data == null) {
-            GLES20.glBufferData(target, (long)size, usage);
+            GLES20.glBufferData(target, size, usage);
         } else {
-            GLES20.nglBufferData(target, (long)size, bufferAddress(data), usage);
+            GLES20.nglBufferData(target, size, bufferAddress(data), usage);
         }
     }
 
     @Override
     public void glBufferSubData(int target, int offset, int size, Buffer data) {
-        GLES20.nglBufferSubData(target, (long)offset, (long)size, bufferAddress(data));
+        GLES20.nglBufferSubData(target, offset, size, bufferAddress(data));
     }
 
     @Override
@@ -248,7 +248,7 @@ public class BridgeGLProvider implements GLProvider {
 
     @Override
     public void glDrawElements(int mode, int count, int type, int indices) {
-        GLES20.glDrawElements(mode, count, type, (long)indices);
+        GLES20.glDrawElements(mode, count, type, indices);
     }
 
     @Override
@@ -850,7 +850,7 @@ public class BridgeGLProvider implements GLProvider {
 
     @Override
     public void glVertexAttribPointer(int indx, int size, int type, boolean normalized, int stride, int ptr) {
-        GLES20.glVertexAttribPointer(indx, size, type, normalized, stride, (long)ptr);
+        GLES20.glVertexAttribPointer(indx, size, type, normalized, stride, ptr);
     }
 
     @Override
@@ -962,7 +962,7 @@ public class BridgeGLProvider implements GLProvider {
 
     @Override
     public void glDrawElementsInstanced(int mode, int count, int type, int indicesOffset, int instanceCount) {
-        GLES30.glDrawElementsInstanced(mode, count, type, (long)indicesOffset, instanceCount);
+        GLES30.glDrawElementsInstanced(mode, count, type, indicesOffset, instanceCount);
     }
 
     @Override
@@ -972,7 +972,7 @@ public class BridgeGLProvider implements GLProvider {
 
     @Override
     public void glDrawRangeElements(int mode, int start, int end, int count, int type, int offset) {
-        GLES30.glDrawRangeElements(mode, start, end, count, type, (long)offset);
+        GLES30.glDrawRangeElements(mode, start, end, count, type, offset);
     }
 
     @Override
@@ -1202,7 +1202,7 @@ public class BridgeGLProvider implements GLProvider {
 
     @Override
     public void glTexImage3D(int target, int level, int internalformat, int width, int height, int depth, int border, int format, int type, int offset) {
-        GLES30.glTexImage3D(target, level, internalformat, width, height, depth, border, format, type, (long)offset);
+        GLES30.glTexImage3D(target, level, internalformat, width, height, depth, border, format, type, offset);
     }
 
     @Override
@@ -1212,7 +1212,7 @@ public class BridgeGLProvider implements GLProvider {
 
     @Override
     public void glTexSubImage3D(int target, int level, int xoffset, int yoffset, int zoffset, int width, int height, int depth, int format, int type, int offset) {
-        GLES30.glTexSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, (long)offset);
+        GLES30.glTexSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, offset);
     }
 
     @Override
@@ -1292,7 +1292,7 @@ public class BridgeGLProvider implements GLProvider {
 
     @Override
     public void glVertexAttribIPointer(int index, int size, int type, int stride, int offset) {
-        GLES30.glVertexAttribIPointer(index, size, type, stride, (long)offset);
+        GLES30.glVertexAttribIPointer(index, size, type, stride, offset);
     }
 }
 

@@ -1,10 +1,14 @@
 /**
  * Build-time API guard: reads the branch's compiled references into arc and mindustry, then compares the
- * declarations they use at the two ends of the branch's bleeding-edge range. The range and the excluded classes
- * come from gradle.properties; no game or arc build is involved.
+ * declarations they use at the two ends of the branch's range. Both ends are official desktop jars fetched by
+ * the epoch machinery; no game or arc build is involved.
  */
 sourceSets {
     main {
         java.srcDirs = ["src"]
     }
+}
+
+dependencies {
+    implementation 'org.ow2.asm:asm:9.11.1'
 }

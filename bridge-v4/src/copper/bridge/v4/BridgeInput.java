@@ -2,15 +2,15 @@ package copper.bridge.v4;
 
 import io.anuke.arc.*;
 import io.anuke.arc.input.*;
+import copper.bridge.backend.input.InputEngine;
 import copper.bridge.jvm.*;
 import copper.bridge.gen.*;
 import copper.bridge.util.*;
+import copper.bridge.util.WireCharBuffer;
 import java.util.*;
 
 /** The game's input, fed from the packed batches ART produces; polled and read on the game loop thread alone. */
 public class BridgeInput extends Input implements copper.bridge.v1.InputHost {
-    private static final int MAX_TOUCHES = 20;
-
     private static final Peripheral ONSCREEN_KEYBOARD = Peripheral.OnscreenKeyboard;
     private static final Peripheral MULTITOUCH_SCREEN = Peripheral.MultitouchScreen;
     private static final Peripheral VIBRATOR = Peripheral.Vibrator;
@@ -18,104 +18,41 @@ public class BridgeInput extends Input implements copper.bridge.v1.InputHost {
     private static final Orientation LANDSCAPE = Orientation.Landscape;
     private static final Orientation PORTRAIT = Orientation.Portrait;
 
-    /** The schema this bridge binds; an inner class because this one already extends arc's {@code Input}. */
-    public final class Events extends InputBatch {
+    private final InputEngine engine;
+    private final boolean[] downState = new boolean[KeyCode.all.length];
+
+    public BridgeInput() {
+        engine = new InputEngine(new Sink(), () -> Core.graphics.getHeight());
+    }
+
+    /** Maps the backend's raw pointer/key events to arc's input multiplexer. */
+    private final class Sink implements InputEngine.Sink {
         @Override
-        public void pointerDown(int pointerId, float rawX, float rawY, float rawPressure) {
-            // A down for an already tracked pointer keeps its slot: a second one would strand the first.
-            int index = lookUpPointerIndex(pointerId);
-            if (index == -1) index = freePointerIndex();
-            if (index == -1) return;
-
-            int x = (int)rawX;
-            int y = Core.graphics.getHeight() - 1 - (int)rawY;
-
-            realId[index] = pointerId;
-            touchX[index] = x;
-            touchY[index] = y;
-            deltaX[index] = 0;
-            deltaY[index] = 0;
-            button[index] = KeyCode.MOUSE_LEFT.ordinal();
-            pressure[index] = rawPressure;
-            touched[index] = true;
-
-            inputMultiplexer.touchDown(x, y, index, KeyCode.MOUSE_LEFT);
-            justTouched = true;
+        public void touchDown(int pointer, int x, int y) {
+            inputMultiplexer.touchDown(x, y, pointer, KeyCode.MOUSE_LEFT);
         }
 
         @Override
-        public void pointerUp(int pointerId, float rawX, float rawY) {
-            int index = lookUpPointerIndex(pointerId);
-            if (index == -1) return;
-
-            int x = (int)rawX;
-            int y = Core.graphics.getHeight() - 1 - (int)rawY;
-            KeyCode key = KeyCode.byOrdinal(button[index]);
-
-            realId[index] = -1;
-            touchX[index] = x;
-            touchY[index] = y;
-            deltaX[index] = 0;
-            deltaY[index] = 0;
-            button[index] = 0;
-            pressure[index] = 0f;
-            touched[index] = false;
-
-            if (key != KeyCode.UNKNOWN) {
-                inputMultiplexer.touchUp(x, y, index, key);
-            }
+        public void touchUp(int pointer, int x, int y) {
+            inputMultiplexer.touchUp(x, y, pointer, KeyCode.MOUSE_LEFT);
         }
 
         @Override
-        public void pointerMove(int pointerId, float rawX, float rawY, float rawPressure) {
-            int index = lookUpPointerIndex(pointerId);
-            int x = (int)rawX;
-            int y = Core.graphics.getHeight() - 1 - (int)rawY;
-
-            if (index == -1) {
-                if (x == mouseLastX && (int)rawY == mouseLastY) return;
-
+        public void pointerMove(int pointer, int x, int y) {
+            if (pointer == -1)
                 inputMultiplexer.mouseMoved(x, y);
-                deltaX[0] = x - mouseLastX;
-                deltaY[0] = -((int)rawY - mouseLastY);
-                touchX[0] = x;
-                touchY[0] = y;
-                mouseLastX = x;
-                mouseLastY = (int)rawY;
-                return;
-            }
-
-            KeyCode key = KeyCode.byOrdinal(button[index]);
-
-            // arc's own Android computation: the game must read the same values as on vanilla Android.
-            deltaX[index] = x - touchX[index];
-            deltaY[index] = -((int)rawY - touchY[index]);
-            touchX[index] = x;
-            touchY[index] = y;
-            pressure[index] = rawPressure;
-
-            if (key != KeyCode.UNKNOWN) {
-                inputMultiplexer.touchDragged(x, y, index);
-            } else {
-                inputMultiplexer.mouseMoved(x, y);
-            }
+            else
+                inputMultiplexer.touchDragged(x, y, pointer);
         }
 
         @Override
-        public void pointerCancel() {
-            // no synthetic release: the game's tap handling would turn a cancel into a click where the finger was
-            clearPointers();
+        public void scroll(float amount) {
+            inputMultiplexer.scrolled(0f, amount);
         }
 
         @Override
-        public void scroll(float scrollY) {
-            inputMultiplexer.scrolled(0f, scrollY);
-        }
-
-        /** A repeat above zero and a down for an already-down key are consumed; the multiplexer delivers it. */
-        @Override
-        public void keyDown(int deviceCode, int repeatCount) {
-            if (repeatCount > 0) return;
+        public void keyDown(int deviceCode, int repeat) {
+            if (repeat > 0) return;
 
             KeyCode key = KeyMap.getKeyCode(deviceCode);
             int index = key.ordinal();
@@ -148,30 +85,6 @@ public class BridgeInput extends Input implements copper.bridge.v1.InputHost {
         }
     }
 
-    private final int[] touchX = new int[MAX_TOUCHES];
-    private final int[] touchY = new int[MAX_TOUCHES];
-    private final int[] deltaX = new int[MAX_TOUCHES];
-    private final int[] deltaY = new int[MAX_TOUCHES];
-    private final int[] button = new int[MAX_TOUCHES];
-    private final float[] pressure = new float[MAX_TOUCHES];
-    private final boolean[] touched = new boolean[MAX_TOUCHES];
-    /** The Android pointer id a slot is tracking, or -1 when the slot is free. */
-    private final int[] realId = new int[MAX_TOUCHES];
-
-    /** The previous hover position, which is only ever set by a mouse or a stylus, never by a touch. */
-    private int mouseLastX;
-    private int mouseLastY;
-
-    private final boolean[] downState = new boolean[KeyCode.all.length];
-
-    private boolean justTouched;
-    private long currentEventTimeStamp = System.nanoTime();
-
-    public BridgeInput() {
-        Arrays.fill(realId, -1);
-        JvmBatch.bind(new Events());
-    }
-
     /** One back tap through the normal input path, used when no dialog is open. */
     public void backTap() {
         inputMultiplexer.keyDown(KeyCode.BACK);
@@ -180,20 +93,9 @@ public class BridgeInput extends Input implements copper.bridge.v1.InputHost {
 
     /** Drains every pending frame and replays it, so a swipe sampled faster than the frame rate arrives whole. */
     public void processEvents() {
-        justTouched = false;
-
-        JvmBatch.input.poll();
-        while (JvmBatch.input.hasNext()) {
-            JvmBatch.input.processHeader();
-
-            currentEventTimeStamp = System.nanoTime();
-
-            JvmBatch.input.processRecords();
-            JvmBatch.input.next();
-        }
+        engine.processEvents();
     }
 
-    /** Not a loop over {@code Input.devices}: arc removes that field in v152, and the keyboard is its only device. */
     /** Absent in this range; the input devices have no per-frame update pass. */
     public void processDevices() {
     }
@@ -208,40 +110,8 @@ public class BridgeInput extends Input implements copper.bridge.v1.InputHost {
 
     private void clearState() {
         Arrays.fill(downState, false);
-        clearPointers();
+        engine.clearPointers();
     }
-
-    private void clearPointers() {
-        for (int i = 0; i < MAX_TOUCHES; i++) {
-            realId[i] = -1;
-            touchX[i] = 0;
-            touchY[i] = 0;
-            deltaX[i] = 0;
-            deltaY[i] = 0;
-            button[i] = 0;
-            pressure[i] = 0f;
-            touched[i] = false;
-        }
-        mouseLastX = 0;
-        mouseLastY = 0;
-    }
-
-    //region pointers
-
-    private int freePointerIndex() {
-        for (int i = 0; i < MAX_TOUCHES; i++) {
-            if (realId[i] == -1) return i;
-        }
-        return -1;
-    }
-
-    private int lookUpPointerIndex(int pointerId) {
-        for (int i = 0; i < MAX_TOUCHES; i++) {
-            if (realId[i] == pointerId) return i;
-        }
-        return -1;
-    }
-    //endregion
 
     //region text input and other peripherals
 
@@ -302,70 +172,67 @@ public class BridgeInput extends Input implements copper.bridge.v1.InputHost {
 
     @Override
     public int mouseX() {
-        return touchX[0];
+        return engine.mouseX(0);
     }
 
     @Override
     public int mouseX(int pointer) {
-        return touchX[pointer];
+        return engine.mouseX(pointer);
     }
 
     @Override
     public int mouseY() {
-        return touchY[0];
+        return engine.mouseY(0);
     }
 
     @Override
     public int mouseY(int pointer) {
-        return touchY[pointer];
+        return engine.mouseY(pointer);
     }
 
     @Override
     public int deltaX() {
-        return deltaX[0];
+        return engine.deltaX(0);
     }
 
     @Override
     public int deltaX(int pointer) {
-        return deltaX[pointer];
+        return engine.deltaX(pointer);
     }
 
     @Override
     public int deltaY() {
-        return deltaY[0];
+        return engine.deltaY(0);
     }
 
     @Override
     public int deltaY(int pointer) {
-        return deltaY[pointer];
+        return engine.deltaY(pointer);
     }
 
     @Override
     public boolean isTouched() {
-        for (int pointer = 0; pointer < MAX_TOUCHES; pointer++) {
-            if (touched[pointer]) return true;
-        }
-        return false;
+        return engine.isTouched();
     }
 
     @Override
     public boolean isTouched(int pointer) {
-        return touched[pointer];
+        return engine.isTouched(pointer);
     }
 
     @Override
     public boolean justTouched() {
-        return justTouched;
+        return engine.justTouched();
     }
 
     @Override
     public float getPressure(int pointer) {
-        return pressure[pointer];
+        return engine.pressure(pointer);
     }
 
     @Override
     public long getCurrentEventTime() {
-        return currentEventTimeStamp;
+        return engine.currentEventTime();
     }
 
     //endregion

@@ -33,6 +33,9 @@ configure(subprojects - project(':native')) {
 // branch's ends.
 configure(subprojects.findAll { it.name ==~ /bridge-v\d+/ }) {
     def version = it.name.substring('bridge-v'.length()) as int
+    dependencies {
+        api project(':backend')
+    }
     if (version > 1) {
         dependencies {
             for (int lower = 1; lower < version; lower++)

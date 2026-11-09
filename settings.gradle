@@ -20,6 +20,9 @@ rootProject.name = 'android-bridge'
 // no arc or game dependency: the JNI bindings, the ART side activity, the version table.
 include 'core'
 
+// the platform capabilities shared by every branch: EGL/GLES display and the input batch pipeline.
+include 'backend'
+
 // a compiled processor is needed before :core can be compiled, and it depends on nothing:
 // annotations are looked up by name, which is what keeps this from being a cycle.
 include 'processor'

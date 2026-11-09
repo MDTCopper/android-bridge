@@ -27,3 +27,8 @@ configure(subprojects - project(':native') - project(':bridge')) {
         options.addStringOption('Xdoclint:none', '-quiet')
     }
 }
+
+// debug-free branch classes: the archive is the shipped form and line tables are the largest optional attribute.
+configure(subprojects.findAll { it.path.startsWith(':bridge:') && it.name != 'bridge' }) {
+    tasks.withType(JavaCompile).configureEach { options.debug = false }
+}

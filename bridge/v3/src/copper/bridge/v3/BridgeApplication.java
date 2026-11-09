@@ -10,7 +10,6 @@ import copper.bridge.gen.*;
 import copper.bridge.v3.BridgeGraphics;
 import copper.bridge.v3.BridgeEvents;
 import copper.bridge.v3.BridgeFiles;
-import copper.bridge.jvm.Surface;
 import copper.bridge.util.*;
 
 import java.util.*;

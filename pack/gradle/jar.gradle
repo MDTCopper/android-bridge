@@ -11,12 +11,14 @@ def branchDirs = branchNames.collectEntries { String branch ->
 }
 def branchStream = layout.buildDirectory.file('branch-stream/branches.deflate')
 def branchArchive = tasks.register('branchArchive') {
+    branchNames.each { dependsOn ":bridge:${it}:compileJava" }
     inputs.files(branchDirs.values())
     outputs.file(branchStream)
     doLast {
         def out = branchStream.get().asFile
         out.parentFile.mkdirs()
-        new java.io.DataOutputStream(new java.util.zip.DeflaterOutputStream(new java.io.FileOutputStream(out)))
+        new java.io.DataOutputStream(new java.util.zip.DeflaterOutputStream(new java.io.FileOutputStream(out),
+                        new java.util.zip.Deflater(java.util.zip.Deflater.BEST_COMPRESSION)))
                 .withCloseable { data ->
                     def byPath = new TreeMap<String, List>()
                     branchDirs.each { String branch, File dir ->

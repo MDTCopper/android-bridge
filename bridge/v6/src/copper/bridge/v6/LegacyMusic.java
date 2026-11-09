@@ -6,7 +6,6 @@ import arc.audio.*;
 import arc.files.*;
 
 import copper.bridge.gen.*;
-import copper.bridge.jvm.MusicListeners;
 
 /**
  * One track of the abstract arc.Audio. The loop flag and the volume are kept here because MediaPlayer has no getter

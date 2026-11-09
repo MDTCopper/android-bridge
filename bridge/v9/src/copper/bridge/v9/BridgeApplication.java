@@ -10,7 +10,6 @@ import arc.util.Threads;
 
 import copper.bridge.*;
 import copper.bridge.gen.*;
-import copper.bridge.jvm.Surface;
 import copper.bridge.util.*;
 
 /**

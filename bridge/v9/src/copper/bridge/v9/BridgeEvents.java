@@ -5,7 +5,6 @@ import arc.struct.*;
 
 import copper.bridge.gen.*;
 import copper.bridge.jvm.Events;
-import copper.bridge.jvm.Surface;
 import copper.bridge.util.*;
 
 /**

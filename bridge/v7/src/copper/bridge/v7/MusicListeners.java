@@ -1,4 +1,4 @@
-package copper.bridge.jvm;
+package copper.bridge.v7;
 
 import java.util.*;
 import java.util.concurrent.*;

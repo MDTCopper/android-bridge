@@ -6,8 +6,6 @@ import io.anuke.arc.collection.*;
 
 import copper.bridge.gen.*;
 import copper.bridge.jvm.Events;
-import copper.bridge.jvm.MusicListeners;
-import copper.bridge.jvm.Surface;
 import copper.bridge.util.*;
 
 /**

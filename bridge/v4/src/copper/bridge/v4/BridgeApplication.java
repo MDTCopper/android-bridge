@@ -11,7 +11,6 @@ import copper.bridge.v4.BridgeEvents;
 import copper.bridge.v4.BridgeFiles;
 import copper.bridge.v4.LegacyAudio;
 import copper.bridge.v4.BridgeGraphics;
-import copper.bridge.jvm.Surface;
 import copper.bridge.util.*;
 
 import java.util.*;

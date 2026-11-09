@@ -1,4 +1,4 @@
-package copper.bridge.jvm;
+package copper.bridge.v7;
 
 /**
  * The surface ART handed over, as the JVM side sees it. One process has one window, so there is nothing to

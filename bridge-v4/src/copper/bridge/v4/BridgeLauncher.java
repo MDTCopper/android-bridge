@@ -5,6 +5,7 @@ import io.anuke.arc.files.*;
 import io.anuke.arc.func.*;
 
 import copper.bridge.gen.*;
+import copper.bridge.v1.UriFi;
 import copper.bridge.util.*;
 import io.anuke.mindustry.*;
 import io.anuke.mindustry.core.*;

@@ -1,4 +1,5 @@
 package copper.bridge.v8;
+import copper.bridge.v6.UriFi;
 
 import arc.*;
 import arc.files.*;

@@ -5,6 +5,7 @@ import arc.files.*;
 import arc.func.*;
 
 import copper.bridge.gen.*;
+import copper.bridge.v6.UriFi;
 import copper.bridge.util.*;
 import mindustry.*;
 import mindustry.core.*;

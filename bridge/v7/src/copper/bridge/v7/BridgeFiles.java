@@ -1,6 +1,6 @@
 package copper.bridge.v7;
 
-import copper.bridge.annotation.BridgeInterface;
+import copper.bridge.annotation.BridgeOverride;
 
 import arc.*;
 import arc.files.*;
@@ -22,27 +22,27 @@ public class BridgeFiles implements Files {
         this.dataFolder = require(Bridge.options.gameDataFolder, "game data folder");
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public Fi get(String path, FileType type) {
         return new BridgeFi(this, path, type);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public String getExternalStoragePath() {
         return dataFolder.getAbsolutePath() + File.separator;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public boolean isExternalStorageAvailable() {
         return usable(dataFolder);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public String getLocalStoragePath() {
         return dataFolder.getAbsolutePath() + File.separator;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public boolean isLocalStorageAvailable() {
         return usable(dataFolder);
     }

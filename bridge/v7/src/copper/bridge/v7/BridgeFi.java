@@ -1,6 +1,6 @@
 package copper.bridge.v7;
 
-import copper.bridge.annotation.BridgeInterface;
+import copper.bridge.annotation.BridgeOverride;
 
 import arc.Files.*;
 import arc.files.*;
@@ -29,21 +29,21 @@ public class BridgeFi extends Fi {
         this.files = files;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public Fi child(String name) {
         name = name.replace('\\', '/');
         if (file.getPath().length() == 0) return new BridgeFi(files, new File(name), type);
         return new BridgeFi(files, new File(file, name), type);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public Fi sibling(String name) {
         name = name.replace('\\', '/');
         if (file.getPath().length() == 0) throw new ArcRuntimeException("Cannot get the sibling of the root.");
         return new BridgeFi(files, new File(file.getParent(), name), type);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public Fi parent() {
         File parent = file.getParentFile();
         if (parent == null) {
@@ -52,7 +52,7 @@ public class BridgeFi extends Fi {
         return new BridgeFi(files, parent, type);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public File file() {
         if (type == FileType.local) return new File(files.getLocalStoragePath(), file.getPath());
         return super.file();

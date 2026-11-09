@@ -1,6 +1,6 @@
 package copper.bridge.v2;
 
-import copper.bridge.annotation.BridgeInterface;
+import copper.bridge.annotation.BridgeOverride;
 
 import io.anuke.arc.Files.FileType;
 import io.anuke.arc.files.*;
@@ -25,13 +25,13 @@ public class UriFi extends FileHandle {
         this.type = FileType.values()[3]; //absolute
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public InputStream read() {
         byte[] data = JvmCall.readUri(uri);
         return new ByteArrayInputStream(data == null ? new byte[0] : data);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public OutputStream write(boolean append) {
         // a document is one write: appending would mean reading it back and rewriting it
         if (append)
@@ -39,23 +39,23 @@ public class UriFi extends FileHandle {
         return new DocumentOutputStream(uri);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public boolean exists() {
         return true;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public long length() {
         byte[] data = JvmCall.readUri(uri);
         return data == null ? 0 : data.length;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public String name() {
         return file.getName();
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public String extension() {
         String name = file.getName();
         int dot = name.lastIndexOf('.');

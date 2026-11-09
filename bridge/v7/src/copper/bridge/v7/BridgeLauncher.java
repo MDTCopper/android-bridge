@@ -1,6 +1,6 @@
 package copper.bridge.v7;
 
-import copper.bridge.annotation.BridgeInterface;
+import copper.bridge.annotation.BridgeOverride;
 
 import arc.*;
 import arc.files.*;
@@ -46,25 +46,25 @@ public class BridgeLauncher extends ClientLauncher implements Platform {
         CrashSender.log(cause);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public void hide() {
         JvmCall.hide();
     }
 
     /** Pins the game to landscape, or releases it to the user's rotation setting; released, the game can end up
      *  portrait. */
-    @BridgeInterface
+    @BridgeOverride
     public void beginForceLandscape() {
         JvmCall.forceLandscape(true);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public void endForceLandscape() {
         JvmCall.forceLandscape(false);
     }
 
     /** Left empty on purpose: a share sheet would need a {@code FileProvider} in the host app's manifest. */
-    @BridgeInterface
+    @BridgeOverride
     public void shareFile(Fi file) {
     }
 
@@ -74,14 +74,14 @@ public class BridgeLauncher extends ClientLauncher implements Platform {
      * once (ART has already copied the documents into the bridge cache), a save request the URIs the game writes
      * through {@link UriFi} when it is ready.
      */
-    @BridgeInterface
+    @BridgeOverride
     public void showFileChooser(boolean open, String title, Cons<Fi> cons) {
         pick(open, title, new String[] {""}, cons);
     }
 
     /** The same picker with a file-type filter. The interface gained this method after the range's floor, so it
-     *  carries no {@code @BridgeInterface}. */
-    @BridgeInterface
+     *  carries no {@code @BridgeOverride}. */
+    @BridgeOverride
     public void showMultiFileChooser(Cons<Fi> cons, String... extensions) {
         pick(true, "@open", extensions, cons);
     }

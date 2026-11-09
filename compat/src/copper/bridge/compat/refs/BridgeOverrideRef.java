@@ -1,14 +1,14 @@
 package copper.bridge.compat.refs;
 
-/** One method annotated with {@code @BridgeInterface}, with the class that declares it. */
-public final class BridgeInterfaceRef {
+/** One method annotated with {@code @BridgeOverride}, with the class that declares it. */
+public final class BridgeOverrideRef {
     public final String sourceClass;
     public final String owner;
     public final String name;
     public final String descriptor;
     public boolean annotated;
 
-    public BridgeInterfaceRef(String sourceClass, String owner, String name, String descriptor) {
+    public BridgeOverrideRef(String sourceClass, String owner, String name, String descriptor) {
         this.sourceClass = sourceClass;
         this.owner = owner;
         this.name = name;

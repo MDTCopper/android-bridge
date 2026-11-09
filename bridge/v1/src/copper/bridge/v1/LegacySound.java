@@ -1,6 +1,6 @@
 package copper.bridge.v1;
 
-import copper.bridge.annotation.BridgeInterface;
+import copper.bridge.annotation.BridgeOverride;
 
 import io.anuke.arc.audio.*;
 import io.anuke.arc.files.*;
@@ -20,78 +20,78 @@ final class LegacySound implements Sound {
         this.sound = JvmCall.newSound(file.name(), file.readBytes());
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public long play(float volume, float pitch, float pan) {
         return sound <= 0 ? -1 : JvmCall.playSound(sound, volume, pitch, pan, false);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public long loop(float volume, float pitch, float pan) {
         return sound <= 0 ? -1 : JvmCall.playSound(sound, volume, pitch, pan, true);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public void stop() {
         if (sound > 0)
             JvmCall.stopSound(sound);
     }
 
     /** SoundPool pauses every stream at once; it has no per-sound switch, so this is what the platform offers. */
-    @BridgeInterface
+    @BridgeOverride
     public void pause() {
         if (sound > 0)
             JvmCall.pauseSound();
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public void resume() {
         if (sound > 0)
             JvmCall.resumeSound();
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public void dispose() {
         if (sound > 0)
             JvmCall.disposeSound(sound);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public void stop(long handle) {
         if (sound > 0)
             JvmCall.stopSoundAt(sound, (int)handle);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public void pause(long handle) {
         if (sound > 0)
             JvmCall.pauseSoundAt((int)handle);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public void resume(long handle) {
         if (sound > 0)
             JvmCall.resumeSoundAt((int)handle);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public void setLooping(long handle, boolean looping) {
         if (sound > 0)
             JvmCall.setSoundLooping((int)handle, looping);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public void setPitch(long handle, float pitch) {
         if (sound > 0)
             JvmCall.setSoundPitch((int)handle, pitch);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public void setVolume(long handle, float volume) {
         if (sound > 0)
             JvmCall.setSoundVolume((int)handle, volume);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public void setPan(long handle, float pan, float volume) {
         if (sound > 0)
             JvmCall.setSoundPan((int)handle, pan, volume);

@@ -2,7 +2,7 @@ package copper.bridge.compat.check;
 
 import copper.bridge.compat.api.ClassInfo;
 import copper.bridge.compat.api.JarIndex;
-import copper.bridge.compat.refs.BridgeInterfaceRef;
+import copper.bridge.compat.refs.BridgeOverrideRef;
 import copper.bridge.compat.sources.RefJars;
 
 import java.io.*;
@@ -11,51 +11,51 @@ import java.util.*;
 import java.util.stream.*;
 
 /**
- * Checks both directions of {@code @BridgeInterface}: a method the game hierarchy declares must carry the annotation,
+ * Checks both directions of {@code @BridgeOverride}: a method the game hierarchy declares must carry the annotation,
  * and an annotated method must actually mirror a game method. A method that mirrors only our own interfaces keeps
  * {@code @Override}; that is how the two kinds stay distinguishable.
  */
-public final class BridgeInterfaceComparer {
+public final class BridgeOverrideComparer {
     private final Map<String, ClassInfo> branchClasses = new HashMap<>();
     private final Map<String, ClassInfo> jarClasses = new HashMap<>();
 
-    private BridgeInterfaceComparer() {
+    private BridgeOverrideComparer() {
     }
 
-    public static List<String> compareJar(List<BridgeInterfaceRef> refs, Range range, RefJars jars,
+    public static List<String> compareJar(List<BridgeOverrideRef> refs, Range range, RefJars jars,
                                           Path bridgeClasses) {
-        BridgeInterfaceComparer comparer = new BridgeInterfaceComparer();
+        BridgeOverrideComparer comparer = new BridgeOverrideComparer();
         comparer.indexBranch(bridgeClasses);
         List<String> issues = new ArrayList<>();
-        for (BridgeInterfaceRef ref : refs) {
+        for (BridgeOverrideRef ref : refs) {
             boolean floor = comparer.gameMatch(ref, jars.jar(range.floor));
             boolean ceiling = comparer.gameMatch(ref, jars.jar(range.ceiling));
             if (ref.annotated && !floor && !ceiling) {
                 issues.add("bridge method annotation is wrong: " + ref.owner + "." + ref.name + ref.descriptor
                         + " mirrors no game supertype at either end");
             } else if (!ref.annotated && (floor || ceiling)) {
-                issues.add("game interface method is missing @BridgeInterface: " + ref.owner + "." + ref.name
+                issues.add("game override is missing @BridgeOverride: " + ref.owner + "." + ref.name
                         + ref.descriptor);
             }
         }
         return issues;
     }
 
-    public static List<String> compareCode(List<BridgeInterfaceRef> refs, Range range,
+    public static List<String> compareCode(List<BridgeOverrideRef> refs, Range range,
                                            Path gameDir, Path arcDir, Path bridgeClasses) {
         SourceHierarchy floor = new SourceHierarchy(gameDir, range.floor, arcDir,
                 range.arcFloor == null ? range.floor : range.arcFloor, bridgeClasses);
         SourceHierarchy ceiling = new SourceHierarchy(gameDir, range.ceiling, arcDir,
                 range.arcCeiling == null ? range.ceiling : range.arcCeiling, bridgeClasses);
         List<String> issues = new ArrayList<>();
-        for (BridgeInterfaceRef ref : refs) {
+        for (BridgeOverrideRef ref : refs) {
             boolean floorMatch = floor.gameMatch(ref.owner, ref.name);
             boolean ceilingMatch = ceiling.gameMatch(ref.owner, ref.name);
             if (ref.annotated && !floorMatch && !ceilingMatch) {
                 issues.add("bridge method annotation is wrong: " + ref.owner + "." + ref.name + ref.descriptor
                         + " mirrors no game supertype at either end");
             } else if (!ref.annotated && (floorMatch || ceilingMatch)) {
-                issues.add("game interface method is missing @BridgeInterface: " + ref.owner + "." + ref.name
+                issues.add("game override is missing @BridgeOverride: " + ref.owner + "." + ref.name
                         + ref.descriptor);
             }
         }
@@ -78,7 +78,7 @@ public final class BridgeInterfaceComparer {
         }
     }
 
-    private boolean gameMatch(BridgeInterfaceRef ref, JarIndex jar) {
+    private boolean gameMatch(BridgeOverrideRef ref, JarIndex jar) {
         jarClasses.clear();
         Deque<String> queue = new ArrayDeque<>();
         Set<String> seen = new HashSet<>();

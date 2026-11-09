@@ -1,6 +1,6 @@
 package copper.bridge.v9;
 
-import copper.bridge.annotation.BridgeInterface;
+import copper.bridge.annotation.BridgeOverride;
 
 import arc.*;
 import arc.graphics.Cursor;
@@ -390,125 +390,125 @@ public class BridgeGraphics extends Graphics {
             EGL10.eglSwapBuffers(eglDisplay, eglSurface);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public int getWidth() {
         return width;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public int getHeight() {
         return height;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public int getBackBufferWidth() {
         return width;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public int getBackBufferHeight() {
         return height;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public int[] getSafeInsets(){
         return new int[]{safeInsetLeft, safeInsetRight, safeInsetTop, safeInsetBottom};
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public long getFrameId() {
         return frameId;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public float getDeltaTime() {
         return deltaTime;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public int getFramesPerSecond() {
         return fps;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public GLVersion getGLVersion() {
         return glVersion;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public float getPpiX() {
         return Bridge.options.xdpi;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public float getPpiY() {
         return Bridge.options.ydpi;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public float getPpcX() {
         return Bridge.options.xdpi / 2.54f;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public float getPpcY() {
         return Bridge.options.ydpi / 2.54f;
     }
 
     /** ART's display density; arc scales the whole mobile UI by it. */
-    @BridgeInterface
+    @BridgeOverride
     public float getDensity() {
         return Bridge.options.density;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public void setTitle(String title) {
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public void setVSync(boolean vsync) {
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public BufferFormat getBufferFormat() {
         return bufferFormat;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public boolean supportsExtension(String extension) {
         if (extensions == null && gl != null)
             extensions = gl.glGetString(Gl.extensions);
         return extensions != null && extensions.contains(extension);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public boolean isContinuousRendering() {
         return true;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public void setContinuousRendering(boolean isContinuous) {
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public void requestRendering() {
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public boolean isFullscreen() {
         return true;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public Cursor newCursor(Pixmap pixmap, int xHotspot, int yHotspot) {
         return null;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     protected void setCursor(Cursor cursor) {
     }
 
-    @BridgeInterface
+    @BridgeOverride
     protected void setSystemCursor(SystemCursor systemCursor) {
     }
 }

@@ -30,7 +30,7 @@ public final class Check {
         Path bridge = Paths.get(required(options, "bridge"));
         List<ClassRef> refs = ClassRefs.read(bridge);
         List<ReflectionRef> reflections = ReflectionRefs.read(bridge);
-        List<BridgeInterfaceRef> interfaces = BridgeInterfaceRefs.read(bridge);
+        List<BridgeOverrideRef> interfaces = BridgeOverrideRefs.read(bridge);
         List<ArcReflectRef> reflect = ArcReflectRefs.read(bridge);
         String mode = options.getOrDefault("mode", "jar").trim();
 
@@ -45,7 +45,7 @@ public final class Check {
 
         System.out.println(branch + " (" + mode + "): " + refs.size() + " direct reference(s), "
                 + reflections.size() + " direct reflection target(s), " + interfaces.stream().filter(r -> r.annotated).count()
-                + " bridge interface method(s), " + reflect.size() + " arc Reflect target(s)");
+                + " bridge override method(s), " + reflect.size() + " arc Reflect target(s)");
         for (String issue : issues)
             System.out.println("  " + issue);
         if (issues.isEmpty()) {
@@ -58,12 +58,12 @@ public final class Check {
 
     private static List<String> checkJar(String[] args, Map<String, String> options, String branch,
                                          Path bridge, List<ClassRef> refs, List<ReflectionRef> reflections,
-                                         List<BridgeInterfaceRef> interfaces, List<ArcReflectRef> reflect) {
+                                         List<BridgeOverrideRef> interfaces, List<ArcReflectRef> reflect) {
         CheckConfig config = CheckConfig.load(Paths.get(required(options, "properties")), branch);
         List<String> issues = new ArrayList<>();
         System.out.println("  total   " + refs.size() + " referenced member(s), "
                 + reflections.size() + " reflection target(s), " + interfaces.stream().filter(r -> r.annotated).count()
-                + " bridge interface method(s), " + reflect.size() + " arc Reflect target(s)");
+                + " bridge override method(s), " + reflect.size() + " arc Reflect target(s)");
 
         Range branchRange = new Range(config.floor, config.ceiling);
         Map<String, Range> overrides = new HashMap<>();
@@ -94,14 +94,14 @@ public final class Check {
             System.out.println("  ceiling " + config.ceiling);
             issues.addAll(ApiComparer.compare(refs, branchRange, overrides, jars));
             issues.addAll(ReflectionComparer.compareJar(reflections, branchRange, overrides, jars));
-            issues.addAll(BridgeInterfaceComparer.compareJar(interfaces, branchRange, jars, bridge));
+            issues.addAll(BridgeOverrideComparer.compareJar(interfaces, branchRange, jars, bridge));
             issues.addAll(ArcReflectComparer.compareJar(reflect, branchRange, jars));
             return issues;
         }
     }
 
     private static List<String> checkCode(Map<String, String> options, Path bridge, List<ClassRef> refs,
-                                          List<ReflectionRef> reflections, List<BridgeInterfaceRef> interfaces,
+                                          List<ReflectionRef> reflections, List<BridgeOverrideRef> interfaces,
                                           List<ArcReflectRef> reflect) {
         Path gameDir = Paths.get(required(options, "mindustry"));
         Path arcDir = Paths.get(required(options, "arc"));
@@ -145,7 +145,7 @@ public final class Check {
         System.out.println("  arc     " + shortCommit(arcFloor) + " .. " + shortCommit(arcCeiling));
         List<String> issues = new ArrayList<>(SourceComparer.compare(refs, branchRange, overrides, gameDir, arcDir));
         issues.addAll(ReflectionComparer.compareCode(reflections, branchRange, overrides, gameDir, arcDir));
-        issues.addAll(BridgeInterfaceComparer.compareCode(interfaces, branchRange, gameDir, arcDir, bridge));
+        issues.addAll(BridgeOverrideComparer.compareCode(interfaces, branchRange, gameDir, arcDir, bridge));
         issues.addAll(ArcReflectComparer.compareCode(reflect, branchRange, gameDir, arcDir));
         return issues;
     }

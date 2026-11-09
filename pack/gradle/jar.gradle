@@ -9,6 +9,10 @@ def coreOutput = project(':core').sourceSets.main.output
 def branchDirs = branchNames.collectEntries { String branch ->
     [(branch): project(":bridge:${branch}").sourceSets.main.output.classesDirs.singleFile]
 }
+// One DEFLATE stream for every branch, not one archive per branch: the stream is written class-path-major so the
+// same class in v1..v9 sits next to itself and deflate can reuse the common bytes. Format: int count, then
+// (UTF name "vN/copper/bridge/vN/...class", int length, bytes). BranchClassLoader inflates it once and defines
+// only the selected branch.
 def branchStream = layout.buildDirectory.file('branch-stream/branches.deflate')
 def branchArchive = tasks.register('branchArchive') {
     branchNames.each { dependsOn ":bridge:${it}:compileJava" }

@@ -1,6 +1,6 @@
 package copper.bridge.v2;
 
-import copper.bridge.annotation.BridgeInterface;
+import copper.bridge.annotation.BridgeOverride;
 
 import io.anuke.arc.Files.*;
 import io.anuke.arc.files.*;
@@ -31,21 +31,21 @@ public class BridgeFi extends FileHandle {
         this.files = files;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public FileHandle child(String name) {
         name = name.replace('\\', '/');
         if (file.getPath().length() == 0) return new BridgeFi(files, new File(name), type);
         return new BridgeFi(files, new File(file, name), type);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public FileHandle sibling(String name) {
         name = name.replace('\\', '/');
         if (file.getPath().length() == 0) throw new ArcRuntimeException("Cannot get the sibling of the root.");
         return new BridgeFi(files, new File(file.getParent(), name), type);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public FileHandle parent() {
         File parent = file.getParentFile();
         if (parent == null) {
@@ -54,7 +54,7 @@ public class BridgeFi extends FileHandle {
         return new BridgeFi(files, parent, type);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public File file() {
         if (type == FILE_TYPES[4]) return new File(files.getLocalStoragePath(), file.getPath());
         return super.file();

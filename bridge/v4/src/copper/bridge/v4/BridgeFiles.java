@@ -1,6 +1,6 @@
 package copper.bridge.v4;
 
-import copper.bridge.annotation.BridgeInterface;
+import copper.bridge.annotation.BridgeOverride;
 
 import io.anuke.arc.*;
 import io.anuke.arc.files.*;
@@ -24,52 +24,52 @@ public class BridgeFiles implements Files {
         this.dataFolder = require(Bridge.options.gameDataFolder, "game data folder");
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public FileHandle getFileHandle(String path, FileType type) {
         return new BridgeFi(this, path, type);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public FileHandle classpath(String path) {
         return getFileHandle(path, FileType.Classpath);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public FileHandle internal(String path) {
         return getFileHandle(path, FileType.Internal);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public FileHandle external(String path) {
         return getFileHandle(path, FileType.External);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public FileHandle absolute(String path) {
         return getFileHandle(path, FileType.Absolute);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public FileHandle local(String path) {
         return getFileHandle(path, FileType.Local);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public String getExternalStoragePath() {
         return dataFolder.getAbsolutePath() + File.separator;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public boolean isExternalStorageAvailable() {
         return usable(dataFolder);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public String getLocalStoragePath() {
         return dataFolder.getAbsolutePath() + File.separator;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public boolean isLocalStorageAvailable() {
         return usable(dataFolder);
     }

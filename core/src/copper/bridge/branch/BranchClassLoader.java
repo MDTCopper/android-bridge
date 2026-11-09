@@ -12,6 +12,10 @@ import java.util.zip.*;
  * Loads one branch's classes from the bridge jar's {@code branches.deflate} stream and the game classes from the game
  * jars. Core classes are delegated to the startup loader; game and branch classes are defined here first so both
  * sides of a branch see the same loader.
+ *
+ * <p>The stream is shared by every branch so the same class in v1..v9 sits next to itself and deflate finds the
+ * common bytes; only the selected {@code vN/} prefix is kept in memory. Format: int count, then for each entry a
+ * UTF {@code vN/copper/bridge/vN/...class} name, an int byte length, and the class bytes.
  */
 public final class BranchClassLoader extends ClassLoader {
     private final Map<String, byte[]> branchClasses = new HashMap<>();

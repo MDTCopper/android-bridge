@@ -1,6 +1,6 @@
 package copper.bridge.v4;
 
-import copper.bridge.annotation.BridgeInterface;
+import copper.bridge.annotation.BridgeOverride;
 
 import io.anuke.arc.audio.*;
 import io.anuke.arc.files.*;
@@ -24,72 +24,72 @@ final class LegacyMusic implements Music {
             MusicListeners.put(music, this::completed);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public void play() {
         if (music > 0)
             JvmCall.playMusic(music);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public void pause() {
         if (music > 0)
             JvmCall.pauseMusic(music);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public void stop() {
         if (music > 0)
             JvmCall.stopMusic(music);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public boolean isPlaying() {
         return music > 0 && JvmCall.isMusicPlaying(music);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public boolean isLooping() {
         return looping;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public void setLooping(boolean looping) {
         this.looping = looping;
         if (music > 0)
             JvmCall.setMusicLooping(music, looping);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public float getVolume() {
         return volume;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public void setVolume(float volume) {
         this.volume = volume;
         if (music > 0)
             JvmCall.setMusicVolume(music, volume);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public void setPan(float pan, float volume) {
         this.volume = volume;
         if (music > 0)
             JvmCall.setMusicPan(music, pan, volume);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public float getPosition() {
         return music <= 0 ? 0f : JvmCall.getMusicPosition(music);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public void setPosition(float position) {
         if (music > 0)
             JvmCall.setMusicPosition(music, position);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public void dispose() {
         if (music > 0) {
             MusicListeners.remove(music);
@@ -97,7 +97,7 @@ final class LegacyMusic implements Music {
         }
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public void setCompletionListener(OnCompletionListener listener) {
         this.listener = listener;
     }

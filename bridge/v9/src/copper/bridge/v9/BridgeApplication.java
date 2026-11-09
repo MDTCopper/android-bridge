@@ -1,6 +1,6 @@
 package copper.bridge.v9;
 
-import copper.bridge.annotation.BridgeInterface;
+import copper.bridge.annotation.BridgeOverride;
 
 import arc.*;
 import arc.audio.*;
@@ -156,62 +156,62 @@ public class BridgeApplication implements Application {
         }
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public Seq<ApplicationListener> getListeners() {
         return listeners;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public ApplicationType getType() {
         return ApplicationType.android;
     }
 
     /** The thread every listener callback arrives on, the one that ran {@link #run()} - and therefore why nothing in
      *  this class is synchronized. */
-    @BridgeInterface
+    @BridgeOverride
     public Thread getMainThread() {
         return mainThread;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public int getVersion() {
         return JvmCall.getOsVersion();
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public long getNativeHeap() {
         return JvmCall.getNativeHeap();
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public String getClipboardText() {
         return JvmCall.getClipboardText();
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public void setClipboardText(String text) {
         JvmCall.setClipboardText(text);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public boolean openURI(String uri) {
         return JvmCall.openUri(uri);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public boolean openFolder(String folder) {
         return JvmCall.openFolder(folder);
     }
 
     /** Queues work for the loop thread, the only thread allowed to touch the game. */
-    @BridgeInterface
+    @BridgeOverride
     public void post(Runnable runnable) {
         synchronized (runnables) {
             runnables.add(runnable);
         }
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public void exit() {
         JvmCall.finishActivity();
         events.onDestroy();

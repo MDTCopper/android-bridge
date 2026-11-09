@@ -1,6 +1,6 @@
 package copper.bridge.v8;
 
-import copper.bridge.annotation.BridgeInterface;
+import copper.bridge.annotation.BridgeOverride;
 
 import arc.*;
 import arc.files.*;
@@ -21,7 +21,7 @@ public class BridgeLauncherParams extends BridgeLauncher {
      * {@link FileChooserParams#handleChooseResult(Fi...)} decides between the single and the multiple one, so this
      * class never has to know which kind of request it is answering.
      */
-    @BridgeInterface
+    @BridgeOverride
     public void showFileChooser(FileChooserParams params) {
         String[] filter = params.extensions == null || params.extensions.length == 0
                 ? new String[] {""} : params.extensions;

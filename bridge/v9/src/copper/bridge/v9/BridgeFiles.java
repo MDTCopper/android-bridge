@@ -1,6 +1,6 @@
 package copper.bridge.v9;
 
-import copper.bridge.annotation.BridgeInterface;
+import copper.bridge.annotation.BridgeOverride;
 
 import arc.*;
 import arc.files.*;
@@ -25,34 +25,34 @@ public class BridgeFiles implements Files {
         this.cacheFolder = new File(require(Bridge.options.cacheFolder, "cache folder"), "files");
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public Fi get(String path, FileType type) {
         return new BridgeFi(this, path, type);
     }
 
     /** @return an absolute path, so arc's default {@code cache(...)} resolves without a rebase. */
-    @BridgeInterface
+    @BridgeOverride
     public String getCachePath() {
         if (!cacheFolder.isDirectory()) cacheFolder.mkdirs();
         return cacheFolder.getAbsolutePath();
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public String getExternalStoragePath() {
         return dataFolder.getAbsolutePath() + File.separator;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public boolean isExternalStorageAvailable() {
         return usable(dataFolder);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public String getLocalStoragePath() {
         return dataFolder.getAbsolutePath() + File.separator;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public boolean isLocalStorageAvailable() {
         return usable(dataFolder);
     }

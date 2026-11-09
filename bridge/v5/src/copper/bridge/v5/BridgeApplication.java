@@ -1,6 +1,6 @@
 package copper.bridge.v5;
 
-import copper.bridge.annotation.BridgeInterface;
+import copper.bridge.annotation.BridgeOverride;
 
 import io.anuke.arc.*;
 import io.anuke.arc.collection.*;
@@ -175,55 +175,55 @@ public class BridgeApplication implements Application {
         }
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public Array<ApplicationListener> getListeners() {
         return listeners;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public ApplicationType getType() {
         return ApplicationType.Android;
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public int getVersion() {
         return JvmCall.getOsVersion();
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public long getNativeHeap() {
         return JvmCall.getNativeHeap();
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public String getClipboardText() {
         return JvmCall.getClipboardText();
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public void setClipboardText(String text) {
         JvmCall.setClipboardText(text);
     }
 
-    /** Not on the interface at the range's floor, so no {@code @BridgeInterface}; the game asks for it where it exists. */
+    /** Not on the interface at the range's floor, so no {@code @BridgeOverride}; the game asks for it where it exists. */
     public boolean openURI(String uri) {
         return JvmCall.openUri(uri);
     }
 
-    /** Not on the interface at the range's floor, so no {@code @BridgeInterface}. */
+    /** Not on the interface at the range's floor, so no {@code @BridgeOverride}. */
     public boolean openFolder(String folder) {
         return JvmCall.openFolder(folder);
     }
 
     /** Queues work for the loop thread, the only thread allowed to touch the game. */
-    @BridgeInterface
+    @BridgeOverride
     public void post(Runnable runnable) {
         synchronized (runnables) {
             runnables.add(runnable);
         }
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public void exit() {
         JvmCall.finishActivity();
         events.onDestroy();

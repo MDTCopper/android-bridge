@@ -1,6 +1,6 @@
 package copper.bridge.v8;
 
-import copper.bridge.annotation.BridgeInterface;
+import copper.bridge.annotation.BridgeOverride;
 
 import arc.*;
 import arc.files.*;
@@ -23,7 +23,7 @@ public class BridgeLauncherLegacy extends BridgeLauncher {
         showFileChooser(open, title, cons, extension);
     }
 
-    @BridgeInterface
+    @BridgeOverride
     public void showMultiFileChooser(Cons<Fi> cons, String... extensions) {
         showFileChooser(true, "@open", cons, extensions);
     }

@@ -7,15 +7,15 @@ import java.nio.file.*;
 import java.util.*;
 import java.util.stream.*;
 
-/** Reads the methods a branch marked {@code @BridgeInterface}. */
-public final class BridgeInterfaceRefs {
-    private static final String ANNOTATION = "Lcopper/bridge/annotation/BridgeInterface;";
+/** Reads the methods a branch marked {@code @BridgeOverride}. */
+public final class BridgeOverrideRefs {
+    private static final String ANNOTATION = "Lcopper/bridge/annotation/BridgeOverride;";
 
-    private BridgeInterfaceRefs() {
+    private BridgeOverrideRefs() {
     }
 
-    public static List<BridgeInterfaceRef> read(Path directory) {
-        List<BridgeInterfaceRef> refs = new ArrayList<>();
+    public static List<BridgeOverrideRef> read(Path directory) {
+        List<BridgeOverrideRef> refs = new ArrayList<>();
         try (Stream<Path> stream = Files.walk(directory)) {
             for (Path path : stream.filter(p -> p.toString().endsWith(".class")).collect(Collectors.toList())) {
                 String className = directory.relativize(path).toString().replace('\\', '/');
@@ -35,9 +35,9 @@ public final class BridgeInterfaceRefs {
 
     private static final class Collector extends ClassVisitor {
         private final String className;
-        private final List<BridgeInterfaceRef> refs;
+        private final List<BridgeOverrideRef> refs;
 
-        Collector(String className, List<BridgeInterfaceRef> refs) {
+        Collector(String className, List<BridgeOverrideRef> refs) {
             super(Opcodes.ASM9);
             this.className = className;
             this.refs = refs;
@@ -50,7 +50,7 @@ public final class BridgeInterfaceRefs {
                     | Opcodes.ACC_SYNTHETIC | Opcodes.ACC_BRIDGE)) != 0)
                 return null;
 
-            BridgeInterfaceRef ref = new BridgeInterfaceRef(className, className, name, descriptor);
+            BridgeOverrideRef ref = new BridgeOverrideRef(className, className, name, descriptor);
             refs.add(ref);
             return new MethodVisitor(Opcodes.ASM9) {
                 @Override

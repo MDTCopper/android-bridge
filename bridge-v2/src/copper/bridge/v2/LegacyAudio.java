@@ -24,15 +24,55 @@ public class LegacyAudio extends io.anuke.arc.Audio {
         return new LegacyMusic(file);
     }
 
-    /** Nothing on this platform records audio; the interface still wants an answer, and arc's own mock answers null. */
+    /** The bridge has no PCM output; a silent device keeps arc's non-null contract, as its own mock does. */
     @Override
     public AudioDevice newAudioDevice(int samplingRate, boolean isMono) {
-        return null;
+        return new SilentAudioDevice();
     }
 
+    /** Nothing captures audio either; arc's mock returns a recorder, not null. */
     @Override
     public AudioRecorder newAudioRecorder(int samplingRate, boolean isMono) {
-        return null;
+        return new SilentAudioRecorder();
+    }
+
+    private static class SilentAudioDevice implements AudioDevice {
+        @Override
+        public boolean isMono() {
+            return false;
+        }
+
+        @Override
+        public void writeSamples(short[] samples, int offset, int numSamples) {
+        }
+
+        @Override
+        public void writeSamples(float[] samples, int offset, int numSamples) {
+        }
+
+        @Override
+        public int getLatency() {
+            return 0;
+        }
+
+        @Override
+        public void dispose() {
+        }
+
+        @Override
+        public void setVolume(float volume) {
+        }
+    }
+
+    private static class SilentAudioRecorder implements AudioRecorder {
+        @Override
+        public void read(short[] samples, int offset, int numSamples) {
+            java.util.Arrays.fill(samples, offset, offset + numSamples, (short)0);
+        }
+
+        @Override
+        public void dispose() {
+        }
     }
 
     @Override

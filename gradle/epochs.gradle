@@ -17,11 +17,14 @@ ext.epochJarFile = { String ref ->
     return dir.listFiles()?.find { it.name.endsWith('.jar') }
 }
 
-/** The official desktop jar for a release tag, or for a bleeding-edge build id. */
-ext.epochUrl = { String ref ->
+/** The official desktop jar for a release tag, or for a bleeding-edge build id; older tags name it differently. */
+ext.epochUrls = { String ref ->
     if (ref ==~ /\d+/)
-        return "https://github.com/Anuken/MindustryBuilds/releases/download/${ref}/Mindustry-BE-Desktop-${ref}.jar"
-    return "https://github.com/Anuken/Mindustry/releases/download/${ref}/Mindustry.jar"
+        return ["https://github.com/Anuken/MindustryBuilds/releases/download/${ref}/Mindustry-BE-Desktop-${ref}.jar"]
+    return [
+            "https://github.com/Anuken/Mindustry/releases/download/${ref}/Mindustry.jar",
+            "https://github.com/Anuken/Mindustry/releases/download/${ref}/desktop-release.jar"
+    ]
 }
 
 /** Fetches one ref once. A partial download keeps its .part name, so a failed run is not read as a jar. */
@@ -31,22 +34,30 @@ ext.fetchEpoch = { String ref ->
         return staged
 
     def dir = epochDir(ref) as File
-    def url = epochUrl(ref) as String
-    logger.lifecycle("epoch ${ref}: fetching ${url}")
-    dir.mkdirs()
     def part = new File(dir, 'Mindustry.jar.part')
-    def connection = new URI(url).toURL().openConnection()
-    connection.connectTimeout = 30000
-    connection.readTimeout = 600000
-    connection.inputStream.withStream { input ->
-        part.withOutputStream { output -> output << input }
+    dir.mkdirs()
+    Throwable failure = null
+    for (String url : epochUrls(ref)) {
+        logger.lifecycle("epoch ${ref}: fetching ${url}")
+        try {
+            def connection = new URI(url).toURL().openConnection()
+            connection.connectTimeout = 30000
+            connection.readTimeout = 600000
+            connection.inputStream.withStream { input ->
+                part.withOutputStream { output -> output << input }
+            }
+            if (part.isFile() && part.length() > 0) {
+                def jar = new File(dir, 'Mindustry.jar')
+                if (!part.renameTo(jar))
+                    throw new GradleException("epoch ${ref}: could not rename ${part} to ${jar}")
+                return jar
+            }
+        } catch (Throwable e) {
+            failure = e
+            part.delete()
+        }
     }
-    if (!part.isFile() || part.length() == 0)
-        throw new GradleException("epoch ${ref}: ${url} produced no jar")
-    def jar = new File(dir, 'Mindustry.jar')
-    if (!part.renameTo(jar))
-        throw new GradleException("epoch ${ref}: could not rename ${part} to ${jar}")
-    return jar
+    throw new GradleException("epoch ${ref}: no jar at ${epochUrls(ref)}", failure)
 }
 
 /** Where one branch's epoch lives, and which ref produces it. */
@@ -73,7 +84,7 @@ ext.branchHasSources = { String branch ->
 }
 
 // The subprojects that carry an epoch: one per version branch.
-def epochNames = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7']
+def epochNames = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8']
 
 // Only epochs whose code is there are prepared, so a fresh checkout does not fetch every jar to compile
 // one. -Pepochs=v1 picks explicitly.

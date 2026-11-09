@@ -1,10 +1,18 @@
+
 /**
- * v7: Mindustry 9, the epoch where Arc was merged into the game repository.
+ * v6: the rest of the 6 line and the whole 7 and 8 line - releases 114.0 and up, bleeding-edge builds
+ * 11247 and up, open at the top for releases and stopping at the last 8 build (27928).
  *
- * The ref it compiles against is a bleeding-edge build id rather than a tag - upstream has not tagged
- * v9 yet - and arc is built out of the game's own tree, so the desktop jar is the whole epoch.
+ * 11247 is the first build with the concrete arc.audio.Audio and without the abstract one; the 6 line's
+ * low end, which has the abstract class and needs an implementation of it, is v5's range.
  *
- * Everything is compile only: the jar arrives at runtime.
+ * It compiles against the v159 epoch, the newest shape it has to survive and deliberately not the range
+ * floor, so one source satisfies both directions: implement what the newest epoch demands and reference
+ * only symbols the oldest still has. Mindustry 159 replaced four file-chooser entry points with
+ * FileChooserParams, which needs a different class rather than a different epoch, hence the
+ * BridgeLauncherLegacy / BridgeLauncherParams split and the run-time probe in BridgeLaunchers.
+ *
+ * Everything is compile only: the game jar, which carries arc, arrives on the command line at runtime.
  */
 def branch = name.startsWith('bridge-') ? name.substring('bridge-'.length()) : name
 def epochClasspath = rootProject.ext.epochClasspath(branch)

@@ -92,7 +92,7 @@ public final class JavaApi {
     }
 
     private static String methodSignature(MethodTree method) {
-        String modifiers = modifiers(method.getModifiers());
+        String modifiers = modifiers(method.getModifiers(), true);
         String typeParameters = method.getTypeParameters().isEmpty()
                 ? ""
                 : "<" + method.getTypeParameters().stream().map(TypeParameterTree::toString)
@@ -106,11 +106,18 @@ public final class JavaApi {
 
     private static String fieldSignature(VariableTree field) {
         String type = field.getType() == null ? "" : typeText(field.getType());
-        return normalize(join(modifiers(field.getModifiers()), type) + " " + field.getName());
+        return normalize(join(modifiers(field.getModifiers(), false), type) + " " + field.getName());
     }
 
-    private static String modifiers(ModifiersTree tree) {
+    /**
+     * Modifiers that matter to a caller. {@code abstract}/{@code default} and the implementation-only flags do
+     * not change how a compiled call links, so a declaration that only gained a body is not an incompatibility.
+     */
+    private static String modifiers(ModifiersTree tree, boolean method) {
         List<Modifier> flags = new ArrayList<>(tree.getFlags());
+        if (method)
+            flags.removeIf(flag -> flag == Modifier.ABSTRACT || flag == Modifier.DEFAULT
+                    || flag == Modifier.NATIVE || flag == Modifier.SYNCHRONIZED || flag == Modifier.STRICTFP);
         flags.sort(Comparator.comparing(Enum::name));
         return flags.stream().map(Modifier::name).collect(Collectors.joining(" "));
     }

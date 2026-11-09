@@ -1,18 +1,19 @@
 
 /**
- * v3: the rest of the 6 line and the whole 7 and 8 line - releases 114.0 and up, bleeding-edge builds
- * 11247 and up, open at the top for releases and stopping at the last 8 build (27928).
+ * The 6 line's old audio shape: releases 105.0 up to 113.2, bleeding-edge builds 8660 up to 11234.
+ * 8660 is the first published build cut after arc replaced Array with Seq; the build at 8656 still had Array.
+ * The enum constants inside the range were renamed from capitalized to lowercase, which is why the branch
+ * reads them by ordinal. 11234 is the last build that still declares the abstract arc.Audio with
+ * newSound/newMusic, which is what this branch implements; 11247 is the first without it and belongs to v3.
  *
- * 11247 is the first build with the concrete arc.audio.Audio and without the abstract one; the 6 line's
- * low end, which has the abstract class and needs an implementation of it, is v2's range.
+ * It compiles against v112, the newest release whose arc.Audio is still that abstract class. 113 turned it
+ * into the SoLoud shape, so this branch cannot compile against it, and 11234 already carries
+ * arc.audio.SoloudAudio, which BridgeApplication reaches by name. :pack:checkBridgeApi compares every
+ * reference at both ends of the range, so nothing here may use what 8660 lacks.
  *
- * It compiles against the v159 epoch, the newest shape it has to survive and deliberately not the range
- * floor, so one source satisfies both directions: implement what the newest epoch demands and reference
- * only symbols the oldest still has. Mindustry 159 replaced four file-chooser entry points with
- * FileChooserParams, which needs a different class rather than a different epoch, hence the
- * BridgeLauncherLegacy / BridgeLauncherParams split and the run-time probe in BridgeLaunchers.
+ * The file chooser has one shape here (the four-entry one), so the launcher has no probe.
  *
- * Everything is compile only: the game jar, which carries arc, arrives on the command line at runtime.
+ * Everything is compile only: the game and arc jars arrive on the command line at runtime.
  */
 def branch = name.startsWith('bridge-') ? name.substring('bridge-'.length()) : name
 def epochClasspath = rootProject.ext.epochClasspath(branch)
@@ -49,7 +50,7 @@ dependencies {
 }
 
 tasks.named('compileJava') {
-    // without the epoch's jars javac reports a wall of missing arc/mindustry symbols instead.
+    // without the epoch's jar javac reports a wall of missing arc/mindustry symbols instead.
     doFirst {
         if (epochClasspath.isEmpty()) {
             throw new GradleException("epoch ${branch}: no jar in ${epoch.gameOut}. " +

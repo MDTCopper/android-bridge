@@ -15,6 +15,9 @@ import java.util.*;
  * Members inherited from a supertype the check does not read are skipped.
  */
 public final class ApiComparer {
+    /** Only the flags a compiled call depends on; a body added later does not break it. */
+    private static final int ACCESS_MASK = 0x0001 | 0x0002 | 0x0004 | 0x0008; //public, private, protected, static
+
     private static final Set<String> OBJECT_METHODS = new HashSet<>(Arrays.asList(
             "ordinal", "name", "toString", "hashCode", "equals", "clone", "finalize", "getClass",
             "notify", "notifyAll", "wait"));
@@ -57,7 +60,7 @@ public final class ApiComparer {
                 issues.add("declaration changed or removed: " + ref.owner + "." + ref.name + " " + ref.descriptor);
                 continue;
             }
-            if (floorMember.access != ceilingMember.access) {
+            if ((floorMember.access & ACCESS_MASK) != (ceilingMember.access & ACCESS_MASK)) {
                 issues.add("declaration changed: " + ref.owner + "." + ref.name + " " + ref.descriptor
                         + " access " + floorMember.access + " -> " + ceilingMember.access);
             }

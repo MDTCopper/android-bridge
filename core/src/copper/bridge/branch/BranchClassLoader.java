@@ -113,14 +113,31 @@ public final class BranchClassLoader extends ClassLoader {
     @Override
     protected URL findResource(String name) {
         for (JarFile jar : gameJars) {
-            if (jar.getJarEntry(name) == null)
-                continue;
-            try {
-                return new URI("jar:" + new File(jar.getName()).toURI().toURL() + "!/" + name).toURL();
-            } catch (URISyntaxException | MalformedURLException ignored) {
-            }
+            if (jar.getJarEntry(name) != null)
+                return jarUrl(jar, name);
         }
         return null;
+    }
+
+    @Override
+    protected Enumeration<URL> findResources(String name) {
+        List<URL> urls = new ArrayList<>();
+        for (JarFile jar : gameJars) {
+            if (jar.getJarEntry(name) == null)
+                continue;
+            URL url = jarUrl(jar, name);
+            if (url != null)
+                urls.add(url);
+        }
+        return Collections.enumeration(urls);
+    }
+
+    private static URL jarUrl(JarFile jar, String name) {
+        try {
+            return new URI("jar:" + new File(jar.getName()).toURI().toURL() + "!/" + name).toURL();
+        } catch (URISyntaxException | MalformedURLException ignored) {
+            return null;
+        }
     }
 
 }

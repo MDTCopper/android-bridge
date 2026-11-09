@@ -8,7 +8,7 @@ import copper.bridge.gen.*;
 import copper.bridge.v1.BridgeEvents;
 import copper.bridge.v1.BridgeFiles;
 import copper.bridge.v2.LegacyAudio;
-import copper.bridge.v2.BridgeGraphics;
+import copper.bridge.v1.BridgeGraphics;
 import copper.bridge.jvm.Surface;
 import copper.bridge.util.*;
 

@@ -23,7 +23,7 @@ import java.nio.*;
  * and OpenGL ES bindings are the only route to GL, and ART hands the window over as an opaque native pointer. A
  * pause destroys only the window surface, so GL objects survive a resume.
  */
-public class BridgeGraphics extends Graphics implements copper.bridge.jvm.GraphicsHost {
+public class BridgeGraphics extends Graphics implements copper.bridge.v1.GraphicsHost {
     /** Coverage sampling attribute; not in LWJGL's core EGL headers. */
     private static final int EGL_COVERAGE_SAMPLES_NV = 0x30E1;
 

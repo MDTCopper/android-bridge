@@ -8,7 +8,7 @@ import copper.bridge.util.*;
 import java.util.*;
 
 /** The game's input, fed from the packed batches ART produces; polled and read on the game loop thread alone. */
-public class BridgeInput extends Input implements copper.bridge.jvm.InputHost {
+public class BridgeInput extends Input implements copper.bridge.v1.InputHost {
     private static final int MAX_TOUCHES = 20;
 
     /** The schema this bridge binds; an inner class because this one already extends arc's {@code Input}. */

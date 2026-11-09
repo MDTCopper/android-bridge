@@ -1,4 +1,4 @@
-package copper.bridge.jvm;
+package copper.bridge.v1;
 
 /** What the event handler needs from a branch's input. Same reason as {@link GraphicsHost}: no concrete type. */
 public interface InputHost {

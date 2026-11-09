@@ -2,12 +2,13 @@ package copper.bridge.v6;
 
 import arc.*;
 import arc.input.*;
-import copper.bridge.jvm.*;import copper.bridge.gen.*;
+import copper.bridge.jvm.*;
+import copper.bridge.gen.*;
 import copper.bridge.util.*;
 import java.util.*;
 
 /** The game's input, fed from the packed batches ART produces; polled and read on the game loop thread alone. */
-public class BridgeInput extends Input implements copper.bridge.jvm.InputHost {
+public class BridgeInput extends Input implements copper.bridge.v1.InputHost {
     private static final int MAX_TOUCHES = 20;
 
     /** Cached once: the constant names changed case inside the range, the order did not. */
@@ -16,12 +17,13 @@ public class BridgeInput extends Input implements copper.bridge.jvm.InputHost {
     /** Absent at the range's floor; the lambda calls the newer postUpdate directly. */
     private final Runnable postUpdate = MethodLambdas.boundRunnable(keyboard, "postUpdate");
 
-        private static final Peripheral ONSCREEN_KEYBOARD = Peripheral.OnscreenKeyboard;
-    private static final Peripheral MULTITOUCH_SCREEN = Peripheral.MultitouchScreen;
-    private static final Peripheral VIBRATOR = Peripheral.Vibrator;
-    private static final Peripheral PRESSURE = Peripheral.Pressure;
-    private static final Orientation LANDSCAPE = Orientation.Landscape;
-    private static final Orientation PORTRAIT = Orientation.Portrait;
+    // The enum constants were renamed without changing their order, so the ordinals survive the range.
+    private static final Peripheral ONSCREEN_KEYBOARD = Peripheral.values()[1]; //onscreenKeyboard
+    private static final Peripheral MULTITOUCH_SCREEN = Peripheral.values()[2]; //multitouchScreen
+    private static final Peripheral VIBRATOR = Peripheral.values()[5]; //vibrator
+    private static final Peripheral PRESSURE = Peripheral.values()[8]; //pressure
+    private static final Orientation LANDSCAPE = Orientation.values()[0]; //landscape
+    private static final Orientation PORTRAIT = Orientation.values()[1]; //portrait
 
     /** The schema this bridge binds; an inner class because this one already extends arc's {@code Input}. */
     public final class Events extends InputBatch {

@@ -6,8 +6,8 @@ import arc.struct.*;
 
 import copper.bridge.gen.*;
 import copper.bridge.jvm.Events;
-import copper.bridge.jvm.GraphicsHost;
-import copper.bridge.jvm.InputHost;
+import copper.bridge.v1.GraphicsHost;
+import copper.bridge.v1.InputHost;
 import copper.bridge.jvm.MusicListeners;
 import copper.bridge.jvm.Surface;
 import copper.bridge.util.*;

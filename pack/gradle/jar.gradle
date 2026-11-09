@@ -6,18 +6,48 @@ def branchNames = project.ext.branchNames
 // closure is evaluated while the jar is built, and reaching for the project then is what the
 // configuration cache refuses.
 def coreOutput = project(':core').sourceSets.main.output
-def branchZips = branchNames.collectEntries { String branch ->
-    def classes = project(":bridge:${branch}").sourceSets.main.output.classesDirs
-    [(branch): tasks.register("branchZip${branch.capitalize()}", Zip) {
-        archiveFileName = "${branch}.zip"
-        destinationDirectory = layout.buildDirectory.dir('branch-zips')
-        from(classes) { include '**/*.class' }
-    }]
+def branchDirs = branchNames.collectEntries { String branch ->
+    [(branch): project(":bridge:${branch}").sourceSets.main.output.classesDirs.singleFile]
+}
+def branchStream = layout.buildDirectory.file('branch-stream/branches.deflate')
+def branchArchive = tasks.register('branchArchive') {
+    inputs.files(branchDirs.values())
+    outputs.file(branchStream)
+    doLast {
+        def out = branchStream.get().asFile
+        out.parentFile.mkdirs()
+        new java.io.DataOutputStream(new java.util.zip.DeflaterOutputStream(new java.io.FileOutputStream(out)))
+                .withCloseable { data ->
+                    def byPath = new TreeMap<String, List>()
+                    branchDirs.each { String branch, File dir ->
+                        if (!dir.isDirectory())
+                            return
+                        def files = []
+                        dir.eachFileRecurse { File file ->
+                            if (file.name.endsWith('.class')) files.add(file)
+                        }
+                        files.sort { it.path }
+                        files.each { File file ->
+                            String relative = dir.toPath().relativize(file.toPath()).toString().replace('\\', '/')
+                            byPath.computeIfAbsent(relative) { [] }.add([branch + "/" + relative, file.bytes])
+                        }
+                    }
+                    def entries = []
+                    byPath.values().each { entries.addAll(it) }
+                    data.writeInt(entries.size())
+                    entries.each { entry ->
+                        byte[] bytes = entry[1]
+                        data.writeUTF((String)entry[0])
+                        data.writeInt(bytes.length)
+                        data.write(bytes)
+                    }
+                }
+    }
 }
 
 tasks.register('bridgeJar', Jar) {
     dependsOn ':core:jar'
-    dependsOn branchZips.values()
+    dependsOn branchArchive
     dependsOn 'checkBridgeApi'
     dependsOn 'fetchLwjglNatives'
     dependsOn ':native:assemble'
@@ -38,9 +68,7 @@ tasks.register('bridgeJar', Jar) {
     // JVM payload: every class of every module, unchanged. Source set outputs rather than module jars,
     // which would drag their own manifests into the bridge jar.
     from(coreOutput)
-    branchZips.each { branch, zip ->
-        from(zip.flatMap { it.archiveFile }) { into 'branches' }
-    }
+    from(branchStream)
 
     // The native bridge, at the resource path copper.bridge.Bridge.prepare() reads back at runtime:
     // "native/bridge/<abi>/libcopperbridge.so". The staged libraries come from the native build.

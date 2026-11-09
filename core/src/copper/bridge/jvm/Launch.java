@@ -36,11 +36,14 @@ public final class Launch {
         return result.branch;
     }
 
-    /** Loads and calls the branch's {@code Main} through this class's own loader, which can see every branch. */
+    /** Loads and calls the branch's {@code Main} through its archived classes and the game jars. */
     private static void invoke(String branch, String[] args) {
         String name = "copper.bridge." + branch + ".Main";
         try {
-            Class<?> entry = Class.forName(name, true, Launch.class.getClassLoader());
+            ClassLoader loader = new BranchClassLoader(branch, Bridge.options.gameJars,
+                    Launch.class.getClassLoader());
+            Thread.currentThread().setContextClassLoader(loader);
+            Class<?> entry = Class.forName(name, true, loader);
             Method main = entry.getDeclaredMethod("main", String[].class);
             main.invoke(null, (Object) args);
         } catch (InvocationTargetException e) {

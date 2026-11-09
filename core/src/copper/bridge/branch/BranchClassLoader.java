@@ -1,4 +1,4 @@
-package copper.bridge.jvm;
+package copper.bridge.branch;
 
 import copper.bridge.Bridge;
 
@@ -9,7 +9,7 @@ import java.util.jar.*;
 import java.util.zip.*;
 
 /**
- * Loads one branch's classes from the bridge jar's {@code branches/<branch>.zip} and the game classes from the game
+ * Loads one branch's classes from the bridge jar's {@code branches.deflate} stream and the game classes from the game
  * jars. Core classes are delegated to the startup loader; game and branch classes are defined here first so both
  * sides of a branch see the same loader.
  */
@@ -20,17 +20,22 @@ public final class BranchClassLoader extends ClassLoader {
     public BranchClassLoader(String branch, List<File> jars, ClassLoader parent) throws IOException {
         super(parent);
 
-        String resource = "branches/" + branch + ".zip";
+        String resource = "branches.deflate";
         try (InputStream raw = parent.getResourceAsStream(resource)) {
             if (raw == null)
-                throw new IOException("no branch archive " + resource + " in " + Bridge.jar());
-            try (ZipInputStream zip = new ZipInputStream(raw)) {
-                for (ZipEntry entry = zip.getNextEntry(); entry != null; entry = zip.getNextEntry()) {
-                    if (!entry.getName().endsWith(".class"))
+                throw new IOException("no branch stream " + resource + " in " + Bridge.jar());
+            String prefix = branch + "/";
+            try (DataInputStream data = new DataInputStream(new InflaterInputStream(raw))) {
+                int count = data.readInt();
+                for (int i = 0; i < count; i++) {
+                    String name = data.readUTF();
+                    int length = data.readInt();
+                    byte[] bytes = new byte[length];
+                    data.readFully(bytes);
+                    if (!name.startsWith(prefix) || !name.endsWith(".class"))
                         continue;
-                    String name = entry.getName();
-                    name = name.substring(0, name.length() - ".class".length());
-                    branchClasses.put(name, zip.readAllBytes());
+                    String className = name.substring(prefix.length(), name.length() - ".class".length());
+                    branchClasses.put(className, bytes);
                 }
             }
         }

@@ -24,23 +24,26 @@ include 'core'
 // annotations are looked up by name, which is what keeps this from being a cycle.
 include 'processor'
 
-// the FileHandle/Cons 6 line, compiled against the last such build (6315).
+// the Consumer/FileHandle 6 line, compiled against release 99, its newest API.
 include 'bridge-v1'
 
-// the Fi/Cons 6 line, compiled against the last io.anuke build (6415).
+// the FileHandle/Cons 6 line, compiled against the last such build (6315).
 include 'bridge-v2'
 
-// the array-era 6 line, compiled against the last Array build (8657).
+// the Fi/Cons 6 line, compiled against the last io.anuke build (6415).
 include 'bridge-v3'
 
-// the 6 line's Seq/audio shape and the whole 7 line, compiled against the v112 epoch.
+// the array-era 6 line, compiled against the last Array build (8657).
 include 'bridge-v4'
 
-// the 7 and 8 line, compiled against the v159 epoch.
+// the 6 line's Seq/audio shape and the whole 7 line, compiled against the v112 epoch.
 include 'bridge-v5'
 
-// Mindustry 9: Arc merged into the game repository.
+// the 7 and 8 line, compiled against the v159 epoch.
 include 'bridge-v6'
+
+// Mindustry 9: Arc merged into the game repository.
+include 'bridge-v7'
 
 // libcopperbridge.so for every ABI, in the same task graph so its result is staged where pack
 // expects it; not a Java module.

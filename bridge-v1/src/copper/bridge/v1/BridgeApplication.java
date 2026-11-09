@@ -104,7 +104,7 @@ public class BridgeApplication implements Application {
             input.processEvents();
             // Application.defaultUpdate does this; autosave() arrived later in the range
             autosaveSettings();
-            io.anuke.arc.util.Time.updateGlobal();
+            updateTime();
             for (ApplicationListener listener : listeners)
                 listener.update();
             input.processDevices();
@@ -175,6 +175,30 @@ public class BridgeApplication implements Application {
         }
     }
 
+    /** {@code Time.updateGlobal} arrived before v99 but after 4550; the older Time advances through update(). */
+    private static final java.lang.reflect.Method UPDATE_TIME = updateTimeMethod();
+
+    private static java.lang.reflect.Method updateTimeMethod() {
+        try {
+            return io.anuke.arc.util.Time.class.getMethod("updateGlobal");
+        } catch (Throwable ignored) {
+            try {
+                return io.anuke.arc.util.Time.class.getMethod("update");
+            } catch (Throwable ignoredToo) {
+                return null;
+            }
+        }
+    }
+
+    private static void updateTime() {
+        if (UPDATE_TIME == null)
+            return;
+        try {
+            UPDATE_TIME.invoke(null);
+        } catch (Throwable ignored) {
+        }
+    }
+
     /** {@code Thread.sleep} with arc's old semantics: an interrupt is swallowed, not re-armed. */
     private static void sleep(long millis) {
         try {
@@ -232,10 +256,10 @@ public class BridgeApplication implements Application {
     /** {@code arc.Net} is an interface at this branch's floor; the game's own {@code Vars.net} does the real work. */
     private static class NoNet implements Net {
         @Override
-        public void http(HttpRequest request, io.anuke.arc.func.Cons<HttpResponse> success,
-                         io.anuke.arc.func.Cons<Throwable> failure) {
+        public void http(HttpRequest request, io.anuke.arc.function.Consumer<HttpResponse> success,
+                         io.anuke.arc.function.Consumer<Throwable> failure) {
             if (failure != null)
-                failure.get(new IllegalStateException("no HTTP stack on the bridge"));
+                failure.accept(new IllegalStateException("no HTTP stack on the bridge"));
         }
 
         @Override

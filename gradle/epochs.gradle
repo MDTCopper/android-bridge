@@ -73,7 +73,7 @@ ext.branchHasSources = { String branch ->
 }
 
 // The subprojects that carry an epoch: one per version branch.
-def epochNames = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6']
+def epochNames = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7']
 
 // Only epochs whose code is there are prepared, so a fresh checkout does not fetch every jar to compile
 // one. -Pepochs=v1 picks explicitly.

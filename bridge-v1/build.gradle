@@ -1,12 +1,11 @@
 
 /**
- * v1 is the FileHandle shape of the io.anuke-package 6 line: releases 100.0 up to 101.0, bleeding-edge
- * builds 5700 up to 6319. Arc renamed FileHandle to Fi on 2019-12-15, so 6315 still has the old class and
- * 6320 is the first published build with Fi; v2 starts there. 5700 is the first published build after the
- * functional types became Cons (2019-10-29).
+ * v1 is the Consumer/FileHandle shape of the io.anuke-package 6 line: releases 93.0 up to 99.0,
+ * bleeding-edge builds 4550 up to 5699. Arc moved the functional types from function.Consumer to func.Cons
+ * on 2019-10-29; 5700 is the first published build after that, and the ids in between have no release.
  *
- * It compiles against 6315, the last FileHandle build with a release. The release tags 100.0 and 101.0 both
- * pin an Arc FileHandle/Cons tree, so they are checked inside the same shape.
+ * It compiles against v99, the newest release whose Arc is still the Consumer/FileHandle shape; every
+ * symbol it references must also exist at 4550, which :pack:checkBridgeApi enforces.
  *
  * Everything is compile only: the game and arc jars arrive on the command line at runtime.
  */

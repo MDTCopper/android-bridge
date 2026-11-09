@@ -8,7 +8,7 @@
 // @CompatRange, and a ref such a class names beyond the ones below is listed in <branch>.compatRefs.
 
 def compatClasses = project(':compat').sourceSets.main.output
-def checkedBranches = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6'].findAll {
+def checkedBranches = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7'].findAll {
     rootProject.ext.branchHasSources(it) && findProperty("${it}.compatFloor")
 }
 def propertiesPath = rootProject.file('gradle.properties').absolutePath

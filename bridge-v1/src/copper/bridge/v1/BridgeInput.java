@@ -262,13 +262,22 @@ public class BridgeInput extends Input {
 
     //region text input and other peripherals
 
+    /** {@code TextInput.numeric} was added after 4550; the older dialog has no numeric mode to ask for. */
+    private static boolean numeric(TextInput info) {
+        try {
+            return (boolean)TextInput.class.getField("numeric").get(info);
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
     /** Shows the text input dialog ART owns; the answer arrives on the game loop. */
     @Override
     public void getTextInput(TextInput info) {
         // the 6 line's TextInput has no hint line and no empty-answer flag, so the dialog gets neither
-        JvmCall.textInput(info.title, "", info.text, info.numeric, info.multiline,
+        JvmCall.textInput(info.title, "", info.text, numeric(info), info.multiline,
                 info.maxLength, false)
-                .onResult(value -> info.accepted.get(value))
+                .onResult(value -> info.accepted.accept(value))
                 .onCanceled(info.canceled);
     }
 

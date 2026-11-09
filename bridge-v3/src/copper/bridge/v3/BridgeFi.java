@@ -30,14 +30,14 @@ public class BridgeFi extends Fi {
     @Override
     public Fi child(String name) {
         name = name.replace('\\', '/');
-        if (file.getPath().isEmpty()) return new BridgeFi(files, new File(name), type);
+        if (file.getPath().length() == 0) return new BridgeFi(files, new File(name), type);
         return new BridgeFi(files, new File(file, name), type);
     }
 
     @Override
     public Fi sibling(String name) {
         name = name.replace('\\', '/');
-        if (file.getPath().isEmpty()) throw new ArcRuntimeException("Cannot get the sibling of the root.");
+        if (file.getPath().length() == 0) throw new ArcRuntimeException("Cannot get the sibling of the root.");
         return new BridgeFi(files, new File(file.getParent(), name), type);
     }
 

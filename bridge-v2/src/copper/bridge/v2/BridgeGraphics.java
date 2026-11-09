@@ -50,7 +50,6 @@ public class BridgeGraphics extends Graphics {
 
     private int width;
     private int height;
-    private int safeInsetLeft, safeInsetRight, safeInsetTop, safeInsetBottom;
 
     private long frameId = -1;
     private long lastFrameTime = -1;
@@ -276,6 +275,18 @@ public class BridgeGraphics extends Graphics {
         }
     }
 
+    private static int esMajor(String version) {
+        String prefix = "OpenGL ES ";
+        int start = version.indexOf(prefix);
+        if (start < 0)
+            return 0;
+        start += prefix.length();
+        int end = start;
+        while (end < version.length() && Character.isDigit(version.charAt(end)))
+            end++;
+        return end == start ? 0 : Integer.parseInt(version.substring(start, end));
+    }
+
     /** The ES3 wrapper must not be installed on a device that only offers ES2. */
     private void setupGL() {
         GLES.createCapabilities();
@@ -287,9 +298,11 @@ public class BridgeGraphics extends Graphics {
         String version = gl20.glGetString(GL20.GL_VERSION);
         String vendor = gl20.glGetString(GL20.GL_VENDOR);
         String renderer = gl20.glGetString(GL20.GL_RENDERER);
-        glVersion = new GLVersion(Application.ApplicationType.android, version, vendor, renderer);
+        glVersion = new GLVersion(BridgeApplication.ANDROID, version, vendor, renderer);
 
-        boolean supportsES3 = glVersion.atLeast(3, 0) && glVersion.majorVersion > 2;
+        // GLVersion exposes atLeast/majorVersion only on the newer end and getMajorVersion on the older one, so
+        // read the version string itself.
+        boolean supportsES3 = esMajor(version) >= 3;
         // an explicit request is not quietly downgraded: the caller asked for a version this context cannot be
         if (Bridge.options.glMode == GLMode.GL3 && !supportsES3)
             throw new IllegalStateException("OpenGL ES 3 was requested, but the context is " + version);
@@ -345,13 +358,6 @@ public class BridgeGraphics extends Graphics {
      *  the game as one delta and step its physics in one jump. */
     public void markResumed() {
         resumed = true;
-    }
-
-    public void safeInsetsUpdated(int top, int bottom, int left, int right) {
-        safeInsetTop = top;
-        safeInsetBottom = bottom;
-        safeInsetLeft = left;
-        safeInsetRight = right;
     }
 
     public void beginFrame() {
@@ -434,17 +440,18 @@ public class BridgeGraphics extends Graphics {
     }
 
     @Override
-    public int[] getSafeInsets(){
-        return new int[]{safeInsetLeft, safeInsetRight, safeInsetTop, safeInsetBottom};
-    }
-
-    @Override
     public long getFrameId() {
         return frameId;
     }
 
     @Override
     public float getDeltaTime() {
+        return deltaTime;
+    }
+
+    /** Abstract on the older end of the range, removed before its newer one: no {@code @Override} on purpose. */
+    @SuppressWarnings("unused")
+    public float getRawDeltaTime() {
         return deltaTime;
     }
 
@@ -540,5 +547,60 @@ public class BridgeGraphics extends Graphics {
 
     @Override
     protected void setSystemCursor(SystemCursor systemCursor) {
+    }
+
+    /** The surface belongs to the host activity, so a resize request from the game has nothing to act on. */
+    @Override
+    public void setResizable(boolean resizable) {
+    }
+
+    /** The window is the host activity's, not something the game decorates. */
+    @Override
+    public void setUndecorated(boolean undecorated) {
+    }
+
+    @Override
+    public Monitor getPrimaryMonitor() {
+        return null;
+    }
+
+    @Override
+    public Monitor getMonitor() {
+        return null;
+    }
+
+    @Override
+    public Monitor[] getMonitors() {
+        return new Monitor[0];
+    }
+
+    @Override
+    public DisplayMode[] getDisplayModes() {
+        return new DisplayMode[0];
+    }
+
+    @Override
+    public DisplayMode[] getDisplayModes(Monitor monitor) {
+        return new DisplayMode[0];
+    }
+
+    @Override
+    public DisplayMode getDisplayMode() {
+        return null;
+    }
+
+    @Override
+    public DisplayMode getDisplayMode(Monitor monitor) {
+        return null;
+    }
+
+    @Override
+    public boolean supportsDisplayModeChange() {
+        return false;
+    }
+
+    @Override
+    public boolean setFullscreenMode(DisplayMode displayMode) {
+        return false;
     }
 }

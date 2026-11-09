@@ -1,6 +1,7 @@
 package copper.bridge.v1;
 
 import arc.*;
+import arc.input.KeyCode;
 import arc.struct.*;
 
 import copper.bridge.gen.*;
@@ -15,16 +16,19 @@ import copper.bridge.util.*;
  * current, and the listener callbacks belong to that same thread.
  */
 public class BridgeEvents implements Events {
+    /** Cached once: the constant names changed case inside the range, the order did not. */
+    private static final KeyCode[] KEYS = KeyCode.values();
+
     private final BridgeGraphics graphics;
     private final BridgeInput input;
-    private final Seq<ApplicationListener> listeners;
+    private final Array<ApplicationListener> listeners;
 
     private volatile boolean running = true;
     private volatile boolean paused;
     private boolean surfaceReady;
 
     public BridgeEvents(BridgeGraphics graphics, BridgeInput input,
-                        Seq<ApplicationListener> listeners) {
+                        Array<ApplicationListener> listeners) {
         this.graphics = graphics;
         this.input = input;
         this.listeners = listeners;
@@ -124,8 +128,8 @@ public class BridgeEvents implements Events {
     @Override
     public void onBackPressed() {
         if (Core.scene != null && Core.scene.hasDialog()) {
-            Core.scene.keyDown(arc.input.KeyCode.back);
-            Core.scene.keyUp(arc.input.KeyCode.back);
+            Core.scene.keyDown(KEYS[44]); //back
+            Core.scene.keyUp(KEYS[44]); //back
             return;
         }
 

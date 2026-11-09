@@ -3,14 +3,12 @@ package copper.bridge.v1;
 import arc.audio.*;
 import arc.files.*;
 
-import copper.bridge.annotation.CompatRange;
 import copper.bridge.gen.*;
 
 /**
  * One sound of the abstract arc.Audio. The int it plays with is ART's handle, not a SoundPool stream id: a stream id
  * dies with its stream, and the game holds these for as long as it likes.
  */
-@CompatRange(ceiling = "v112")
 final class LegacySound implements Sound {
     private final int sound;
 

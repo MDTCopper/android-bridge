@@ -39,9 +39,13 @@ public class BridgeLauncher extends ClientLauncher implements Platform {
         });
     }
 
-    /** Writes the crash report through the game's own sender; the 6 line has it in every version. */
+    /** Writes the crash report through the game's own sender; {@code log} only exists on the newer end. */
     private void handleCrash(Throwable cause) {
-        CrashSender.log(cause);
+        try {
+            CrashSender.class.getMethod("log", Throwable.class).invoke(null, cause);
+        } catch (Throwable ignored) {
+            arc.util.Log.err(cause);
+        }
     }
 
     @Override

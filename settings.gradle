@@ -24,15 +24,17 @@ include 'core'
 // annotations are looked up by name, which is what keeps this from being a cycle.
 include 'processor'
 
-// the arc backend and the game launcher, compiled against one epoch's jar from .mindustry/ - never
-// against sources - and run on every version in its branch's range.
+// the array-era 6 line, compiled against the last Array build (8657).
 include 'bridge-v1'
 
-// the 7 and 8 line, compiled against the v159 epoch.
+// the 6 line's Seq/audio shape and the whole 7 line, compiled against the v112 epoch.
 include 'bridge-v2'
 
-// Mindustry 9: Arc merged into the game repository.
+// the 7 and 8 line, compiled against the v159 epoch.
 include 'bridge-v3'
+
+// Mindustry 9: Arc merged into the game repository.
+include 'bridge-v4'
 
 // libcopperbridge.so for every ABI, in the same task graph so its result is staged where pack
 // expects it; not a Java module.

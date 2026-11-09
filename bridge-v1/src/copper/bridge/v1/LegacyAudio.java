@@ -3,14 +3,12 @@ package copper.bridge.v1;
 import arc.audio.*;
 import arc.files.*;
 
-import copper.bridge.annotation.CompatRange;
 import copper.bridge.gen.*;
 
 /**
  * The abstract arc.Audio of the 6 line's low end. Only ever constructed below 113, where the class still exists -
  * which is why the branch compiles at v112 - so its references are checked against v112, not the range's top.
  */
-@CompatRange(ceiling = "v112")
 public class LegacyAudio extends arc.Audio {
 
     public LegacyAudio() {

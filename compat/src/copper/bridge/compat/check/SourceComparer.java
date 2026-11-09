@@ -82,6 +82,10 @@ public final class SourceComparer {
             }
 
             int arity = arity(ref.descriptor);
+            if (ref.name.equals("<init>") && arity == 0) {
+                // an implicit default constructor has no MethodTree at all
+                continue;
+            }
             if (isImplicitEnumMethod(ref.name, floorType)) {
                 // values()/valueOf() are compiler-generated and never appear in the source tree
                 continue;
@@ -92,8 +96,6 @@ public final class SourceComparer {
                     withArity(JavaApi.members(ceilingType.tree, ref.name), arity), ref.descriptor);
 
             if (floorSignatures.isEmpty()) {
-                if (ref.name.equals("<init>") && arity == 0)
-                    continue;
                 if (OBJECT_METHODS.contains(ref.name) && ceilingSignatures.isEmpty())
                     continue;
                 issues.add("member missing at floor: " + ref.owner + "." + ref.name + " " + ref.descriptor);

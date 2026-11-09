@@ -1,4 +1,4 @@
-package copper.bridge.v2;
+package copper.bridge.v3;
 
 /**
  * Picks the launcher whose file chooser matches the game that is running. The choice is probed, not versioned: this

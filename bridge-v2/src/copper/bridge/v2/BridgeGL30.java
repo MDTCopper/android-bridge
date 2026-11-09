@@ -25,7 +25,7 @@ public class BridgeGL30 extends BridgeGL20 implements GL30 {
 
     @Override
     public void glDrawRangeElements(int mode, int start, int end, int count, int type, int offset) {
-        GLES30.glDrawRangeElements(mode, start, end, count, type, offset);
+        GLES30.glDrawRangeElements(mode, start, end, count, type, (long)offset);
     }
 
     @Override
@@ -35,7 +35,7 @@ public class BridgeGL30 extends BridgeGL20 implements GL30 {
 
     @Override
     public void glTexImage3D(int target, int level, int internalformat, int width, int height, int depth, int border, int format, int type, int offset) {
-        GLES30.glTexImage3D(target, level, internalformat, width, height, depth, border, format, type, offset);
+        GLES30.glTexImage3D(target, level, internalformat, width, height, depth, border, format, type, (long)offset);
     }
 
     @Override
@@ -45,7 +45,7 @@ public class BridgeGL30 extends BridgeGL20 implements GL30 {
 
     @Override
     public void glTexSubImage3D(int target, int level, int xoffset, int yoffset, int zoffset, int width, int height, int depth, int format, int type, int offset) {
-        GLES30.glTexSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, offset);
+        GLES30.glTexSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, (long)offset);
     }
 
     @Override
@@ -208,7 +208,7 @@ public class BridgeGL30 extends BridgeGL20 implements GL30 {
 
     @Override
     public void glVertexAttribIPointer(int index, int size, int type, int stride, int offset) {
-        GLES30.glVertexAttribIPointer(index, size, type, stride, offset);
+        GLES30.glVertexAttribIPointer(index, size, type, stride, (long)offset);
     }
 
     @Override
@@ -335,7 +335,7 @@ public class BridgeGL30 extends BridgeGL20 implements GL30 {
 
     @Override
     public void glDrawElementsInstanced(int mode, int count, int type, int indicesOffset, int instanceCount) {
-        GLES30.glDrawElementsInstanced(mode, count, type, indicesOffset, instanceCount);
+        GLES30.glDrawElementsInstanced(mode, count, type, (long)indicesOffset, instanceCount);
     }
 
     @Override

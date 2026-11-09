@@ -5,6 +5,7 @@ import arc.audio.*;
 import arc.struct.*;
 
 import copper.bridge.*;
+import copper.bridge.backend.GameLoop;
 import copper.bridge.gen.*;
 import copper.bridge.v6.BridgeGraphics;
 import copper.bridge.v6.BridgeFiles;
@@ -18,7 +19,7 @@ import java.util.*;
  * lifecycle callbacks, a {@code GLSurfaceView} owns the render thread - and neither exists here, so this class owns
  * the loop that turns forwarded events back into a lifecycle on one thread with the EGL context current.
  */
-public class BridgeApplication implements Application {
+public class BridgeApplication implements Application, GameLoop.Host {
     private static final long SURFACE_TIMEOUT_MILLIS = 20000;
 
     public final BridgeGraphics graphics;
@@ -76,7 +77,7 @@ public class BridgeApplication implements Application {
         for (ApplicationListener listener : listeners)
             listener.resize(graphics.getWidth(), graphics.getHeight());
 
-        loop();
+        new GameLoop().run(this);
 
         teardown();
     }
@@ -96,32 +97,48 @@ public class BridgeApplication implements Application {
         return true;
     }
 
-    private void loop() {
-        while (events.running()) {
-            JvmBus.pump();
-            runPosted();
-
-            if (events.paused() || !events.surfaceReady()) {
-                // nothing may be drawn without a current surface, but events must keep flowing
-                sleep(4);
-                continue;
-            }
-
-            graphics.beginFrame();
-            input.processEvents();
-            defaultUpdate();
-            for (ApplicationListener listener : listeners)
-                listener.update();
-            input.processDevices();
-            graphics.swapBuffers();
-
-            if (!firstFrameMarked) {
-                firstFrameMarked = true;
-                // the ART side owns whatever it shows over the surface, and this is the only thing it waits for
-                JvmCall.onFirstFrameDrawn();
-            }
-        }
+    @Override
+    public boolean running() {
+        return events.running();
     }
+
+    @Override
+    public boolean paused() {
+        return events.paused();
+    }
+
+    @Override
+    public boolean surfaceReady() {
+        return events.surfaceReady();
+    }
+
+    @Override
+    public void pump() {
+        JvmBus.pump();
+        runPosted();
+    }
+
+    @Override
+    public void idle() {
+        sleep(4);
+    }
+
+    @Override
+    public void frame() {
+        graphics.beginFrame();
+        input.processEvents();
+        defaultUpdate();
+        for (ApplicationListener listener : listeners)
+            listener.update();
+        input.processDevices();
+        graphics.swapBuffers();
+    }
+
+    @Override
+    public void firstFrame() {
+        JvmCall.onFirstFrameDrawn();
+    }
+
 
     private void teardown() {
         for (ApplicationListener listener : listeners) {

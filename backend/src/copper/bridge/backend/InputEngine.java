@@ -1,4 +1,4 @@
-package copper.bridge.backend.input;
+package copper.bridge.backend;
 
 import copper.bridge.jvm.InputBatch;
 import copper.bridge.gen.*;

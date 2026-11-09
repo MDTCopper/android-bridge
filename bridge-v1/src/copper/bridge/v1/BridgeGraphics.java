@@ -7,7 +7,7 @@ import io.anuke.arc.graphics.glutils.*;
 
 import copper.bridge.*;
 import copper.bridge.BridgeOptions.GLMode;
-import copper.bridge.backend.display.DisplayEngine;
+import copper.bridge.backend.DisplayEngine;
 import copper.bridge.jvm.*;
 import copper.bridge.util.*;
 

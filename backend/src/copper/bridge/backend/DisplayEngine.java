@@ -1,4 +1,4 @@
-package copper.bridge.backend.display;
+package copper.bridge.backend;
 
 import copper.bridge.Bridge;
 import copper.bridge.BridgeOptions;

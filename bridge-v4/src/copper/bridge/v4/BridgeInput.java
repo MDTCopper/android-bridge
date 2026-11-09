@@ -2,7 +2,7 @@ package copper.bridge.v4;
 
 import io.anuke.arc.*;
 import io.anuke.arc.input.*;
-import copper.bridge.backend.input.InputEngine;
+import copper.bridge.backend.InputEngine;
 import copper.bridge.jvm.*;
 import copper.bridge.gen.*;
 import copper.bridge.util.*;

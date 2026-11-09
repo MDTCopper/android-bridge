@@ -35,10 +35,12 @@ public final class BranchClassLoader extends ClassLoader {
                 for (int i = 0; i < count; i++) {
                     String name = data.readUTF();
                     int length = data.readInt();
+                    if (!name.startsWith(prefix) || !name.endsWith(".class")) {
+                        skipFully(data, length);
+                        continue;
+                    }
                     byte[] bytes = new byte[length];
                     data.readFully(bytes);
-                    if (!name.startsWith(prefix) || !name.endsWith(".class"))
-                        continue;
                     String className = name.substring(prefix.length(), name.length() - ".class".length());
                     branchClasses.put(className, bytes);
                 }
@@ -71,6 +73,19 @@ public final class BranchClassLoader extends ClassLoader {
             if (resolve)
                 resolveClass(loaded);
             return loaded;
+        }
+    }
+
+    private static void skipFully(DataInputStream in, int count) throws IOException {
+        int remaining = count;
+        while (remaining > 0) {
+            int skipped = in.skipBytes(remaining);
+            if (skipped == 0) {
+                if (in.read() < 0)
+                    throw new EOFException("truncated branch stream");
+                skipped = 1;
+            }
+            remaining -= skipped;
         }
     }
 

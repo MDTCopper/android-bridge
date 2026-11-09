@@ -6,6 +6,8 @@ import arc.graphics.*;
 import arc.graphics.gl.*;
 
 import copper.bridge.*;
+import copper.bridge.v6.BridgeGL20;
+import copper.bridge.v7.BridgeGL30;
 import copper.bridge.BridgeOptions.GLMode;
 import copper.bridge.jvm.*;
 import copper.bridge.util.*;

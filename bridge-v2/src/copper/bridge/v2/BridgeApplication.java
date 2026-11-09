@@ -102,9 +102,8 @@ public class BridgeApplication implements Application {
 
             graphics.beginFrame();
             input.processEvents();
-            // Application.defaultUpdate does this; autosave() arrived later in the range
-            autosaveSettings();
-            updateTime();
+            // Application.defaultUpdate does this
+            io.anuke.arc.util.Time.update();
             for (ApplicationListener listener : listeners)
                 listener.update();
             input.processDevices();
@@ -155,50 +154,6 @@ public class BridgeApplication implements Application {
         }
     }
 
-    /** {@code Settings.autosave} is absent at the range's floor; there is nothing to drive there. */
-    private static final java.lang.reflect.Method AUTOSAVE = autosaveMethod();
-
-    private static java.lang.reflect.Method autosaveMethod() {
-        try {
-            return Settings.class.getMethod("autosave");
-        } catch (Throwable ignored) {
-            return null;
-        }
-    }
-
-    private static void autosaveSettings() {
-        if (AUTOSAVE == null)
-            return;
-        try {
-            AUTOSAVE.invoke(Core.settings);
-        } catch (Throwable ignored) {
-        }
-    }
-
-    /** {@code Time.updateGlobal} arrived before v99 but after 4550; the older Time advances through update(). */
-    private static final java.lang.reflect.Method UPDATE_TIME = updateTimeMethod();
-
-    private static java.lang.reflect.Method updateTimeMethod() {
-        try {
-            return io.anuke.arc.util.Time.class.getMethod("updateGlobal");
-        } catch (Throwable ignored) {
-            try {
-                return io.anuke.arc.util.Time.class.getMethod("update");
-            } catch (Throwable ignoredToo) {
-                return null;
-            }
-        }
-    }
-
-    private static void updateTime() {
-        if (UPDATE_TIME == null)
-            return;
-        try {
-            UPDATE_TIME.invoke(null);
-        } catch (Throwable ignored) {
-        }
-    }
-
     /** {@code Thread.sleep} with arc's old semantics: an interrupt is swallowed, not re-armed. */
     private static void sleep(long millis) {
         try {
@@ -207,25 +162,13 @@ public class BridgeApplication implements Application {
         }
     }
 
-    /**
-     * Installs the audio implementation the running game declares: the abstract arc.Audio this branch compiles
-     * against, or the SoloudAudio the 11234 build has under its SoLoud name. No mock - a silent game would hide the
-     * failure it stands for.
-     */
+    /** The only audio shape in this range is the abstract class implemented by {@link LegacyAudio}. */
     private static void initAudio() {
-        io.anuke.arc.Audio audio;
         try {
-            audio = (io.anuke.arc.Audio) Class.forName("io.anuke.arc.audio.SoloudAudio").getConstructor().newInstance();
-        } catch (Throwable soloud) {
-            try {
-                audio = new LegacyAudio();
-            } catch (Throwable legacy) {
-                Log.error("audio", legacy);
-                return;
-            }
+            Core.audio = new LegacyAudio();
+        } catch (Throwable legacy) {
+            Log.error("audio", legacy);
         }
-
-        Core.audio = audio;
     }
 
     @Override

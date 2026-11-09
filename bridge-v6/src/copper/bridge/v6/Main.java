@@ -56,13 +56,10 @@ public class Main {
     /** Marks the game's logger as already installed; the field is {@code loadedFileLogger} on the newer end and
      *  {@code loadedLogger} on the older one. */
     private static void markLoggerLoaded() {
+        Vars.loadedLogger = true;
         try {
             Vars.class.getField("loadedFileLogger").setBoolean(null, true);
         } catch (Throwable ignored) {
-            try {
-                Vars.class.getField("loadedLogger").setBoolean(null, true);
-            } catch (Throwable ignoredToo) {
-            }
         }
     }
 

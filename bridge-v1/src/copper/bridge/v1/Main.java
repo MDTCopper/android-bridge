@@ -5,6 +5,7 @@ import copper.bridge.*;
 import copper.bridge.jvm.Launch;
 import copper.bridge.util.Log;
 import io.anuke.mindustry.*;
+import io.anuke.mindustry.net.Net;
 
 import java.io.*;
 
@@ -29,9 +30,7 @@ public class Main {
         prepareGameFolders();
 
         // the game wraps its logger while it sets up: the printed copy is what this bridge wants, the native side
-        // turning the process's stdout and stderr into logcat and the log file. The flag moved inside the range.
-        markLoggerLoaded();
-
+        // turning the process's stdout and stderr into logcat and the log file.
         configureLog();
 
         BridgeApplication application = new BridgeApplication();
@@ -76,11 +75,6 @@ public class Main {
     private static void reportCrash(Throwable error) {
         try {
             Class<?> sender = Class.forName("io.anuke.mindustry.net.CrashSender");
-            try {
-                sender.getMethod("log", Throwable.class).invoke(null, error);
-                return;
-            } catch (Throwable ignored) {
-            }
             io.anuke.arc.function.Consumer<File> written = file -> {
             };
             sender.getMethod("send", Throwable.class, io.anuke.arc.function.Consumer.class)
@@ -93,49 +87,21 @@ public class Main {
     /** The network implementation lives in the desktop jar's net module; absent trees simply keep singleplayer. */
     private static void installNetProviders() {
         try {
-            Class<?> net = Class.forName("io.anuke.mindustry.net.Net");
-            Class<?> clientProvider = Class.forName("io.anuke.mindustry.net.Net$ClientProvider");
-            Class<?> serverProvider = Class.forName("io.anuke.mindustry.net.Net$ServerProvider");
             Object client = Class.forName("io.anuke.mindustry.net.ArcNetClient").getConstructor().newInstance();
             Object server = Class.forName("io.anuke.mindustry.net.ArcNetServer").getConstructor().newInstance();
-            net.getMethod("setClientProvider", clientProvider).invoke(null, client);
-            net.getMethod("setServerProvider", serverProvider).invoke(null, server);
+            Net.setClientProvider((Net.ClientProvider)client);
+            Net.setServerProvider((Net.ServerProvider)server);
         } catch (Throwable ignored) {
         }
     }
 
     /** Marks the game's logger as already installed; the field is {@code loadedFileLogger} on the newer end and
      *  {@code loadedLogger} on the older one. */
-    private static void markLoggerLoaded() {
-        try {
-            Vars.class.getField("loadedFileLogger").setBoolean(null, true);
-        } catch (Throwable ignored) {
-            try {
-                Vars.class.getField("loadedLogger").setBoolean(null, true);
-            } catch (Throwable ignoredToo) {
-            }
-        }
-    }
-
-    /**
-     * Turns the game's log colors off and, when asked, its level up. Both are fields on every version in the range;
-     * they are private on the older ones, which is why they are set through arc's own reflector rather than
-     * assigned.
-     */
+    /** Turns the game's log colors off and, when asked, its level up; both are public methods in this range. */
     private static void configureLog() {
-        setStatic(io.anuke.arc.util.Log.class, "useColors", false);
+        io.anuke.arc.util.Log.setUseColors(false);
         if (Bridge.options.debug || Bridge.options.verbose)
-            setStatic(io.anuke.arc.util.Log.class, "level", io.anuke.arc.util.Log.LogLevel.debug);
-    }
-
-    /** Reflection without arc's helper, which does not exist at the range's floor. */
-    private static void setStatic(Class<?> owner, String name, Object value) {
-        try {
-            java.lang.reflect.Field field = owner.getDeclaredField(name);
-            field.setAccessible(true);
-            field.set(null, value);
-        } catch (Throwable ignored) {
-        }
+            io.anuke.arc.util.Log.setLogLevel(io.anuke.arc.util.Log.LogLevel.debug);
     }
 
     private static void prepareArcNatives() {

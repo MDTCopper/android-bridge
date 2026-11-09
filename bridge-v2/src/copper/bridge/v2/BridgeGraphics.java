@@ -287,14 +287,6 @@ public class BridgeGraphics extends Graphics {
         return end == start ? 0 : Integer.parseInt(version.substring(start, end));
     }
 
-    /** {@code arc.graphics.Gl} does not exist at the range's floor; there is no static batch state to reset there. */
-    private static void resetGl() {
-        try {
-            Class.forName("io.anuke.arc.graphics.Gl").getMethod("reset").invoke(null);
-        } catch (Throwable ignored) {
-        }
-    }
-
     /** The ES3 wrapper must not be installed on a device that only offers ES2. */
     private void setupGL() {
         GLES.createCapabilities();
@@ -323,7 +315,6 @@ public class BridgeGraphics extends Graphics {
             Core.gl30 = gl30;
         }
 
-        resetGl();
         Log.info("GL", "renderer: " + renderer);
         Log.info("GL", "vendor: " + vendor);
         Log.info("GL", "version: " + version);

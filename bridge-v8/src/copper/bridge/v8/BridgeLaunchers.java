@@ -8,7 +8,7 @@ package copper.bridge.v8;
 public final class BridgeLaunchers {
     private static final String PARAMS_TYPE = "mindustry.ui.FileChooser$FileChooserParams";
     /** The launcher that answers that request. Reached by name, never as a type. */
-    private static final String PARAMS_LAUNCHER = "copper.bridge.v2.BridgeLauncherParams";
+    private static final String PARAMS_LAUNCHER = "copper.bridge.v8.BridgeLauncherParams";
 
     private BridgeLaunchers() {
     }

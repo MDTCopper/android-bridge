@@ -183,25 +183,13 @@ public class BridgeApplication implements Application {
         }
     }
 
-    /**
-     * Installs the audio implementation the running game declares: the abstract arc.Audio this branch compiles
-     * against, or the SoloudAudio the 11234 build has under its SoLoud name. No mock - a silent game would hide the
-     * failure it stands for.
-     */
+    /** The only audio shape in this range is the abstract class implemented by {@link LegacyAudio}. */
     private static void initAudio() {
-        arc.Audio audio;
         try {
-            audio = (arc.Audio) Class.forName("arc.audio.SoloudAudio").getConstructor().newInstance();
-        } catch (Throwable soloud) {
-            try {
-                audio = new LegacyAudio();
-            } catch (Throwable legacy) {
-                Log.error("audio", legacy);
-                return;
-            }
+            Core.audio = new LegacyAudio();
+        } catch (Throwable legacy) {
+            Log.error("audio", legacy);
         }
-
-        Core.audio = audio;
     }
 
     @Override

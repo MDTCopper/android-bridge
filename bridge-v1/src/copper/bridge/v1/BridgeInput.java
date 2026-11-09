@@ -18,18 +18,6 @@ public class BridgeInput extends Input {
     private static final Orientation LANDSCAPE = Orientation.Landscape;
     private static final Orientation PORTRAIT = Orientation.Portrait;
 
-    /** Absent at the range's floor; looked up once so the frame loop does not pay for a failed lookup. */
-    private static final java.lang.reflect.Method POST_UPDATE = postUpdateMethod();
-
-    private static java.lang.reflect.Method postUpdateMethod() {
-        try {
-            return InputDevice.class.getMethod("postUpdate");
-        } catch (Throwable ignored) {
-            return null;
-        }
-    }
-
-
     /** The schema this bridge binds; an inner class because this one already extends arc's {@code Input}. */
     public final class Events extends InputBatch {
         @Override
@@ -206,13 +194,8 @@ public class BridgeInput extends Input {
     }
 
     /** Not a loop over {@code Input.devices}: arc removes that field in v152, and the keyboard is its only device. */
+    /** Absent in this range; the input devices have no per-frame update pass. */
     public void processDevices() {
-        if (POST_UPDATE == null)
-            return;
-        try {
-            POST_UPDATE.invoke(keyboard);
-        } catch (Throwable ignored) {
-        }
     }
 
     public void onPause() {
@@ -262,20 +245,11 @@ public class BridgeInput extends Input {
 
     //region text input and other peripherals
 
-    /** {@code TextInput.numeric} was added after 4550; the older dialog has no numeric mode to ask for. */
-    private static boolean numeric(TextInput info) {
-        try {
-            return (boolean)TextInput.class.getField("numeric").get(info);
-        } catch (Throwable ignored) {
-            return false;
-        }
-    }
-
     /** Shows the text input dialog ART owns; the answer arrives on the game loop. */
     @Override
     public void getTextInput(TextInput info) {
         // the 6 line's TextInput has no hint line and no empty-answer flag, so the dialog gets neither
-        JvmCall.textInput(info.title, "", info.text, numeric(info), info.multiline,
+        JvmCall.textInput(info.title, "", info.text, false, info.multiline,
                 info.maxLength, false)
                 .onResult(value -> info.accepted.accept(value))
                 .onCanceled(info.canceled);

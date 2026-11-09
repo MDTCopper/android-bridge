@@ -39,10 +39,11 @@ public class BridgeLauncher extends ClientLauncher implements Platform {
         });
     }
 
-    /** Writes the crash report through the game's own sender; {@code log} only exists on the newer end. */
+    /** Writes the crash report through the game's own sender; {@code send} is the only entry in this range. */
     private void handleCrash(Throwable cause) {
         try {
-            CrashSender.class.getMethod("log", Throwable.class).invoke(null, cause);
+            CrashSender.send(cause, file -> {
+            });
         } catch (Throwable ignored) {
             io.anuke.arc.util.Log.err(cause);
         }

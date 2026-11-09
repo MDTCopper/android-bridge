@@ -18,6 +18,7 @@ import java.util.zip.*;
  * UTF {@code vN/copper/bridge/vN/...class} name, an int byte length, and the class bytes.
  */
 public final class BranchClassLoader extends ClassLoader {
+    /** Branch classes not defined yet; an entry is dropped as soon as its class is defined. */
     private final Map<String, byte[]> branchClasses = new HashMap<>();
     private final List<JarFile> gameJars = new ArrayList<>();
 
@@ -57,6 +58,8 @@ public final class BranchClassLoader extends ClassLoader {
                 byte[] branch = branchClasses.get(internal);
                 if (branch != null) {
                     loaded = defineClass(name, branch, 0, branch.length);
+                    // the VM owns the class now; keeping the bytes would only double its memory
+                    branchClasses.remove(internal);
                 } else if (isGame(name)) {
                     loaded = loadGame(name);
                 }

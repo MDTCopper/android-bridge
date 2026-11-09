@@ -1,6 +1,6 @@
 
 /**
- * v1 is the Consumer/FileHandle shape of the io.anuke-package 6 line: releases 93.0 up to 99.0,
+ * v1 is the Consumer/FileHandle shape of the io.anuke-package 6 line: releases 92.0 up to 99.0,
  * bleeding-edge builds 4550 up to 5699. Arc moved the functional types from function.Consumer to func.Cons
  * on 2019-10-29; 5700 is the first published build after that, and the ids in between have no release.
  *

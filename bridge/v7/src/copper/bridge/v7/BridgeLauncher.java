@@ -81,6 +81,7 @@ public class BridgeLauncher extends ClientLauncher implements Platform {
 
     /** The same picker with a file-type filter. The interface gained this method after the range's floor, so it
      *  carries no {@code @BridgeInterface}. */
+    @BridgeInterface
     public void showMultiFileChooser(Cons<Fi> cons, String... extensions) {
         pick(true, "@open", extensions, cons);
     }

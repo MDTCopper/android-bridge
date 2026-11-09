@@ -46,11 +46,17 @@ public final class BridgeInterfaceRefs {
         @Override
         public MethodVisitor visitMethod(int access, String name, String descriptor, String signature,
                                          String[] exceptions) {
+            if (name.startsWith("<") || (access & (Opcodes.ACC_STATIC | Opcodes.ACC_PRIVATE
+                    | Opcodes.ACC_SYNTHETIC | Opcodes.ACC_BRIDGE)) != 0)
+                return null;
+
+            BridgeInterfaceRef ref = new BridgeInterfaceRef(className, className, name, descriptor);
+            refs.add(ref);
             return new MethodVisitor(Opcodes.ASM9) {
                 @Override
                 public AnnotationVisitor visitAnnotation(String annotation, boolean visible) {
                     if (ANNOTATION.equals(annotation))
-                        refs.add(new BridgeInterfaceRef(className, className, name, descriptor));
+                        ref.annotated = true;
                     return null;
                 }
             };

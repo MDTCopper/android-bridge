@@ -25,6 +25,7 @@ import java.nio.*;
  * pause destroys only the window surface, so GL objects survive a resume.
  */
 public class BridgeGraphics extends Graphics {
+
     /** Coverage sampling attribute; not in LWJGL's core EGL headers. */
     private static final int EGL_COVERAGE_SAMPLES_NV = 0x30E1;
 
@@ -467,6 +468,7 @@ public class BridgeGraphics extends Graphics {
 
     /** Abstract on the older end of the range, removed before its newer one: no {@code @BridgeInterface} on purpose. */
     @SuppressWarnings("unused")
+    @BridgeInterface
     public float getRawDeltaTime() {
         return deltaTime;
     }
@@ -510,6 +512,7 @@ public class BridgeGraphics extends Graphics {
     /** Never called: a bridge that only draws into the activity's surface has no window. No {@code @BridgeInterface} on
      *  purpose - arc declares it abstract up to v156 and removes it in v157. */
     @SuppressWarnings("unused")
+    @BridgeInterface
     public boolean setWindowedMode(int width, int height) {
         return false;
     }

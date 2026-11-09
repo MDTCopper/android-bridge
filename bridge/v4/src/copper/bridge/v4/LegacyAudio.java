@@ -1,5 +1,7 @@
 package copper.bridge.v4;
 
+import copper.bridge.annotation.BridgeInterface;
+
 import io.anuke.arc.audio.*;
 import io.anuke.arc.files.*;
 
@@ -14,68 +16,68 @@ public class LegacyAudio extends io.anuke.arc.Audio {
     public LegacyAudio() {
     }
 
-    @Override
+    @BridgeInterface
     public Sound newSound(FileHandle file) {
         return new LegacySound(file);
     }
 
-    @Override
+    @BridgeInterface
     public Music newMusic(FileHandle file) {
         return new LegacyMusic(file);
     }
 
     /** Raw PCM streaming has no sink; Sound and Music are served by ART. A silent device keeps the non-null contract. */
-    @Override
+    @BridgeInterface
     public AudioDevice newAudioDevice(int samplingRate, boolean isMono) {
         return new SilentAudioDevice();
     }
 
     /** Nothing captures raw PCM; a silent recorder keeps the non-null contract. */
-    @Override
+    @BridgeInterface
     public AudioRecorder newAudioRecorder(int samplingRate, boolean isMono) {
         return new SilentAudioRecorder();
     }
 
     private static class SilentAudioDevice implements AudioDevice {
-        @Override
+        @BridgeInterface
         public boolean isMono() {
             return false;
         }
 
-        @Override
+        @BridgeInterface
         public void writeSamples(short[] samples, int offset, int numSamples) {
         }
 
-        @Override
+        @BridgeInterface
         public void writeSamples(float[] samples, int offset, int numSamples) {
         }
 
-        @Override
+        @BridgeInterface
         public int getLatency() {
             return 0;
         }
 
-        @Override
+        @BridgeInterface
         public void dispose() {
         }
 
-        @Override
+        @BridgeInterface
         public void setVolume(float volume) {
         }
     }
 
     private static class SilentAudioRecorder implements AudioRecorder {
-        @Override
+        @BridgeInterface
         public void read(short[] samples, int offset, int numSamples) {
             java.util.Arrays.fill(samples, offset, offset + numSamples, (short)0);
         }
 
-        @Override
+        @BridgeInterface
         public void dispose() {
         }
     }
 
-    @Override
+    @BridgeInterface
     public void dispose() {
         JvmCall.disposeAudio();
     }

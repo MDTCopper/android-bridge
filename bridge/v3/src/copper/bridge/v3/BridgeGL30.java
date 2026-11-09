@@ -61,6 +61,7 @@ public class BridgeGL30 extends BridgeGL20 implements GL30 {
     }
 
     /** Array overload of the older GL30 interface; gone again on the newer end, so no {@code @BridgeInterface}. */
+    @BridgeInterface
     public void glGenQueries(int n, int[] ids, int offset) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             IntBuffer buffer = stack.mallocInt(n);
@@ -76,6 +77,7 @@ public class BridgeGL30 extends BridgeGL20 implements GL30 {
     }
 
     /** Array overload of the older GL30 interface; gone again on the newer end, so no {@code @BridgeInterface}. */
+    @BridgeInterface
     public void glDeleteQueries(int n, int[] ids, int offset) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             IntBuffer buffer = stack.mallocInt(n);
@@ -194,6 +196,7 @@ public class BridgeGL30 extends BridgeGL20 implements GL30 {
     }
 
     /** Array overload of the older GL30 interface; gone again on the newer end, so no {@code @BridgeInterface}. */
+    @BridgeInterface
     public void glDeleteVertexArrays(int n, int[] arrays, int offset) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             IntBuffer buffer = stack.mallocInt(n);
@@ -209,6 +212,7 @@ public class BridgeGL30 extends BridgeGL20 implements GL30 {
     }
 
     /** Array overload of the older GL30 interface; gone again on the newer end, so no {@code @BridgeInterface}. */
+    @BridgeInterface
     public void glGenVertexArrays(int n, int[] arrays, int offset) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             IntBuffer buffer = stack.mallocInt(n);
@@ -354,7 +358,8 @@ public class BridgeGL30 extends BridgeGL20 implements GL30 {
         GLES30.glGetActiveUniformBlockiv(program, uniformBlockIndex, pname, params);
     }
 
-    /** String overload of the older GL30 interface; gone again on the newer end, so no {@code @BridgeInterface}. */
+    /** String overload of the older GL30 interface; gone again on the newer end, so it exists at one end only. */
+    @BridgeInterface
     public String glGetActiveUniformBlockName(int program, int uniformBlockIndex) {
         return GLES30.glGetActiveUniformBlockName(program, uniformBlockIndex);
     }
@@ -400,6 +405,7 @@ public class BridgeGL30 extends BridgeGL20 implements GL30 {
     }
 
     /** Array overload of the older GL30 interface; gone again on the newer end, so no {@code @BridgeInterface}. */
+    @BridgeInterface
     public void glGenSamplers(int count, int[] samplers, int offset) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             IntBuffer buffer = stack.mallocInt(count);
@@ -415,6 +421,7 @@ public class BridgeGL30 extends BridgeGL20 implements GL30 {
     }
 
     /** Array overload of the older GL30 interface; gone again on the newer end, so no {@code @BridgeInterface}. */
+    @BridgeInterface
     public void glDeleteSamplers(int count, int[] samplers, int offset) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             IntBuffer buffer = stack.mallocInt(count);
@@ -480,6 +487,7 @@ public class BridgeGL30 extends BridgeGL20 implements GL30 {
     }
 
     /** Array overload of the older GL30 interface; gone again on the newer end, so no {@code @BridgeInterface}. */
+    @BridgeInterface
     public void glDeleteTransformFeedbacks(int n, int[] ids, int offset) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             IntBuffer buffer = stack.mallocInt(n);
@@ -495,6 +503,7 @@ public class BridgeGL30 extends BridgeGL20 implements GL30 {
     }
 
     /** Array overload of the older GL30 interface; gone again on the newer end, so no {@code @BridgeInterface}. */
+    @BridgeInterface
     public void glGenTransformFeedbacks(int n, int[] ids, int offset) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             IntBuffer buffer = stack.mallocInt(n);

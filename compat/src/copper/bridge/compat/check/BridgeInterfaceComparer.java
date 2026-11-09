@@ -1,6 +1,7 @@
 package copper.bridge.compat.check;
 
 import copper.bridge.compat.api.ClassInfo;
+import copper.bridge.compat.api.JarIndex;
 import copper.bridge.compat.refs.BridgeInterfaceRef;
 import copper.bridge.compat.sources.RefJars;
 
@@ -10,8 +11,9 @@ import java.util.*;
 import java.util.stream.*;
 
 /**
- * Checks that a {@code @BridgeInterface} method mirrors a method its hierarchy actually declares at one end of the
- * branch's range. A method no supertype ever declared is dead compatibility code, not an implementation.
+ * Checks both directions of {@code @BridgeInterface}: a method the game hierarchy declares must carry the annotation,
+ * and an annotated method must actually mirror a game method. A method that mirrors only our own interfaces keeps
+ * {@code @Override}; that is how the two kinds stay distinguishable.
  */
 public final class BridgeInterfaceComparer {
     private final Map<String, ClassInfo> branchClasses = new HashMap<>();
@@ -26,11 +28,15 @@ public final class BridgeInterfaceComparer {
         comparer.indexBranch(bridgeClasses);
         List<String> issues = new ArrayList<>();
         for (BridgeInterfaceRef ref : refs) {
-            boolean floor = comparer.mirrors(ref, jars.jar(range.floor));
-            boolean ceiling = comparer.mirrors(ref, jars.jar(range.ceiling));
-            if (!floor && !ceiling)
-                issues.add("bridge method is deadcode: " + ref.owner + "." + ref.name + ref.descriptor
-                        + " has no supertype declaration at either end");
+            boolean floor = comparer.gameMatch(ref, jars.jar(range.floor));
+            boolean ceiling = comparer.gameMatch(ref, jars.jar(range.ceiling));
+            if (ref.annotated && !floor && !ceiling) {
+                issues.add("bridge method annotation is wrong: " + ref.owner + "." + ref.name + ref.descriptor
+                        + " mirrors no game supertype at either end");
+            } else if (!ref.annotated && (floor || ceiling)) {
+                issues.add("game interface method is missing @BridgeInterface: " + ref.owner + "." + ref.name
+                        + ref.descriptor);
+            }
         }
         return issues;
     }
@@ -51,7 +57,7 @@ public final class BridgeInterfaceComparer {
         }
     }
 
-    private boolean mirrors(BridgeInterfaceRef ref, copper.bridge.compat.api.JarIndex jar) {
+    private boolean gameMatch(BridgeInterfaceRef ref, JarIndex jar) {
         jarClasses.clear();
         Deque<String> queue = new ArrayDeque<>();
         Set<String> seen = new HashSet<>();
@@ -60,20 +66,16 @@ public final class BridgeInterfaceComparer {
             return false;
         enqueue(owner, queue, seen);
 
-        boolean game = false;
         while (!queue.isEmpty()) {
             String name = queue.removeFirst();
-            if (isGame(name))
-                game = true;
             ClassInfo info = info(name, jar);
             if (info == null)
                 continue;
-            if (info.member(ref.name, ref.descriptor) != null)
+            if (info.member(ref.name, ref.descriptor) != null && isGame(name))
                 return true;
             enqueue(info, queue, seen);
         }
-        // a class whose hierarchy never reaches the game is one of our own interfaces; not this check's subject
-        return !game && branchClasses.containsKey(ref.owner);
+        return false;
     }
 
     private static void enqueue(ClassInfo info, Deque<String> queue, Set<String> seen) {
@@ -85,7 +87,7 @@ public final class BridgeInterfaceComparer {
         }
     }
 
-    private ClassInfo info(String name, copper.bridge.compat.api.JarIndex jar) {
+    private ClassInfo info(String name, JarIndex jar) {
         ClassInfo branch = branchClasses.get(name);
         if (branch != null)
             return branch;

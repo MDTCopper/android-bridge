@@ -482,6 +482,7 @@ public class BridgeGraphics extends Graphics {
 
     /** Abstract on the older end of the range, removed before its newer one: no {@code @BridgeInterface} on purpose. */
     @SuppressWarnings("unused")
+    @BridgeInterface
     public float getRawDeltaTime() {
         return deltaTime;
     }
@@ -525,6 +526,7 @@ public class BridgeGraphics extends Graphics {
     /** Never called: a bridge that only draws into the activity's surface has no window. No {@code @BridgeInterface} on
      *  purpose - arc declares it abstract up to v156 and removes it in v157. */
     @SuppressWarnings("unused")
+    @BridgeInterface
     public boolean setWindowedMode(int width, int height) {
         return false;
     }

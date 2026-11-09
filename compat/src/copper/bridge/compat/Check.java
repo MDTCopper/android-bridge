@@ -44,7 +44,7 @@ public final class Check {
         }
 
         System.out.println(branch + " (" + mode + "): " + refs.size() + " direct reference(s), "
-                + reflections.size() + " direct reflection target(s), " + interfaces.size()
+                + reflections.size() + " direct reflection target(s), " + interfaces.stream().filter(r -> r.annotated).count()
                 + " bridge interface method(s), " + reflect.size() + " arc Reflect target(s)");
         for (String issue : issues)
             System.out.println("  " + issue);
@@ -62,7 +62,7 @@ public final class Check {
         CheckConfig config = CheckConfig.load(Paths.get(required(options, "properties")), branch);
         List<String> issues = new ArrayList<>();
         System.out.println("  total   " + refs.size() + " referenced member(s), "
-                + reflections.size() + " reflection target(s), " + interfaces.size()
+                + reflections.size() + " reflection target(s), " + interfaces.stream().filter(r -> r.annotated).count()
                 + " bridge interface method(s), " + reflect.size() + " arc Reflect target(s)");
 
         Range branchRange = new Range(config.floor, config.ceiling);

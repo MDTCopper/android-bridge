@@ -6,6 +6,7 @@ public final class BridgeInterfaceRef {
     public final String owner;
     public final String name;
     public final String descriptor;
+    public boolean annotated;
 
     public BridgeInterfaceRef(String sourceClass, String owner, String name, String descriptor) {
         this.sourceClass = sourceClass;

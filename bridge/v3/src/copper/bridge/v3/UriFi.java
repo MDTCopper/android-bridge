@@ -84,19 +84,19 @@ public class UriFi extends FileHandle {
             this.folder = new File(System.getProperty("java.io.tmpdir", "."));
         }
 
-        @BridgeInterface
+        @Override
         public void write(int value) throws IOException {
             ensureRoom(1);
             target.write(value);
         }
 
-        @BridgeInterface
+        @Override
         public void write(byte[] data, int offset, int length) throws IOException {
             ensureRoom(length);
             target.write(data, offset, length);
         }
 
-        @BridgeInterface
+        @Override
         public void close() throws IOException {
             if (closed)
                 return;

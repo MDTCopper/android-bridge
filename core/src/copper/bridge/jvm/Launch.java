@@ -40,8 +40,7 @@ public final class Launch {
     private static void invoke(String branch, String[] args) {
         String name = "copper.bridge." + branch + ".Main";
         try {
-            ClassLoader loader = new BranchClassLoader(branch, Bridge.options.gameJars,
-                    Launch.class.getClassLoader());
+            ClassLoader loader = new BranchClassLoader(branch, Launch.class.getClassLoader());
             Thread.currentThread().setContextClassLoader(loader);
             Class<?> entry = Class.forName(name, true, loader);
             Method main = entry.getDeclaredMethod("main", String[].class);

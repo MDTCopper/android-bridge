@@ -151,7 +151,7 @@ public class BridgeOptions {
         return options;
     }
 
-    /** The JVM classpath for the current mode: with an injected loader, the loader jars only. */
+    /** The JVM startup classpath: the bridge (or the loader) plus every game jar. */
     public List<String> jvmClasspath() {
         List<String> path = new ArrayList<>();
         if (usesCustomLoader()) {
@@ -160,6 +160,8 @@ public class BridgeOptions {
         } else {
             addBridgeJar(path);
         }
+        for (File jar : gameJars)
+            path.add(jar.getAbsolutePath());
         return path;
     }
 

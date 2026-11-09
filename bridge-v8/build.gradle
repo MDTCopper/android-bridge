@@ -1,5 +1,5 @@
 /**
- * v7: Mindustry 9, the epoch where Arc was merged into the game repository.
+ * v8: Mindustry 9, the epoch where Arc was merged into the game repository.
  *
  * The ref it compiles against is a bleeding-edge build id rather than a tag - upstream has not tagged
  * v9 yet - and arc is built out of the game's own tree, so the desktop jar is the whole epoch.

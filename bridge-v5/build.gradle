@@ -1,8 +1,8 @@
 
 /**
- * v4 is the Array shape of the 6 line: releases 102.0 up to 104.6, bleeding-edge builds 6426 up to 8659.
+ * v5 is the Array shape of the 6 line: releases 102.0 up to 104.6, bleeding-edge builds 6426 up to 8659.
  * Arc replaced Array with Seq at 3df599fe (2020-06-08); 8660 is the first published build cut after it, so
- * v4 starts there.
+ * v6 starts there.
  *
  * It compiles against 8657, the last Array build with a release. Compiling against it and checking 6426
  * keeps every reference inside the Array shape; v104.6 and v102 are inside that range on the release scale.

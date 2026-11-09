@@ -4,7 +4,7 @@
  * 8660 is the first published build cut after arc replaced Array with Seq; the build at 8656 still had Array.
  * The enum constants inside the range were renamed from capitalized to lowercase, which is why the branch
  * reads them by ordinal. 11234 is the last build that still declares the abstract arc.Audio with
- * newSound/newMusic, which is what this branch implements; 11247 is the first without it and belongs to v6.
+ * newSound/newMusic, which is what this branch implements; 11247 is the first without it and belongs to v7.
  *
  * It compiles against v112, the newest release whose arc.Audio is still that abstract class. 113 turned it
  * into the SoLoud shape, so this branch cannot compile against it, and 11234 already carries

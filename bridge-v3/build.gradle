@@ -1,6 +1,6 @@
 
 /**
- * v2 is the FileHandle shape of the io.anuke-package 6 line: releases 100.0 up to 101.0, bleeding-edge
+ * v3 is the FileHandle shape of the io.anuke-package 6 line: releases 100.0 up to 101.0, bleeding-edge
  * builds 5700 up to 6319. Arc renamed FileHandle to Fi on 2019-12-15, so 6315 still has the old class and
  * 6320 is the first published build with Fi; v3 starts there. 5700 is the first published build after the
  * functional types became Cons (2019-10-29).

@@ -68,7 +68,15 @@ public final class DisplayEngine {
      * exist for Android. A pair that is not there is reported and the system's used instead.
      */
     public void configure() {
-        prepareLwjglNatives();
+        configure(false);
+    }
+
+    /**
+     * @param mapBundledNatives point LWJGL at the mapper v9's arc needs; the older branches load their own copy and
+     *                          must not touch the fields, which do not exist in their LWJGL tree.
+     */
+    public void configure(boolean mapBundledNatives) {
+        prepareLwjglNatives(mapBundledNatives);
 
         String egl = SYSTEM_EGL;
         String gles = SYSTEM_GLES;
@@ -118,11 +126,20 @@ public final class DisplayEngine {
     /** Unpacks the LWJGL natives from the bridge jar and points both loaders at them: LWJGL's own search path, and
      *  {@code java.library.path} for arc's {@code SharedLibraryLoader}, which would otherwise extract the game jar's
      *  Linux copy. */
-    private void prepareLwjglNatives() {
+    private void prepareLwjglNatives(boolean mapBundledNatives) {
         File lwjgl = LwjglNatives.extract();
         if (lwjgl == null)
             return;
-        Configuration.LIBRARY_PATH.set(lwjgl.getAbsolutePath());
+
+        String libPath = lwjgl.getAbsolutePath();
+        Configuration.LIBRARY_PATH.set(libPath);
+        if (mapBundledNatives) {
+            System.setProperty("java.library.path",
+                    libPath + File.pathSeparator + System.getProperty("java.library.path", ""));
+            // Reflection: the older branches' LWJGL tree does not declare these options.
+            setConfig("BUNDLED_LIBRARY_PATH_MAPPER", (java.util.function.Function<String, String>)LwjglNatives::mapPath);
+            setConfig("SHARED_LIBRARY_EXTRACT_PATH", libPath);
+        }
     }
 
     /** Finds the device's own ANGLE pair: the system's library directories in turn, the first holding both winning. */

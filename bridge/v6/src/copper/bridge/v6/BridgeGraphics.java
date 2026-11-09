@@ -52,7 +52,6 @@ public class BridgeGraphics extends Graphics {
 
     private int width;
     private int height;
-    private int safeInsetLeft, safeInsetRight, safeInsetTop, safeInsetBottom;
 
     private long frameId = -1;
     private long lastFrameTime = -1;
@@ -370,19 +369,6 @@ public class BridgeGraphics extends Graphics {
      *  the game as one delta and step its physics in one jump. */
     public void markResumed() {
         resumed = true;
-    }
-
-    /** v8 asks its Graphics for this; v6 has neither a caller nor the interface method, so no {@code @BridgeOverride}. */
-    public void safeInsetsUpdated(int top, int bottom, int left, int right) {
-        safeInsetTop = top;
-        safeInsetBottom = bottom;
-        safeInsetLeft = left;
-        safeInsetRight = right;
-    }
-
-    /** @see #safeInsetsUpdated; no {@code @BridgeOverride} for the same reason. */
-    public int[] getSafeInsets() {
-        return new int[]{safeInsetLeft, safeInsetRight, safeInsetTop, safeInsetBottom};
     }
 
     public void beginFrame() {

@@ -17,23 +17,14 @@ import java.io.*;
  */
 public class BridgeFiles implements Files {
     private final File dataFolder;
-    private final File cacheFolder;
 
     public BridgeFiles() {
         this.dataFolder = require(Bridge.options.gameDataFolder, "game data folder");
-        this.cacheFolder = new File(require(Bridge.options.cacheFolder, "cache folder"), "files");
     }
 
     @BridgeOverride
     public Fi get(String path, FileType type) {
         return new BridgeFi(this, path, type);
-    }
-
-    /** The bridge keeps scratch files under its own cache folder, not arc's local("cache"). No {@code @BridgeOverride}:
-     *  the interface method arrived after this branch's epoch. */
-    public String getCachePath() {
-        if (!cacheFolder.isDirectory()) cacheFolder.mkdirs();
-        return cacheFolder.getAbsolutePath();
     }
 
     @BridgeOverride

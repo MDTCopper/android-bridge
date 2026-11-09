@@ -83,13 +83,7 @@ public class BridgeLauncher extends ClientLauncher implements Platform {
         pick(open, title, new String[] {""}, cons);
     }
 
-    /** The same picker with a file-type filter. The interface gained this method after the range's floor, so it
-     *  carries no {@code @BridgeOverride}. */
-    public void showMultiFileChooser(Cons<Fi> cons, String... extensions) {
-        pick(true, "@open", extensions, cons);
-    }
-
-    private void pick(boolean open, String title, String[] extensions, Cons<Fi> cons) {
+        private void pick(boolean open, String title, String[] extensions, Cons<Fi> cons) {
         String[] filter = extensions == null || extensions.length == 0 ? new String[] {""} : extensions;
 
         JvmCall.showFileChooser(open, false, title, null, filter)

@@ -226,16 +226,6 @@ public class BridgeApplication implements Application {
         JvmCall.setClipboardText(text);
     }
 
-    /** Not on the interface at the range's floor, so no {@code @BridgeOverride}; the game asks for it where it exists. */
-    public boolean openURI(String uri) {
-        return JvmCall.openUri(uri);
-    }
-
-    /** Not on the interface at the range's floor, so no {@code @BridgeOverride}. */
-    public boolean openFolder(String folder) {
-        return JvmCall.openFolder(folder);
-    }
-
     /** Queues work for the loop thread, the only thread allowed to touch the game. */
     @BridgeOverride
     public void post(Runnable runnable) {

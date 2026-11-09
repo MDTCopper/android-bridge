@@ -36,7 +36,7 @@ public final class Check {
 
         List<String> issues;
         if ("code".equals(mode)) {
-            issues = checkCode(options, refs, reflections);
+            issues = checkCode(options, bridge, refs, reflections, interfaces, reflect);
         } else if ("jar".equals(mode)) {
             issues = checkJar(args, options, branch, bridge, refs, reflections, interfaces, reflect);
         } else {
@@ -100,8 +100,9 @@ public final class Check {
         }
     }
 
-    private static List<String> checkCode(Map<String, String> options, List<ClassRef> refs,
-                                          List<ReflectionRef> reflections) {
+    private static List<String> checkCode(Map<String, String> options, Path bridge, List<ClassRef> refs,
+                                          List<ReflectionRef> reflections, List<BridgeInterfaceRef> interfaces,
+                                          List<ArcReflectRef> reflect) {
         Path gameDir = Paths.get(required(options, "mindustry"));
         Path arcDir = Paths.get(required(options, "arc"));
         boolean merged = Boolean.parseBoolean(options.getOrDefault("merged", "false"));
@@ -144,6 +145,8 @@ public final class Check {
         System.out.println("  arc     " + shortCommit(arcFloor) + " .. " + shortCommit(arcCeiling));
         List<String> issues = new ArrayList<>(SourceComparer.compare(refs, branchRange, overrides, gameDir, arcDir));
         issues.addAll(ReflectionComparer.compareCode(reflections, branchRange, overrides, gameDir, arcDir));
+        issues.addAll(BridgeInterfaceComparer.compareCode(interfaces, branchRange, gameDir, arcDir, bridge));
+        issues.addAll(ArcReflectComparer.compareCode(reflect, branchRange, gameDir, arcDir));
         return issues;
     }
 

@@ -56,6 +56,23 @@ public final class JavaApi {
         return nested == null ? null : new Type(nested);
     }
 
+    /** Simple names in the {@code extends} and {@code implements} clauses. */
+    public static List<String> supertypes(ClassTree type) {
+        List<String> names = new ArrayList<>();
+        if (type.getExtendsClause() != null)
+            names.add(simpleName(typeText(type.getExtendsClause())));
+        for (Tree itf : type.getImplementsClause())
+            names.add(simpleName(typeText(itf)));
+        names.removeIf(String::isEmpty);
+        return names;
+    }
+
+    private static String simpleName(String type) {
+        String text = type.replaceAll("<.*>", "").trim();
+        int separator = Math.max(text.lastIndexOf('.'), text.lastIndexOf('$'));
+        return separator < 0 ? text : text.substring(separator + 1);
+    }
+
     /** Every declaration of {@code member} in the type, with parameter names and annotations removed. */
     public static Set<MemberSignature> members(ClassTree type, String member) {
         Set<MemberSignature> found = new LinkedHashSet<>();

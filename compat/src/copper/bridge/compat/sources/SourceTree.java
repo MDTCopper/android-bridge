@@ -46,6 +46,22 @@ public final class SourceTree {
         return fallback;
     }
 
+    /** Resolves a simple type name used in an {@code extends}/{@code implements} clause. */
+    public String resolveSimple(String simpleName) {
+        String suffix = "/" + simpleName + ".java";
+        String preferred = arc ? "arc-core/src/" : "core/src/";
+        String fallback = null;
+        for (String path : paths.keySet()) {
+            if (!path.endsWith(suffix) && !path.equals(simpleName + ".java"))
+                continue;
+            if (path.contains(preferred))
+                return path;
+            if (fallback == null)
+                fallback = path;
+        }
+        return fallback;
+    }
+
     public String source(String path) {
         return sources.computeIfAbsent(path, p -> git.show(commit, p));
     }

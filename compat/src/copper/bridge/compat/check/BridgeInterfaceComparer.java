@@ -41,6 +41,27 @@ public final class BridgeInterfaceComparer {
         return issues;
     }
 
+    public static List<String> compareCode(List<BridgeInterfaceRef> refs, Range range,
+                                           Path gameDir, Path arcDir, Path bridgeClasses) {
+        SourceHierarchy floor = new SourceHierarchy(gameDir, range.floor, arcDir,
+                range.arcFloor == null ? range.floor : range.arcFloor, bridgeClasses);
+        SourceHierarchy ceiling = new SourceHierarchy(gameDir, range.ceiling, arcDir,
+                range.arcCeiling == null ? range.ceiling : range.arcCeiling, bridgeClasses);
+        List<String> issues = new ArrayList<>();
+        for (BridgeInterfaceRef ref : refs) {
+            boolean floorMatch = floor.gameMatch(ref.owner, ref.name);
+            boolean ceilingMatch = ceiling.gameMatch(ref.owner, ref.name);
+            if (ref.annotated && !floorMatch && !ceilingMatch) {
+                issues.add("bridge method annotation is wrong: " + ref.owner + "." + ref.name + ref.descriptor
+                        + " mirrors no game supertype at either end");
+            } else if (!ref.annotated && (floorMatch || ceilingMatch)) {
+                issues.add("game interface method is missing @BridgeInterface: " + ref.owner + "." + ref.name
+                        + ref.descriptor);
+            }
+        }
+        return issues;
+    }
+
     private void indexBranch(Path directory) {
         try (Stream<Path> stream = Files.walk(directory)) {
             for (Path path : stream.filter(p -> p.toString().endsWith(".class")).collect(Collectors.toList())) {

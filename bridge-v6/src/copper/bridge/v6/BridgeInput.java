@@ -13,16 +13,8 @@ public class BridgeInput extends Input {
     /** Cached once: the constant names changed case inside the range, the order did not. */
     private static final KeyCode[] KEYS = KeyCode.values();
 
-    /** Absent at the range's floor; looked up once so the frame loop does not pay for a failed lookup. */
-    private static final java.lang.reflect.Method POST_UPDATE = postUpdateMethod();
-
-    private static java.lang.reflect.Method postUpdateMethod() {
-        try {
-            return InputDevice.class.getMethod("postUpdate");
-        } catch (Throwable ignored) {
-            return null;
-        }
-    }
+    /** Absent at the range's floor; the lambda calls the newer postUpdate directly. */
+    private final Runnable postUpdate = MethodLambdas.boundRunnable(keyboard, "postUpdate");
 
         private static final Peripheral ONSCREEN_KEYBOARD = Peripheral.OnscreenKeyboard;
     private static final Peripheral MULTITOUCH_SCREEN = Peripheral.MultitouchScreen;
@@ -208,12 +200,8 @@ public class BridgeInput extends Input {
 
     /** Not a loop over {@code Input.devices}: arc removes that field in v152, and the keyboard is its only device. */
     public void processDevices() {
-        if (POST_UPDATE == null)
-            return;
-        try {
-            POST_UPDATE.invoke(keyboard);
-        } catch (Throwable ignored) {
-        }
+        if (postUpdate != null)
+            postUpdate.run();
     }
 
     public void onPause() {

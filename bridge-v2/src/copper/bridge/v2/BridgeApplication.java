@@ -104,7 +104,7 @@ public class BridgeApplication implements Application {
             graphics.beginFrame();
             input.processEvents();
             // Application.defaultUpdate does this
-            io.anuke.arc.util.Time.update();
+            UPDATE_TIME.run();
             for (ApplicationListener listener : listeners)
                 listener.update();
             input.processDevices();
@@ -153,6 +153,15 @@ public class BridgeApplication implements Application {
                 Log.error(t);
             }
         }
+    }
+
+    /** {@code updateGlobal} exists on the newer end of this branch; the older Time advances through update().
+     *  The choice is made once, so the loop calls a plain lambda body. */
+    private static final Runnable UPDATE_TIME = updateTime();
+
+    private static Runnable updateTime() {
+        Runnable global = MethodLambdas.staticRunnable(io.anuke.arc.util.Time.class, "updateGlobal");
+        return global != null ? global : io.anuke.arc.util.Time::update;
     }
 
     /** {@code Thread.sleep} with arc's old semantics: an interrupt is swallowed, not re-armed. */

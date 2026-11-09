@@ -48,6 +48,7 @@ public class BridgeApplication implements Application {
         Core.input = input;
         Core.files = files;
         Core.settings = new Settings();
+        AUTOSAVE = MethodLambdas.boundRunnable(Core.settings, "autosave");
         initAudio();
         Core.net = new Net();
 
@@ -103,7 +104,8 @@ public class BridgeApplication implements Application {
             graphics.beginFrame();
             input.processEvents();
             // Application.defaultUpdate does this; autosave() arrived later in the range
-            autosaveSettings();
+            if (AUTOSAVE != null)
+                AUTOSAVE.run();
             arc.util.Time.updateGlobal();
             for (ApplicationListener listener : listeners)
                 listener.update();
@@ -155,25 +157,8 @@ public class BridgeApplication implements Application {
         }
     }
 
-    /** {@code Settings.autosave} is absent at the range's floor; there is nothing to drive there. */
-    private static final java.lang.reflect.Method AUTOSAVE = autosaveMethod();
-
-    private static java.lang.reflect.Method autosaveMethod() {
-        try {
-            return Settings.class.getMethod("autosave");
-        } catch (Throwable ignored) {
-            return null;
-        }
-    }
-
-    private static void autosaveSettings() {
-        if (AUTOSAVE == null)
-            return;
-        try {
-            AUTOSAVE.invoke(Core.settings);
-        } catch (Throwable ignored) {
-        }
-    }
+    /** {@code Settings.autosave} is absent at the range's floor; the lambda is null there. */
+    private static Runnable AUTOSAVE;
 
     /** {@code Thread.sleep} with arc's old semantics: an interrupt is swallowed, not re-armed. */
     private static void sleep(long millis) {

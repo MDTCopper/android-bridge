@@ -114,28 +114,38 @@ public final class BranchClassLoader extends ClassLoader {
     protected URL findResource(String name) {
         for (JarFile jar : gameJars) {
             if (jar.getJarEntry(name) != null)
-                return jarUrl(jar, name);
+                return gameUrl(jar, name);
         }
         return null;
     }
 
-    @Override
-    protected Enumeration<URL> findResources(String name) {
-        List<URL> urls = new ArrayList<>();
-        for (JarFile jar : gameJars) {
-            if (jar.getJarEntry(name) == null)
-                continue;
-            URL url = jarUrl(jar, name);
-            if (url != null)
-                urls.add(url);
-        }
-        return Collections.enumeration(urls);
-    }
-
-    private static URL jarUrl(JarFile jar, String name) {
+    private static URL gameUrl(JarFile jar, String name) {
         try {
-            return new URI("jar:" + new File(jar.getName()).toURI().toURL() + "!/" + name).toURL();
-        } catch (URISyntaxException | MalformedURLException ignored) {
+            return new URL(null, "gamejar:" + name, new URLStreamHandler() {
+                @Override
+                protected URLConnection openConnection(URL url) throws IOException {
+                    JarEntry entry = jar.getJarEntry(name);
+                    if (entry == null)
+                        throw new FileNotFoundException(name);
+                    return new URLConnection(url) {
+                        @Override
+                        public void connect() {
+                        }
+
+                        @Override
+                        public InputStream getInputStream() throws IOException {
+                            return jar.getInputStream(entry);
+                        }
+
+                        @Override
+                        public int getContentLength() {
+                            long length = entry.getSize();
+                            return length > Integer.MAX_VALUE ? -1 : (int) length;
+                        }
+                    };
+                }
+            });
+        } catch (MalformedURLException ignored) {
             return null;
         }
     }

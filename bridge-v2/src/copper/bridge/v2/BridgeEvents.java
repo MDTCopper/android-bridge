@@ -1,8 +1,8 @@
 package copper.bridge.v2;
 
-import arc.*;
-import arc.input.KeyCode;
-import arc.struct.*;
+import io.anuke.arc.*;
+import io.anuke.arc.input.KeyCode;
+import io.anuke.arc.collection.*;
 
 import copper.bridge.gen.*;
 import copper.bridge.jvm.Events;
@@ -128,8 +128,8 @@ public class BridgeEvents implements Events {
     @Override
     public void onBackPressed() {
         if (Core.scene != null && Core.scene.hasDialog()) {
-            Core.scene.keyDown(KEYS[44]); //back
-            Core.scene.keyUp(KEYS[44]); //back
+            Core.scene.keyDown(KeyCode.BACK);
+            Core.scene.keyUp(KeyCode.BACK);
             return;
         }
 

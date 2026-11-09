@@ -67,7 +67,7 @@ public class BridgeLauncher extends ClientLauncher implements Platform {
 
     /** Left empty on purpose: a share sheet would need a {@code FileProvider} in the host app's manifest. */
     @Override
-    public void shareFile(Fi file) {
+    public void shareFile(FileHandle file) {
     }
 
     /**
@@ -77,17 +77,17 @@ public class BridgeLauncher extends ClientLauncher implements Platform {
      * through {@link UriFi} when it is ready.
      */
     @Override
-    public void showFileChooser(boolean open, String title, Cons<Fi> cons) {
+    public void showFileChooser(boolean open, String title, Cons<FileHandle> cons) {
         pick(open, title, new String[] {""}, cons);
     }
 
     /** The same picker with a file-type filter. The interface gained this method after the range's floor, so it
      *  carries no {@code @Override}. */
-    public void showMultiFileChooser(Cons<Fi> cons, String... extensions) {
+    public void showMultiFileChooser(Cons<FileHandle> cons, String... extensions) {
         pick(true, "@open", extensions, cons);
     }
 
-    private void pick(boolean open, String title, String[] extensions, Cons<Fi> cons) {
+    private void pick(boolean open, String title, String[] extensions, Cons<FileHandle> cons) {
         String[] filter = extensions == null || extensions.length == 0 ? new String[] {""} : extensions;
 
         JvmCall.showFileChooser(open, false, title, null, filter)

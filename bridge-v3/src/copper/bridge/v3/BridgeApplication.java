@@ -18,17 +18,15 @@ import java.util.*;
 public class BridgeApplication implements Application {
     private static final long SURFACE_TIMEOUT_MILLIS = 20000;
 
-    /** {@code android}, by ordinal: the constant is capitalized on the range's older end. */
-    public static final ApplicationType ANDROID = ApplicationType.values()[0];
 
     public final BridgeGraphics graphics;
     public final BridgeInput input;
     public final BridgeFiles files;
     public final BridgeEvents events;
 
-    protected final Seq<ApplicationListener> listeners = new Seq<>();
+    protected final Array<ApplicationListener> listeners = new Array<>();
 
-    /** Plain lists: Seq.addAll and Seq.clear return void on the older end of the range and Seq here. */
+    /** Plain lists: Array.addAll and Array.clear return void on the older end of the range. */
     private final List<Runnable> runnables = new ArrayList<>();
     private final List<Runnable> executedRunnables = new ArrayList<>();
 
@@ -104,8 +102,8 @@ public class BridgeApplication implements Application {
 
             graphics.beginFrame();
             input.processEvents();
-            // Application.defaultUpdate does this; the method itself arrived after the floor, so spell it out
-            Core.settings.autosave();
+            // Application.defaultUpdate does this; autosave() arrived later in the range
+            autosaveSettings();
             arc.util.Time.updateGlobal();
             for (ApplicationListener listener : listeners)
                 listener.update();
@@ -157,6 +155,26 @@ public class BridgeApplication implements Application {
         }
     }
 
+    /** {@code Settings.autosave} is absent at the range's floor; there is nothing to drive there. */
+    private static final java.lang.reflect.Method AUTOSAVE = autosaveMethod();
+
+    private static java.lang.reflect.Method autosaveMethod() {
+        try {
+            return Settings.class.getMethod("autosave");
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static void autosaveSettings() {
+        if (AUTOSAVE == null)
+            return;
+        try {
+            AUTOSAVE.invoke(Core.settings);
+        } catch (Throwable ignored) {
+        }
+    }
+
     /** {@code Thread.sleep} with arc's old semantics: an interrupt is swallowed, not re-armed. */
     private static void sleep(long millis) {
         try {
@@ -187,13 +205,13 @@ public class BridgeApplication implements Application {
     }
 
     @Override
-    public Seq<ApplicationListener> getListeners() {
+    public Array<ApplicationListener> getListeners() {
         return listeners;
     }
 
     @Override
     public ApplicationType getType() {
-        return ANDROID;
+        return ApplicationType.Android;
     }
 
     @Override

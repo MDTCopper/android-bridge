@@ -17,7 +17,7 @@ final class LegacyMusic implements Music {
     private float volume = 1f;
     private OnCompletionListener listener;
 
-    LegacyMusic(Fi file) {
+    LegacyMusic(FileHandle file) {
         this.music = JvmCall.newMusic(file.name(), file.readBytes());
         if (music > 0)
             MusicListeners.put(music, this::completed);

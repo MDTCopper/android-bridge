@@ -29,8 +29,8 @@ public class Main {
         prepareGameFolders();
 
         // the game wraps its logger while it sets up: the printed copy is what this bridge wants, the native side
-        // turning the process's stdout and stderr into logcat and the log file. Vars.loadFileLogger checks this flag.
-        Vars.loadedFileLogger = true;
+        // turning the process's stdout and stderr into logcat and the log file. The flag moved inside the range.
+        markLoggerLoaded();
 
         configureLog();
 
@@ -49,6 +49,19 @@ public class Main {
                 Log.error("the game crashed");
                 Log.error(e);
                 throw e;
+            }
+        }
+    }
+
+    /** Marks the game's logger as already installed; the field is {@code loadedFileLogger} on the newer end and
+     *  {@code loadedLogger} on the older one. */
+    private static void markLoggerLoaded() {
+        try {
+            Vars.class.getField("loadedFileLogger").setBoolean(null, true);
+        } catch (Throwable ignored) {
+            try {
+                Vars.class.getField("loadedLogger").setBoolean(null, true);
+            } catch (Throwable ignoredToo) {
             }
         }
     }

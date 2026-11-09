@@ -1,4 +1,4 @@
-package copper.bridge.v5;
+package copper.bridge.v6;
 
 import arc.graphics.*;
 import arc.graphics.gl.*;

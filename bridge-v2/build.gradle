@@ -1,11 +1,11 @@
 
 /**
- * v2 is the Array shape of the 6 line: releases 102.0 up to 104.6, bleeding-edge builds 6426 up to 8659.
- * Arc replaced Array with Seq at 3df599fe (2020-06-08); 8660 is the first published build cut after it, so
- * v3 starts there.
+ * v2 is the Fi/Cons shape of the io.anuke-package 6 line: release 101.1, bleeding-edge builds 6320 up to
+ * 6425. 6426 is the first published build after both repositories dropped the io.anuke prefix, so v3 starts
+ * there.
  *
- * It compiles against 8657, the last Array build with a release. Compiling against it and checking 6426
- * keeps every reference inside the Array shape; v104.6 and v102 are inside that range on the release scale.
+ * It compiles against 6415, the last published io.anuke build. Release 101.1 is the only release whose arc is
+ * already Fi/Cons, so it is checked inside the same shape.
  *
  * Everything is compile only: the game and arc jars arrive on the command line at runtime.
  */

@@ -12,7 +12,7 @@ import copper.bridge.gen.*;
 final class LegacySound implements Sound {
     private final int sound;
 
-    LegacySound(Fi file) {
+    LegacySound(FileHandle file) {
         this.sound = JvmCall.newSound(file.name(), file.readBytes());
     }
 

@@ -97,7 +97,6 @@ public class Main {
 
     /** Marks the game's logger as already installed; the field is {@code loadedFileLogger} on the newer end and
      *  {@code loadedLogger} on the older one. */
-    /** Turns the game's log colors off and, when asked, its level up; both are public methods in this range. */
     private static void configureLog() {
         io.anuke.arc.util.Log.setUseColors(false);
         if (Bridge.options.debug || Bridge.options.verbose)

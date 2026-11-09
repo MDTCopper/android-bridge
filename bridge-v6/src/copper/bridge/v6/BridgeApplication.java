@@ -168,7 +168,7 @@ public class BridgeApplication implements Application {
         }
     }
 
-    /** The only audio shape in this range is the abstract class implemented by {@link LegacyAudio}. */
+    //SoloudAudio is not in this range; LegacyAudio is the only implementation.
     private static void initAudio() {
         try {
             Core.audio = new LegacyAudio();

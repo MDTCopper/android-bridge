@@ -7,9 +7,7 @@ public final class ReflectionRef {
     }
 
     public final String sourceClass;
-    /** Internal name, such as {@code arc/Settings}. */
     public final String owner;
-    /** Member name, or null for a class-only lookup. */
     public final String member;
     public final Kind kind;
     /** The {@code @CompatRange} floor and ceiling of the source class, or null when it has none. */

@@ -28,7 +28,7 @@ public final class ReflectionRefs {
             for (Path path : stream.filter(p -> p.toString().endsWith(".class")).collect(Collectors.toList())) {
                 String className = directory.relativize(path).toString().replace('\\', '/');
                 className = className.substring(0, className.length() - ".class".length());
-                readClass(path, className, refs);
+                readInto(path, className, refs);
             }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -37,10 +37,6 @@ public final class ReflectionRefs {
         for (ReflectionRef ref : refs)
             unique.putIfAbsent(ref.key(), ref);
         return new ArrayList<>(unique.values());
-    }
-
-    private static void readClass(Path path, String sourceClass, List<ReflectionRef> refs) {
-        readInto(path, sourceClass, refs);
     }
 
     /** Every reflection target in one class file. */

@@ -51,7 +51,6 @@ public class Main {
         }
     }
 
-    /** Turns the game's log colors off and, when asked, its level up; both are public methods in this range. */
     private static void configureLog() {
         io.anuke.arc.util.Log.setUseColors(false);
         if (Bridge.options.debug || Bridge.options.verbose)

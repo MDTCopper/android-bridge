@@ -18,7 +18,7 @@ public class Main {
      * copper.bridge.jvm.Launch} reflects on: {@code getDeclaredMethod("main", String[].class)}.
      */
     public static void main(String[] args) {
-        Log.info("starting branch v1 for game " + Launch.gameVersion());
+        Log.info("starting branch " + Main.class.getPackage().getName().substring("copper.bridge.".length()) + " for game " + Launch.gameVersion());
         Log.info("game arguments: " + (args.length == 0 ? "none" : String.join(" ", args)));
 
         // runs first, before anything touches arc: OS.isAndroid decides whether arc's SharedLibraryLoader loads the

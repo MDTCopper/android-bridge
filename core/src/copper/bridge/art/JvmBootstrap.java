@@ -16,9 +16,8 @@ public class JvmBootstrap {
 
     public static void start() {
         File jre = Bridge.options.javaHome;
-        JvmArgs arguments = new JvmArgs();
-
         ArcNatives.stage();
+        JvmArgs arguments = new JvmArgs();
 
         // the host alone knows where the jar ended up: without --bridge-jar the JVM dies quietly in under a second
         File jar = Bridge.jar();

@@ -22,6 +22,11 @@ public final class ClassRef {
         return owner.startsWith("arc/") || owner.startsWith("io/anuke/arc/");
     }
 
+    /** A reference this check owns: arc or the game, in either package spelling. */
+    public boolean isGameOrArc() {
+        return isArc() || owner.startsWith("mindustry/") || owner.startsWith("io/anuke/mindustry/");
+    }
+
     public String key() {
         return sourceClass + "|" + owner + "." + name + ":" + descriptor;
     }

@@ -43,6 +43,8 @@ public final class ClassRefs {
         for (ClassFile file : files) {
             String override = overrides.get(file.sourceFile);
             for (ClassRef ref : file.refs) {
+                if (!ref.isGameOrArc())
+                    continue;
                 ClassRef resolved = override == null ? ref
                         : new ClassRef(ref.sourceClass, ref.owner, ref.name, ref.descriptor, override);
                 refs.put(resolved.key(), resolved);
@@ -118,7 +120,7 @@ public final class ClassRefs {
                 if (refTag[i] != 9 && refTag[i] != 10 && refTag[i] != 11)
                     continue;
                 String owner = utf8[className[refClass[i]]];
-                if (owner == null || !isGameOrArc(owner))
+                if (owner == null)
                     continue;
                 String name = utf8[natName[refNat[i]]];
                 String descriptor = utf8[natDescriptor[refNat[i]]];
@@ -133,6 +135,41 @@ public final class ClassRefs {
     }
 
     /** A reference the check owns: arc or the game, in either package spelling. */
+    /** Every reference from one class file, with the source file's {@code @CompatRange} applied. */
+    public static List<ClassRef> readClass(Path path, String sourceClass) {
+        ClassFile file = of(path, sourceClass);
+        if (file == null)
+            return new ArrayList<>();
+        List<ClassRef> refs = new ArrayList<>();
+        for (ClassRef ref : file.refs) {
+            refs.add(file.overrideKey == null ? ref
+                    : new ClassRef(ref.sourceClass, ref.owner, ref.name, ref.descriptor, file.overrideKey));
+        }
+        return refs;
+    }
+
+    /** References into another bridge branch, which the check follows to that branch's classes. */
+    public static List<BridgeRef> readBridge(Path directory) {
+        List<BridgeRef> refs = new ArrayList<>();
+        try (Stream<Path> stream = Files.walk(directory)) {
+            for (Path path : stream.filter(p -> p.toString().endsWith(".class")).collect(Collectors.toList())) {
+                String className = directory.relativize(path).toString().replace('\\', '/');
+                className = className.substring(0, className.length() - ".class".length());
+                ClassFile file = of(path, className);
+                if (file == null)
+                    continue;
+                for (ClassRef ref : file.refs) {
+                    int branch = BridgeRef.branchOf(ref.owner);
+                    if (branch > 0)
+                        refs.add(new BridgeRef(ref.sourceClass, ref.owner, ref.name, ref.descriptor, branch));
+                }
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        return refs;
+    }
+
     private static boolean isGameOrArc(String owner) {
         return owner.startsWith("arc/") || owner.startsWith("mindustry/")
                 || owner.startsWith("io/anuke/arc/") || owner.startsWith("io/anuke/mindustry/");

@@ -29,19 +29,20 @@ public final class Check {
         String branch = required(options, "branch");
         Path bridge = Paths.get(required(options, "bridge"));
         List<ClassRef> refs = ClassRefs.read(bridge);
+        List<ReflectionRef> reflections = ReflectionRefs.read(bridge);
         String mode = options.getOrDefault("mode", "jar").trim();
 
         List<String> issues;
         if ("code".equals(mode)) {
-            issues = checkCode(options, refs);
+            issues = checkCode(options, refs, reflections);
         } else if ("jar".equals(mode)) {
-            issues = checkJar(args, options, branch, refs);
+            issues = checkJar(args, options, branch, refs, reflections);
         } else {
             throw new IllegalArgumentException("unknown --mode " + mode + " (jar or code)");
         }
 
         System.out.println(branch + " (" + mode + "): checking " + refs.size()
-                + " referenced arc/mindustry member(s)");
+                + " referenced arc/mindustry member(s), " + reflections.size() + " reflection target(s)");
         for (String issue : issues)
             System.out.println("  " + issue);
         if (issues.isEmpty()) {
@@ -53,11 +54,27 @@ public final class Check {
     }
 
     private static List<String> checkJar(String[] args, Map<String, String> options, String branch,
-                                         List<ClassRef> refs) {
+                                         List<ClassRef> refs, List<ReflectionRef> reflections) {
         CheckConfig config = CheckConfig.load(Paths.get(required(options, "properties")), branch);
+        BridgeClosure.Result closure = BridgeClosure.expand(Paths.get(required(options, "bridge")),
+                bridgeDirs(args), versionOf(branch));
+        List<String> issues = new ArrayList<>(closure.issues);
+        List<ClassRef> allRefs = new ArrayList<>(refs);
+        allRefs.addAll(closure.refs);
+        List<ReflectionRef> allReflections = new ArrayList<>(reflections);
+        allReflections.addAll(closure.reflections);
+
         Range branchRange = new Range(config.floor, config.ceiling);
         Map<String, Range> overrides = new HashMap<>();
-        for (ClassRef ref : refs) {
+        for (ClassRef ref : allRefs) {
+            if (ref.overrideKey != null && !overrides.containsKey(ref.overrideKey)) {
+                String[] ends = ref.overrideKey.split("\\|", -1);
+                overrides.put(ref.overrideKey, new Range(
+                        "default".equals(ends[0]) ? config.floor : ends[0],
+                        "default".equals(ends[1]) ? config.ceiling : ends[1]));
+            }
+        }
+        for (ReflectionRef ref : allReflections) {
             if (ref.overrideKey != null && !overrides.containsKey(ref.overrideKey)) {
                 String[] ends = ref.overrideKey.split("\\|", -1);
                 overrides.put(ref.overrideKey, new Range(
@@ -74,11 +91,14 @@ public final class Check {
 
             System.out.println("  floor   " + config.floor);
             System.out.println("  ceiling " + config.ceiling);
-            return ApiComparer.compare(refs, branchRange, overrides, jars);
+            issues.addAll(ApiComparer.compare(allRefs, branchRange, overrides, jars));
+            issues.addAll(ReflectionComparer.compareJar(allReflections, branchRange, overrides, jars));
+            return issues;
         }
     }
 
-    private static List<String> checkCode(Map<String, String> options, List<ClassRef> refs) {
+    private static List<String> checkCode(Map<String, String> options, List<ClassRef> refs,
+                                          List<ReflectionRef> reflections) {
         Path gameDir = Paths.get(required(options, "mindustry"));
         Path arcDir = Paths.get(required(options, "arc"));
         boolean merged = Boolean.parseBoolean(options.getOrDefault("merged", "false"));
@@ -106,10 +126,22 @@ public final class Check {
                         "default".equals(ends[1]) ? arcCeiling : arcAt(game, arcDir, merged, ceiling)));
             }
         }
+        for (ReflectionRef ref : reflections) {
+            if (ref.overrideKey != null && !overrides.containsKey(ref.overrideKey)) {
+                String[] ends = ref.overrideKey.split("\\|", -1);
+                String floor = "default".equals(ends[0]) ? gameFloor : commit(game, ends[0]);
+                String ceiling = "default".equals(ends[1]) ? gameCeiling : commit(game, ends[1]);
+                overrides.put(ref.overrideKey, new Range(floor, ceiling,
+                        "default".equals(ends[0]) ? arcFloor : arcAt(game, arcDir, merged, floor),
+                        "default".equals(ends[1]) ? arcCeiling : arcAt(game, arcDir, merged, ceiling)));
+            }
+        }
 
         System.out.println("  game    " + shortCommit(gameFloor) + " .. " + shortCommit(gameCeiling));
         System.out.println("  arc     " + shortCommit(arcFloor) + " .. " + shortCommit(arcCeiling));
-        return SourceComparer.compare(refs, branchRange, overrides, gameDir, arcDir);
+        List<String> issues = new ArrayList<>(SourceComparer.compare(refs, branchRange, overrides, gameDir, arcDir));
+        issues.addAll(ReflectionComparer.compareCode(reflections, branchRange, overrides, gameDir, arcDir));
+        return issues;
     }
 
     private static String commit(Git git, String revision) {
@@ -135,6 +167,21 @@ public final class Check {
             throw new IllegalStateException("no archash declared by " + gameCommit
                     + "; pass --arc-floor and --arc-ceiling");
         return commit(new Git(arcDir.toString()), archash);
+    }
+
+    /** The classes directory of every lower branch, keyed by branch number. */
+    private static Map<Integer, Path> bridgeDirs(String[] args) {
+        Map<Integer, Path> dirs = new HashMap<>();
+        for (String spec : repeated(args, "bridge-dir")) {
+            int split = spec.indexOf('=');
+            dirs.put(versionOf(spec.substring(0, split)), Paths.get(spec.substring(split + 1)));
+        }
+        return dirs;
+    }
+
+    private static int versionOf(String branch) {
+        String digits = branch.replaceAll("\\D+", "");
+        return digits.isEmpty() ? 0 : Integer.parseInt(digits);
     }
 
     private static Map<String, String> parse(String[] args) {

@@ -21,4 +21,13 @@ public final class ClassInfo {
     public MemberInfo member(String name, String descriptor) {
         return members.get(name + descriptor);
     }
+
+    /** Whether any declaration has this name; reflection names a member without its descriptor. */
+    public boolean hasMemberNamed(String name) {
+        for (MemberInfo member : members.values()) {
+            if (member.name.equals(name))
+                return true;
+        }
+        return false;
+    }
 }

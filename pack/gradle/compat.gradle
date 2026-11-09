@@ -12,6 +12,7 @@ def checkedBranches = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9'].fin
     rootProject.ext.branchHasSources(it) && findProperty("${it}.compatFloor")
 }
 def propertiesPath = rootProject.file('gradle.properties').absolutePath
+def branchNumber = { String branch -> (branch.replaceAll('\\D+', '') ?: '0') as int }
 
 // Both ends of the range, the epoch the branch compiles against - which is where a class that only has
 // the newer shape starts - and whatever @CompatRange names beyond those.
@@ -36,6 +37,13 @@ checkedBranches.each { String branch ->
                 '--properties', propertiesPath,
                 '--bridge', bridgeClasses.absolutePath
         ]
+        // A branch may use classes from any lower branch; their own references are checked at this branch's ends.
+        checkedBranches.findAll { it != branch && branchNumber(it) < branchNumber(branch) }.each { String lower ->
+            def lowerClasses = project(":bridge-${lower}").sourceSets.main.output.classesDirs.singleFile
+            args '--bridge-dir', "${lower}=${lowerClasses.absolutePath}"
+            dependsOn ":bridge-${lower}:compileJava"
+            inputs.dir(lowerClasses)
+        }
         // staged here, at build time; a ref that is already there costs nothing
         doFirst {
             refs.each { String ref ->

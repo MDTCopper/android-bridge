@@ -2,7 +2,7 @@ package copper.bridge.v3;
 
 import io.anuke.arc.*;
 import io.anuke.arc.files.*;
-import io.anuke.arc.func.*;
+import io.anuke.arc.function.*;
 
 import copper.bridge.gen.*;
 import copper.bridge.util.*;
@@ -77,17 +77,17 @@ public class BridgeLauncher extends ClientLauncher implements Platform {
      * through {@link UriFi} when it is ready.
      */
     @Override
-    public void showFileChooser(boolean open, String title, Cons<FileHandle> cons) {
+    public void showFileChooser(boolean open, String title, Consumer<FileHandle> cons) {
         pick(open, title, new String[] {""}, cons);
     }
 
     /** The same picker with a file-type filter. The interface gained this method after the range's floor, so it
      *  carries no {@code @Override}. */
-    public void showMultiFileChooser(Cons<FileHandle> cons, String... extensions) {
+    public void showMultiFileChooser(Consumer<FileHandle> cons, String... extensions) {
         pick(true, "@open", extensions, cons);
     }
 
-    private void pick(boolean open, String title, String[] extensions, Cons<FileHandle> cons) {
+    private void pick(boolean open, String title, String[] extensions, Consumer<FileHandle> cons) {
         String[] filter = extensions == null || extensions.length == 0 ? new String[] {""} : extensions;
 
         JvmCall.showFileChooser(open, false, title, null, filter)
@@ -97,7 +97,7 @@ public class BridgeLauncher extends ClientLauncher implements Platform {
                     for (String path : paths) {
                         if (path == null || path.isEmpty())
                             continue;
-                        cons.get(open ? Core.files.absolute(path) : new UriFi(path, "export." + filter[0]));
+                        cons.accept(open ? Core.files.absolute(path) : new UriFi(path, "export." + filter[0]));
                     }
                 })
                 .onError(message -> Log.error("file chooser failed: " + message));

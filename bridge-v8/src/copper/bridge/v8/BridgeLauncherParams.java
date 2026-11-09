@@ -1,4 +1,4 @@
-package copper.bridge.v7;
+package copper.bridge.v8;
 
 import arc.*;
 import arc.files.*;

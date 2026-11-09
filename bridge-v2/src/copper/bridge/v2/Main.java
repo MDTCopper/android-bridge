@@ -35,7 +35,13 @@ public class Main {
         configureLog();
 
         BridgeApplication application = new BridgeApplication();
-        application.addListener(new BridgeLauncher());
+
+        // the pre-ClientLauncher line: the game is the ApplicationCore listener, and the platform hooks are a
+        // static instance rather than a callback the launcher hands back.
+        new BridgePlatform();
+        installCrashHandler();
+        installNetProviders();
+        application.addListener(new Mindustry());
 
         // only a thread that dies of its own exception consults the default handler, and this throw happens on the
         // calling thread. With none installed, the bridge reports it itself and rethrows.
@@ -50,6 +56,51 @@ public class Main {
                 Log.error(e);
                 throw e;
             }
+        }
+    }
+
+    /** The game's crash reporter, called after the host handler; its entry point moved inside the range. */
+    private static void installCrashHandler() {
+        Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
+            reportCrash(error);
+            if (previous != null) {
+                previous.uncaughtException(thread, error);
+            } else {
+                Log.error(error);
+                System.exit(1);
+            }
+        });
+    }
+
+    private static void reportCrash(Throwable error) {
+        try {
+            Class<?> sender = Class.forName("io.anuke.mindustry.net.CrashSender");
+            try {
+                sender.getMethod("log", Throwable.class).invoke(null, error);
+                return;
+            } catch (Throwable ignored) {
+            }
+            io.anuke.arc.function.Consumer<File> written = file -> {
+            };
+            sender.getMethod("send", Throwable.class, io.anuke.arc.function.Consumer.class)
+                    .invoke(null, error, written);
+        } catch (Throwable ignored) {
+            Log.error(error);
+        }
+    }
+
+    /** The network implementation lives in the desktop jar's net module; absent trees simply keep singleplayer. */
+    private static void installNetProviders() {
+        try {
+            Class<?> net = Class.forName("io.anuke.mindustry.net.Net");
+            Class<?> clientProvider = Class.forName("io.anuke.mindustry.net.Net$ClientProvider");
+            Class<?> serverProvider = Class.forName("io.anuke.mindustry.net.Net$ServerProvider");
+            Object client = Class.forName("io.anuke.mindustry.net.ArcNetClient").getConstructor().newInstance();
+            Object server = Class.forName("io.anuke.mindustry.net.ArcNetServer").getConstructor().newInstance();
+            net.getMethod("setClientProvider", clientProvider).invoke(null, client);
+            net.getMethod("setServerProvider", serverProvider).invoke(null, server);
+        } catch (Throwable ignored) {
         }
     }
 

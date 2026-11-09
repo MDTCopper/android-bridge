@@ -32,13 +32,10 @@ public class Main {
         // turning the process's stdout and stderr into logcat and the log file. Vars.loadFileLogger checks this flag.
         Vars.loadedFileLogger = true;
 
-        arc.util.Log.useColors = false;
-
-        if (Bridge.options.debug || Bridge.options.verbose)
-            arc.util.Log.level = arc.util.Log.LogLevel.debug;
+        configureLog();
 
         BridgeApplication application = new BridgeApplication();
-        application.addListener(BridgeLaunchers.create());
+        application.addListener(new BridgeLauncher());
 
         // only a thread that dies of its own exception consults the default handler, and this throw happens on the
         // calling thread. With none installed, the bridge reports it itself and rethrows.
@@ -54,6 +51,17 @@ public class Main {
                 throw e;
             }
         }
+    }
+
+    /**
+     * Turns the game's log colors off and, when asked, its level up. Both are fields on every version in the range;
+     * they are private on the older ones, which is why they are set through arc's own reflector rather than
+     * assigned.
+     */
+    private static void configureLog() {
+        Reflect.set(arc.util.Log.class, "useColors", false);
+        if (Bridge.options.debug || Bridge.options.verbose)
+            Reflect.set(arc.util.Log.class, "level", arc.util.Log.LogLevel.debug);
     }
 
     private static void prepareArcNatives() {
@@ -76,6 +84,10 @@ public class Main {
         Log.info("game data: " + data);
     }
 
+    /**
+     * Marks the process as Android before anything reads OS: the class reads the desktop properties when it loads,
+     * so the flags are overridden as soon as it exists. The 6 line has no isMobile/isDesktop, only these flags.
+     */
     private static void setOsType() {
         // read the field first, so the class initialises while the properties still say Linux
         boolean t = OS.isAndroid;
@@ -84,9 +96,5 @@ public class Main {
         OS.isWindows = false;
         OS.isLinux = false;
         OS.isMac = false;
-        try {
-            Reflect.set(OS.class, "isMobile", true);
-            Reflect.set(OS.class, "isDesktop", false);
-        } catch (Throwable ignored) {}
     }
 }

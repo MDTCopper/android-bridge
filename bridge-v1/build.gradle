@@ -1,11 +1,10 @@
 
 /**
- * v1 is the pre-ClientLauncher 6 line: releases 84.0 up to 91.0. It claims no bleeding-edge range: the first
- * published build is 4550, which already has ClientLauncher and belongs to v2. 92.0 is the first release with
- * ClientLauncher, so v2 starts there.
+ * v1 is the Audio-interface 6 line: releases 65.0 up to 83.0. It claims no bleeding-edge range: the first
+ * published build is 4550, whose arc already has the abstract class Audio. 84.0 is the first release whose Arc
+ * changed Audio from an interface to an abstract class, so v2 starts there.
  *
- * Its epoch is v91, the newest release before ClientLauncher. The game starts as its own ApplicationCore
- * listener, with Platform.instance injected and the network providers installed before it runs.
+ * Its epoch is v83, the last release before that change; every symbol must also exist at 65.0.
  *
  * Everything is compile only: the game and arc jars arrive on the command line at runtime.
  */

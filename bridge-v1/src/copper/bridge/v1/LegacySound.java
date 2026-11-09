@@ -8,6 +8,8 @@ import copper.bridge.gen.*;
 /**
  * One sound of the abstract arc.Audio. The int it plays with is ART's handle, not a SoundPool stream id: a stream id
  * dies with its stream, and the game holds these for as long as it likes.
+ *
+ * <p>This era's Sound interface names the handle {@code long}; the bridge's handles are still ints.
  */
 final class LegacySound implements Sound {
     private final int sound;
@@ -17,12 +19,12 @@ final class LegacySound implements Sound {
     }
 
     @Override
-    public int play(float volume, float pitch, float pan) {
+    public long play(float volume, float pitch, float pan) {
         return sound <= 0 ? -1 : JvmCall.playSound(sound, volume, pitch, pan, false);
     }
 
     @Override
-    public int loop(float volume, float pitch, float pan) {
+    public long loop(float volume, float pitch, float pan) {
         return sound <= 0 ? -1 : JvmCall.playSound(sound, volume, pitch, pan, true);
     }
 
@@ -52,44 +54,44 @@ final class LegacySound implements Sound {
     }
 
     @Override
-    public void stop(int handle) {
+    public void stop(long handle) {
         if (sound > 0)
-            JvmCall.stopSoundAt(sound, handle);
+            JvmCall.stopSoundAt(sound, (int)handle);
     }
 
     @Override
-    public void pause(int handle) {
+    public void pause(long handle) {
         if (sound > 0)
-            JvmCall.pauseSoundAt(handle);
+            JvmCall.pauseSoundAt((int)handle);
     }
 
     @Override
-    public void resume(int handle) {
+    public void resume(long handle) {
         if (sound > 0)
-            JvmCall.resumeSoundAt(handle);
+            JvmCall.resumeSoundAt((int)handle);
     }
 
     @Override
-    public void setLooping(int handle, boolean looping) {
+    public void setLooping(long handle, boolean looping) {
         if (sound > 0)
-            JvmCall.setSoundLooping(handle, looping);
+            JvmCall.setSoundLooping((int)handle, looping);
     }
 
     @Override
-    public void setPitch(int handle, float pitch) {
+    public void setPitch(long handle, float pitch) {
         if (sound > 0)
-            JvmCall.setSoundPitch(handle, pitch);
+            JvmCall.setSoundPitch((int)handle, pitch);
     }
 
     @Override
-    public void setVolume(int handle, float volume) {
+    public void setVolume(long handle, float volume) {
         if (sound > 0)
-            JvmCall.setSoundVolume(handle, volume);
+            JvmCall.setSoundVolume((int)handle, volume);
     }
 
     @Override
-    public void setPan(int handle, float pan, float volume) {
+    public void setPan(long handle, float pan, float volume) {
         if (sound > 0)
-            JvmCall.setSoundPan(handle, pan, volume);
+            JvmCall.setSoundPan((int)handle, pan, volume);
     }
 }

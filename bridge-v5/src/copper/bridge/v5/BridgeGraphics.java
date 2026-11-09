@@ -1,9 +1,9 @@
 package copper.bridge.v5;
 
-import arc.*;
-import arc.Graphics.Cursor.*;
-import arc.graphics.*;
-import arc.graphics.gl.*;
+import io.anuke.arc.*;
+import io.anuke.arc.Graphics.Cursor.*;
+import io.anuke.arc.graphics.*;
+import io.anuke.arc.graphics.glutils.*;
 
 import copper.bridge.*;
 import copper.bridge.BridgeOptions.GLMode;
@@ -290,7 +290,7 @@ public class BridgeGraphics extends Graphics {
     /** {@code arc.graphics.Gl} does not exist at the range's floor; there is no static batch state to reset there. */
     private static void resetGl() {
         try {
-            Class.forName("arc.graphics.Gl").getMethod("reset").invoke(null);
+            Class.forName("io.anuke.arc.graphics.Gl").getMethod("reset").invoke(null);
         } catch (Throwable ignored) {
         }
     }

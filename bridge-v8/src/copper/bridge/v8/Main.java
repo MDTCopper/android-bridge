@@ -9,7 +9,7 @@ import mindustry.*;
 import java.io.*;
 
 /**
- * The v2 branch entry point, reached reflectively by the JVM side once the branch is chosen; both classpath rules
+ * The v1 branch entry point, reached reflectively by the JVM side once the branch is chosen; both classpath rules
  * arrive at {@link #main(String[])}, so nothing here has to know which one applied.
  */
 public class Main {
@@ -18,7 +18,7 @@ public class Main {
      * copper.bridge.jvm.Launch} reflects on: {@code getDeclaredMethod("main", String[].class)}.
      */
     public static void main(String[] args) {
-        Log.info("starting branch v2 for game " + Launch.gameVersion());
+        Log.info("starting branch v1 for game " + Launch.gameVersion());
         Log.info("game arguments: " + (args.length == 0 ? "none" : String.join(" ", args)));
 
         // runs first, before anything touches arc: OS.isAndroid decides whether arc's SharedLibraryLoader loads the
@@ -38,7 +38,7 @@ public class Main {
             arc.util.Log.level = arc.util.Log.LogLevel.debug;
 
         BridgeApplication application = new BridgeApplication();
-        application.addListener(new BridgeLauncher());
+        application.addListener(BridgeLaunchers.create());
 
         // only a thread that dies of its own exception consults the default handler, and this throw happens on the
         // calling thread. With none installed, the bridge reports it itself and rethrows.
@@ -84,7 +84,9 @@ public class Main {
         OS.isWindows = false;
         OS.isLinux = false;
         OS.isMac = false;
-        OS.isMobile = true;
-        OS.isDesktop = false;
+        try {
+            Reflect.set(OS.class, "isMobile", true);
+            Reflect.set(OS.class, "isDesktop", false);
+        } catch (Throwable ignored) {}
     }
 }

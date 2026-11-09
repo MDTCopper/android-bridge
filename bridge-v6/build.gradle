@@ -1,17 +1,11 @@
 
 /**
- * The 6 line's old audio shape: releases 105.0 up to 113.2, bleeding-edge builds 8660 up to 11234.
- * 8660 is the first published build cut after arc replaced Array with Seq; the build at 8656 still had Array.
- * The enum constants inside the range were renamed from capitalized to lowercase, which is why the branch
- * reads them by ordinal. 11234 is the last build that still declares the abstract arc.Audio with
- * newSound/newMusic, which is what this branch implements; 11247 is the first without it and belongs to v7.
+ * v6 is the Array shape of the 6 line: releases 102.0 up to 104.6, bleeding-edge builds 6426 up to 8659.
+ * Arc replaced Array with Seq at 3df599fe (2020-06-08); 8660 is the first published build cut after it, so
+ * v6 starts there.
  *
- * It compiles against v112, the newest release whose arc.Audio is still that abstract class. 113 turned it
- * into the SoLoud shape, so this branch cannot compile against it, and 11234 already carries
- * arc.audio.SoloudAudio, which BridgeApplication reaches by name. :pack:checkBridgeApi compares every
- * reference at both ends of the range, so nothing here may use what 8660 lacks.
- *
- * The file chooser has one shape here (the four-entry one), so the launcher has no probe.
+ * It compiles against 8657, the last Array build with a release. Compiling against it and checking 6426
+ * keeps every reference inside the Array shape; v104.6 and v102 are inside that range on the release scale.
  *
  * Everything is compile only: the game and arc jars arrive on the command line at runtime.
  */

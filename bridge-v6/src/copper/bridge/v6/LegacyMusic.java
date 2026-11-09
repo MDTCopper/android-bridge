@@ -3,7 +3,6 @@ package copper.bridge.v6;
 import arc.audio.*;
 import arc.files.*;
 
-import copper.bridge.annotation.CompatRange;
 import copper.bridge.gen.*;
 import copper.bridge.jvm.MusicListeners;
 
@@ -12,7 +11,6 @@ import copper.bridge.jvm.MusicListeners;
  * for either, and completion arrives as a bus event: the player answers on a thread of its own, the listener belongs
  * to the game's thread.
  */
-@CompatRange(ceiling = "v112")
 final class LegacyMusic implements Music {
     private final int music;
     private boolean looping;

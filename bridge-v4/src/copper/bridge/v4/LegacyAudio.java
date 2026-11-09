@@ -15,12 +15,12 @@ public class LegacyAudio extends io.anuke.arc.Audio {
     }
 
     @Override
-    public Sound newSound(Fi file) {
+    public Sound newSound(FileHandle file) {
         return new LegacySound(file);
     }
 
     @Override
-    public Music newMusic(Fi file) {
+    public Music newMusic(FileHandle file) {
         return new LegacyMusic(file);
     }
 

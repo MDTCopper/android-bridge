@@ -49,7 +49,7 @@ public class BridgeApplication implements Application {
         Core.files = files;
         Core.settings = new Settings();
         initAudio();
-        Core.net = new Net();
+        Core.net = new NoNet();
 
         graphics.configure();
 
@@ -222,6 +222,26 @@ public class BridgeApplication implements Application {
     @Override
     public long getNativeHeap() {
         return JvmCall.getNativeHeap();
+    }
+
+    @Override
+    public long getJavaHeap() {
+        return Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+    }
+
+    /** {@code arc.Net} is an interface at this branch's floor; the game's own {@code Vars.net} does the real work. */
+    private static class NoNet implements Net {
+        @Override
+        public void http(HttpRequest request, io.anuke.arc.func.Cons<HttpResponse> success,
+                         io.anuke.arc.func.Cons<Throwable> failure) {
+            if (failure != null)
+                failure.get(new IllegalStateException("no HTTP stack on the bridge"));
+        }
+
+        @Override
+        public boolean openURI(String uri) {
+            return JvmCall.openUri(uri);
+        }
     }
 
     @Override

@@ -105,7 +105,7 @@ public class BridgeGraphics extends Graphics {
             }
         }
 
-        Configuration.DISABLE_HASH_CHECKS.set(true);
+        setConfig("DISABLE_HASH_CHECKS", true);
         Configuration.EGL_LIBRARY_NAME.set(egl);
         Configuration.OPENGLES_LIBRARY_NAME.set(gles);
         Configuration.OPENGLES_EXPLICIT_INIT.set(true);
@@ -272,6 +272,15 @@ public class BridgeGraphics extends Graphics {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             IntBuffer value = stack.mallocInt(1);
             return EGL10.eglGetConfigAttrib(eglDisplay, config, attribute, value) ? value.get(0) : 0;
+        }
+    }
+
+    /** The option exists in LWJGL 3.4 but not in the 3.2 tree the old game jar bundles, so it is set by name. */
+    private static void setConfig(String name, Object value) {
+        try {
+            Object option = Configuration.class.getField(name).get(null);
+            option.getClass().getMethod("set", Object.class).invoke(option, value);
+        } catch (Throwable ignored) {
         }
     }
 

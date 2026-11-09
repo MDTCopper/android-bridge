@@ -1,11 +1,11 @@
 
 /**
- * v2 is the Consumer/FileHandle shape of the io.anuke-package 6 line: releases 92.0 up to 99.0,
- * bleeding-edge builds 4550 up to 5699. Arc moved the functional types from function.Consumer to func.Cons
- * on 2019-10-29; 5700 is the first published build after that, and the ids in between have no release.
+ * v2 is the pre-ClientLauncher 6 line: releases 84.0 up to 91.0. It claims no bleeding-edge range: the first
+ * published build is 4550, which already has ClientLauncher and belongs to v3. 92.0 is the first release with
+ * ClientLauncher, so v3 starts there.
  *
- * It compiles against v99, the newest release whose Arc is still the Consumer/FileHandle shape; every
- * symbol it references must also exist at 4550, which :pack:checkBridgeApi enforces.
+ * Its epoch is v91, the newest release before ClientLauncher. The game starts as its own ApplicationCore
+ * listener, with Platform.instance injected and the network providers installed before it runs.
  *
  * Everything is compile only: the game and arc jars arrive on the command line at runtime.
  */

@@ -440,7 +440,7 @@ public class BridgeInput extends Input {
                 case 34: return KeyCode.F;
                 case 80: return KeyCode.FOCUS;
                 case 35: return KeyCode.G;
-                case 68: return KeyCode.BACKTICK;
+                case 68: return KeyCode.GRAVE;
                 case 36: return KeyCode.H;
                 case 79: return KeyCode.HEADSETHOOK;
                 case 3: return KeyCode.HOME;

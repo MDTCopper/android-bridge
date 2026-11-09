@@ -1,7 +1,7 @@
 package copper.bridge.v5;
 
-import arc.audio.*;
-import arc.files.*;
+import io.anuke.arc.audio.*;
+import io.anuke.arc.files.*;
 
 import copper.bridge.gen.*;
 import copper.bridge.jvm.MusicListeners;

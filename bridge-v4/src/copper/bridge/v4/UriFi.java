@@ -8,12 +8,12 @@ import copper.bridge.gen.*;
 import java.io.*;
 
 /**
- * A {@link Fi} for a document the file picker handed back as a URI: a {@code content://} URI that only ART may
+ * A {@link FileHandle} for a document the file picker handed back as a URI: a {@code content://} URI that only ART may
  * resolve, so read and write go through the bridge. The write path is why it exists - a save request has no file
  * when it is answered, so the game produces the save into this handle and the bytes reach ART when the stream
  * closes. Reads pull the whole document through the heap.
  */
-public class UriFi extends Fi {
+public class UriFi extends FileHandle {
     private final String uri;
 
     public UriFi(String uri, String displayName) {

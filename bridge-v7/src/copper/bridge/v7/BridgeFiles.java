@@ -11,28 +11,18 @@ import java.io.*;
  * The JVM side of arc's {@link Files} abstraction: {@code local} and {@code external} are the game data folder,
  * {@code absolute} is never rebased, and {@code internal}/{@code classpath} are entries of the game jars - which is
  * all of it, since a classpath cannot be enumerated and a directory that lives only inside a jar has no listing,
- * exactly as on the desktop. Cache files live under the bridge's own folder rather than arc's default
- * {@code local("cache")}, which would scatter scratch files through the user's data folder.
+ * exactly as on the desktop.
  */
 public class BridgeFiles implements Files {
     private final File dataFolder;
-    private final File cacheFolder;
 
     public BridgeFiles() {
         this.dataFolder = require(Bridge.options.gameDataFolder, "game data folder");
-        this.cacheFolder = new File(require(Bridge.options.cacheFolder, "cache folder"), "files");
     }
 
     @Override
     public Fi get(String path, FileType type) {
         return new BridgeFi(this, path, type);
-    }
-
-    /** @return an absolute path, so arc's default {@code cache(...)} resolves without a rebase. */
-    @Override
-    public String getCachePath() {
-        if (!cacheFolder.isDirectory()) cacheFolder.mkdirs();
-        return cacheFolder.getAbsolutePath();
     }
 
     @Override

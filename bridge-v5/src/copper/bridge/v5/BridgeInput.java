@@ -1,8 +1,9 @@
 package copper.bridge.v5;
 
-import arc.*;
-import arc.input.*;
-import copper.bridge.jvm.*;import copper.bridge.gen.*;
+import io.anuke.arc.*;
+import io.anuke.arc.input.*;
+import copper.bridge.jvm.*;
+import copper.bridge.gen.*;
 import copper.bridge.util.*;
 import java.util.*;
 
@@ -10,8 +11,12 @@ import java.util.*;
 public class BridgeInput extends Input {
     private static final int MAX_TOUCHES = 20;
 
-    /** Cached once: the constant names changed case inside the range, the order did not. */
-    private static final KeyCode[] KEYS = KeyCode.values();
+    private static final Peripheral ONSCREEN_KEYBOARD = Peripheral.OnscreenKeyboard;
+    private static final Peripheral MULTITOUCH_SCREEN = Peripheral.MultitouchScreen;
+    private static final Peripheral VIBRATOR = Peripheral.Vibrator;
+    private static final Peripheral PRESSURE = Peripheral.Pressure;
+    private static final Orientation LANDSCAPE = Orientation.Landscape;
+    private static final Orientation PORTRAIT = Orientation.Portrait;
 
     /** Absent at the range's floor; looked up once so the frame loop does not pay for a failed lookup. */
     private static final java.lang.reflect.Method POST_UPDATE = postUpdateMethod();
@@ -24,12 +29,6 @@ public class BridgeInput extends Input {
         }
     }
 
-        private static final Peripheral ONSCREEN_KEYBOARD = Peripheral.OnscreenKeyboard;
-    private static final Peripheral MULTITOUCH_SCREEN = Peripheral.MultitouchScreen;
-    private static final Peripheral VIBRATOR = Peripheral.Vibrator;
-    private static final Peripheral PRESSURE = Peripheral.Pressure;
-    private static final Orientation LANDSCAPE = Orientation.Landscape;
-    private static final Orientation PORTRAIT = Orientation.Portrait;
 
     /** The schema this bridge binds; an inner class because this one already extends arc's {@code Input}. */
     public final class Events extends InputBatch {
@@ -48,11 +47,11 @@ public class BridgeInput extends Input {
             touchY[index] = y;
             deltaX[index] = 0;
             deltaY[index] = 0;
-            button[index] = KEYS[21].ordinal(); //mouseLeft
+            button[index] = KeyCode.MOUSE_LEFT.ordinal();
             pressure[index] = rawPressure;
             touched[index] = true;
 
-            inputMultiplexer.touchDown(x, y, index, KEYS[21]); //mouseLeft
+            inputMultiplexer.touchDown(x, y, index, KeyCode.MOUSE_LEFT);
             justTouched = true;
         }
 
@@ -74,7 +73,7 @@ public class BridgeInput extends Input {
             pressure[index] = 0f;
             touched[index] = false;
 
-            if (key != KEYS[119]) { //unknown
+            if (key != KeyCode.UNKNOWN) {
                 inputMultiplexer.touchUp(x, y, index, key);
             }
         }
@@ -107,7 +106,7 @@ public class BridgeInput extends Input {
             touchY[index] = y;
             pressure[index] = rawPressure;
 
-            if (key != KEYS[119]) { //unknown
+            if (key != KeyCode.UNKNOWN) {
                 inputMultiplexer.touchDragged(x, y, index);
             } else {
                 inputMultiplexer.mouseMoved(x, y);
@@ -187,8 +186,8 @@ public class BridgeInput extends Input {
 
     /** One back tap through the normal input path, used when no dialog is open. */
     public void backTap() {
-        inputMultiplexer.keyDown(KEYS[44]); //back
-        inputMultiplexer.keyUp(KEYS[44]); //back
+        inputMultiplexer.keyDown(KeyCode.BACK);
+        inputMultiplexer.keyUp(KeyCode.BACK);
     }
 
     /** Drains every pending frame and replays it, so a swipe sampled faster than the frame rate arrives whole. */
@@ -392,150 +391,150 @@ public class BridgeInput extends Input {
     private static class KeyMap {
         static KeyCode getKeyCode(int key) {
             switch (key) {
-                case -1: return KEYS[27]; //anyKey
-                case 7: return KEYS[28]; //num0
-                case 8: return KEYS[29]; //num1
-                case 9: return KEYS[30]; //num2
-                case 10: return KEYS[31]; //num3
-                case 11: return KEYS[32]; //num4
-                case 12: return KEYS[33]; //num5
-                case 13: return KEYS[34]; //num6
-                case 14: return KEYS[35]; //num7
-                case 15: return KEYS[36]; //num8
-                case 16: return KEYS[37]; //num9
-                case 29: return KEYS[38]; //a
-                case 57: return KEYS[39]; //altLeft
-                case 58: return KEYS[40]; //altRight
-                case 75: return KEYS[41]; //apostrophe
-                case 77: return KEYS[42]; //at
-                case 30: return KEYS[43]; //b
-                case 4: return KEYS[44]; //back
-                case 73: return KEYS[45]; //backslash
-                case 31: return KEYS[46]; //c
-                case 5: return KEYS[47]; //call
-                case 27: return KEYS[48]; //camera
-                case 28: return KEYS[49]; //clear
-                case 55: return KEYS[50]; //comma
-                case 32: return KEYS[51]; //d
-                case 67: return KEYS[53]; //backspace
-                case 112: return KEYS[54]; //forwardDel
-                case 23: return KEYS[60]; //center
-                case 20: return KEYS[61]; //down
-                case 21: return KEYS[62]; //left
-                case 22: return KEYS[63]; //right
-                case 19: return KEYS[64]; //up
-                case 33: return KEYS[65]; //e
-                case 6: return KEYS[66]; //endcall
-                case 66: return KEYS[67]; //enter
-                case 65: return KEYS[68]; //envelope
-                case 70: return KEYS[69]; //equals
-                case 34: return KEYS[71]; //f
-                case 80: return KEYS[72]; //focus
-                case 35: return KEYS[73]; //g
-                case 68: return KEYS[74]; //backtick
-                case 36: return KEYS[75]; //h
-                case 79: return KEYS[76]; //headsetHook
-                case 3: return KEYS[77]; //home
-                case 37: return KEYS[78]; //i
-                case 38: return KEYS[79]; //j
-                case 39: return KEYS[80]; //k
-                case 40: return KEYS[81]; //l
-                case 71: return KEYS[82]; //leftBracket
-                case 41: return KEYS[83]; //m
-                case 90: return KEYS[84]; //mediaFastForward
-                case 87: return KEYS[85]; //mediaNext
-                case 85: return KEYS[86]; //mediaPlayPause
-                case 88: return KEYS[87]; //mediaPrevious
-                case 89: return KEYS[88]; //mediaRewind
-                case 86: return KEYS[89]; //mediaStop
-                case 82: return KEYS[90]; //menu
-                case 69: return KEYS[91]; //minus
-                case 91: return KEYS[92]; //mute
-                case 42: return KEYS[93]; //n
-                case 83: return KEYS[94]; //notification
-                case 78: return KEYS[95]; //num
-                case 43: return KEYS[96]; //o
-                case 44: return KEYS[97]; //p
-                case 56: return KEYS[98]; //period
-                case 81: return KEYS[99]; //plus
-                case 18: return KEYS[100]; //pound
-                case 26: return KEYS[101]; //power
-                case 45: return KEYS[102]; //q
-                case 46: return KEYS[103]; //r
-                case 72: return KEYS[104]; //rightBracket
-                case 47: return KEYS[105]; //s
-                case 84: return KEYS[106]; //search
-                case 74: return KEYS[107]; //semicolon
-                case 59: return KEYS[108]; //shiftLeft
-                case 60: return KEYS[109]; //shiftRight
-                case 76: return KEYS[110]; //slash
-                case 1: return KEYS[111]; //softLeft
-                case 2: return KEYS[112]; //softRight
-                case 62: return KEYS[113]; //space
-                case 17: return KEYS[114]; //star
-                case 63: return KEYS[115]; //sym
-                case 48: return KEYS[116]; //t
-                case 61: return KEYS[117]; //tab
-                case 49: return KEYS[118]; //u
-                case 0: return KEYS[119]; //unknown
-                case 50: return KEYS[120]; //v
-                case 25: return KEYS[121]; //volumeDown
-                case 24: return KEYS[122]; //volumeUp
-                case 51: return KEYS[123]; //w
-                case 52: return KEYS[124]; //x
-                case 53: return KEYS[125]; //y
-                case 54: return KEYS[126]; //z
-                case 64: return KEYS[130]; //metaShiftLeftOn
-                case 128: return KEYS[132]; //metaShiftRightOn
-                case 129: return KEYS[134]; //controlLeft
-                case 130: return KEYS[135]; //controlRight
-                case 111: return KEYS[136]; //escape
-                case 123: return KEYS[137]; //end
-                case 124: return KEYS[138]; //insert
-                case 92: return KEYS[139]; //pageUp
-                case 93: return KEYS[140]; //pageDown
-                case 94: return KEYS[141]; //pictSymbols
-                case 95: return KEYS[142]; //switchCharset
-                case 255: return KEYS[146]; //buttonC
-                case 96: return KEYS[144]; //buttonA
-                case 97: return KEYS[145]; //buttonB
-                case 98: return KEYS[146]; //buttonC
-                case 99: return KEYS[147]; //buttonX
-                case 100: return KEYS[148]; //buttonY
-                case 101: return KEYS[149]; //buttonZ
-                case 102: return KEYS[150]; //buttonL1
-                case 103: return KEYS[150]; //buttonL1
-                case 104: return KEYS[152]; //buttonL2
-                case 105: return KEYS[152]; //buttonL2
-                case 106: return KEYS[154]; //buttonThumbL
-                case 107: return KEYS[155]; //buttonThumbR
-                case 108: return KEYS[156]; //buttonStart
-                case 109: return KEYS[157]; //buttonSelect
-                case 110: return KEYS[158]; //buttonMode
-                case 144: return KEYS[159]; //numpad0
-                case 145: return KEYS[160]; //numpad1
-                case 146: return KEYS[161]; //numpad2
-                case 147: return KEYS[162]; //numpad3
-                case 148: return KEYS[163]; //numpad4
-                case 149: return KEYS[164]; //numpad5
-                case 150: return KEYS[165]; //numpad6
-                case 151: return KEYS[166]; //numpad7
-                case 152: return KEYS[167]; //numpad8
-                case 153: return KEYS[168]; //numpad9
-                case 243: return KEYS[169]; //colon
-                case 131: return KEYS[170]; //f1
-                case 132: return KEYS[171]; //f2
-                case 133: return KEYS[172]; //f3
-                case 134: return KEYS[173]; //f4
-                case 135: return KEYS[174]; //f5
-                case 136: return KEYS[175]; //f6
-                case 137: return KEYS[176]; //f7
-                case 138: return KEYS[177]; //f8
-                case 139: return KEYS[178]; //f9
-                case 140: return KEYS[179]; //f10
-                case 141: return KEYS[180]; //f11
-                case 142: return KEYS[181]; //f12
-                default: return KEYS[119]; //unknown
+                case -1: return KeyCode.ANY_KEY;
+                case 7: return KeyCode.NUM_0;
+                case 8: return KeyCode.NUM_1;
+                case 9: return KeyCode.NUM_2;
+                case 10: return KeyCode.NUM_3;
+                case 11: return KeyCode.NUM_4;
+                case 12: return KeyCode.NUM_5;
+                case 13: return KeyCode.NUM_6;
+                case 14: return KeyCode.NUM_7;
+                case 15: return KeyCode.NUM_8;
+                case 16: return KeyCode.NUM_9;
+                case 29: return KeyCode.A;
+                case 57: return KeyCode.ALT_LEFT;
+                case 58: return KeyCode.ALT_RIGHT;
+                case 75: return KeyCode.APOSTROPHE;
+                case 77: return KeyCode.AT;
+                case 30: return KeyCode.B;
+                case 4: return KeyCode.BACK;
+                case 73: return KeyCode.BACKSLASH;
+                case 31: return KeyCode.C;
+                case 5: return KeyCode.CALL;
+                case 27: return KeyCode.CAMERA;
+                case 28: return KeyCode.CLEAR;
+                case 55: return KeyCode.COMMA;
+                case 32: return KeyCode.D;
+                case 67: return KeyCode.BACKSPACE;
+                case 112: return KeyCode.FORWARD_DEL;
+                case 23: return KeyCode.CENTER;
+                case 20: return KeyCode.DOWN;
+                case 21: return KeyCode.LEFT;
+                case 22: return KeyCode.RIGHT;
+                case 19: return KeyCode.UP;
+                case 33: return KeyCode.E;
+                case 6: return KeyCode.ENDCALL;
+                case 66: return KeyCode.ENTER;
+                case 65: return KeyCode.ENVELOPE;
+                case 70: return KeyCode.EQUALS;
+                case 34: return KeyCode.F;
+                case 80: return KeyCode.FOCUS;
+                case 35: return KeyCode.G;
+                case 68: return KeyCode.BACKTICK;
+                case 36: return KeyCode.H;
+                case 79: return KeyCode.HEADSETHOOK;
+                case 3: return KeyCode.HOME;
+                case 37: return KeyCode.I;
+                case 38: return KeyCode.J;
+                case 39: return KeyCode.K;
+                case 40: return KeyCode.L;
+                case 71: return KeyCode.LEFT_BRACKET;
+                case 41: return KeyCode.M;
+                case 90: return KeyCode.MEDIA_FAST_FORWARD;
+                case 87: return KeyCode.MEDIA_NEXT;
+                case 85: return KeyCode.MEDIA_PLAY_PAUSE;
+                case 88: return KeyCode.MEDIA_PREVIOUS;
+                case 89: return KeyCode.MEDIA_REWIND;
+                case 86: return KeyCode.MEDIA_STOP;
+                case 82: return KeyCode.MENU;
+                case 69: return KeyCode.MINUS;
+                case 91: return KeyCode.MUTE;
+                case 42: return KeyCode.N;
+                case 83: return KeyCode.NOTIFICATION;
+                case 78: return KeyCode.NUM;
+                case 43: return KeyCode.O;
+                case 44: return KeyCode.P;
+                case 56: return KeyCode.PERIOD;
+                case 81: return KeyCode.PLUS;
+                case 18: return KeyCode.POUND;
+                case 26: return KeyCode.POWER;
+                case 45: return KeyCode.Q;
+                case 46: return KeyCode.R;
+                case 72: return KeyCode.RIGHT_BRACKET;
+                case 47: return KeyCode.S;
+                case 84: return KeyCode.SEARCH;
+                case 74: return KeyCode.SEMICOLON;
+                case 59: return KeyCode.SHIFT_LEFT;
+                case 60: return KeyCode.SHIFT_RIGHT;
+                case 76: return KeyCode.SLASH;
+                case 1: return KeyCode.SOFT_LEFT;
+                case 2: return KeyCode.SOFT_RIGHT;
+                case 62: return KeyCode.SPACE;
+                case 17: return KeyCode.STAR;
+                case 63: return KeyCode.SYM;
+                case 48: return KeyCode.T;
+                case 61: return KeyCode.TAB;
+                case 49: return KeyCode.U;
+                case 0: return KeyCode.UNKNOWN;
+                case 50: return KeyCode.V;
+                case 25: return KeyCode.VOLUME_DOWN;
+                case 24: return KeyCode.VOLUME_UP;
+                case 51: return KeyCode.W;
+                case 52: return KeyCode.X;
+                case 53: return KeyCode.Y;
+                case 54: return KeyCode.Z;
+                case 64: return KeyCode.META_SHIFT_LEFT_ON;
+                case 128: return KeyCode.META_SHIFT_RIGHT_ON;
+                case 129: return KeyCode.CONTROL_LEFT;
+                case 130: return KeyCode.CONTROL_RIGHT;
+                case 111: return KeyCode.ESCAPE;
+                case 123: return KeyCode.END;
+                case 124: return KeyCode.INSERT;
+                case 92: return KeyCode.PAGE_UP;
+                case 93: return KeyCode.PAGE_DOWN;
+                case 94: return KeyCode.PICTSYMBOLS;
+                case 95: return KeyCode.SWITCH_CHARSET;
+                case 255: return KeyCode.BUTTON_C;
+                case 96: return KeyCode.BUTTON_A;
+                case 97: return KeyCode.BUTTON_B;
+                case 98: return KeyCode.BUTTON_C;
+                case 99: return KeyCode.BUTTON_X;
+                case 100: return KeyCode.BUTTON_Y;
+                case 101: return KeyCode.BUTTON_Z;
+                case 102: return KeyCode.BUTTON_L1;
+                case 103: return KeyCode.BUTTON_L1;
+                case 104: return KeyCode.BUTTON_L2;
+                case 105: return KeyCode.BUTTON_L2;
+                case 106: return KeyCode.BUTTON_THUMBL;
+                case 107: return KeyCode.BUTTON_THUMBR;
+                case 108: return KeyCode.BUTTON_START;
+                case 109: return KeyCode.BUTTON_SELECT;
+                case 110: return KeyCode.BUTTON_MODE;
+                case 144: return KeyCode.NUMPAD_0;
+                case 145: return KeyCode.NUMPAD_1;
+                case 146: return KeyCode.NUMPAD_2;
+                case 147: return KeyCode.NUMPAD_3;
+                case 148: return KeyCode.NUMPAD_4;
+                case 149: return KeyCode.NUMPAD_5;
+                case 150: return KeyCode.NUMPAD_6;
+                case 151: return KeyCode.NUMPAD_7;
+                case 152: return KeyCode.NUMPAD_8;
+                case 153: return KeyCode.NUMPAD_9;
+                case 243: return KeyCode.COLON;
+                case 131: return KeyCode.F1;
+                case 132: return KeyCode.F2;
+                case 133: return KeyCode.F3;
+                case 134: return KeyCode.F4;
+                case 135: return KeyCode.F5;
+                case 136: return KeyCode.F6;
+                case 137: return KeyCode.F7;
+                case 138: return KeyCode.F8;
+                case 139: return KeyCode.F9;
+                case 140: return KeyCode.F10;
+                case 141: return KeyCode.F11;
+                case 142: return KeyCode.F12;
+                default: return KeyCode.UNKNOWN;
             }
         }
     }

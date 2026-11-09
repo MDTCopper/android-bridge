@@ -2,6 +2,7 @@ package copper.bridge.v3;
 
 import io.anuke.arc.util.*;
 import copper.bridge.*;
+import copper.bridge.v2.BridgeApplication;
 import copper.bridge.jvm.Launch;
 import copper.bridge.util.Log;
 import io.anuke.mindustry.*;

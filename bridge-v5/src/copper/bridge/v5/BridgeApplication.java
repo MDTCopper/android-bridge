@@ -4,6 +4,9 @@ import io.anuke.arc.*;
 import io.anuke.arc.collection.*;
 
 import copper.bridge.*;
+import copper.bridge.v4.BridgeEvents;
+import copper.bridge.v4.BridgeGraphics;
+import copper.bridge.v4.BridgeInput;
 import copper.bridge.gen.*;
 import copper.bridge.jvm.Surface;
 import copper.bridge.util.*;

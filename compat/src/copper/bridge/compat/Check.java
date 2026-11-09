@@ -41,8 +41,8 @@ public final class Check {
             throw new IllegalArgumentException("unknown --mode " + mode + " (jar or code)");
         }
 
-        System.out.println(branch + " (" + mode + "): checking " + refs.size()
-                + " referenced arc/mindustry member(s), " + reflections.size() + " reflection target(s)");
+        System.out.println(branch + " (" + mode + "): " + refs.size() + " direct reference(s), "
+                + reflections.size() + " direct reflection target(s)");
         for (String issue : issues)
             System.out.println("  " + issue);
         if (issues.isEmpty()) {
@@ -63,6 +63,8 @@ public final class Check {
         allRefs.addAll(closure.refs);
         List<ReflectionRef> allReflections = new ArrayList<>(reflections);
         allReflections.addAll(closure.reflections);
+        System.out.println("  total   " + allRefs.size() + " referenced member(s), "
+                + allReflections.size() + " reflection target(s)");
 
         Range branchRange = new Range(config.floor, config.ceiling);
         Map<String, Range> overrides = new HashMap<>();

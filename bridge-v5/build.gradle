@@ -21,6 +21,8 @@ sourceSets {
 
 dependencies {
     api project(':core')
+    // the render/input core is identical to v4; v5 only differs in the file and audio types
+    compileOnly project(':bridge-v4')
 
     // android.jar supplies android.*; the JVM side never loads these classes.
     def sdkRoot = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")

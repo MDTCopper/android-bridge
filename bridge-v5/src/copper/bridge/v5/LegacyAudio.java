@@ -24,13 +24,13 @@ public class LegacyAudio extends io.anuke.arc.Audio {
         return new LegacyMusic(file);
     }
 
-    /** The bridge has no PCM output; a silent device keeps arc's non-null contract, as its own mock does. */
+    /** Raw PCM streaming has no sink; Sound and Music are served by ART. A silent device keeps the non-null contract. */
     @Override
     public AudioDevice newAudioDevice(int samplingRate, boolean isMono) {
         return new SilentAudioDevice();
     }
 
-    /** Nothing captures audio either; arc's mock returns a recorder, not null. */
+    /** Nothing captures raw PCM; a silent recorder keeps the non-null contract. */
     @Override
     public AudioRecorder newAudioRecorder(int samplingRate, boolean isMono) {
         return new SilentAudioRecorder();

@@ -6,14 +6,12 @@ def branchNames = project.ext.branchNames
 // closure is evaluated while the jar is built, and reaching for the project then is what the
 // configuration cache refuses.
 def coreOutput = project(':core').sourceSets.main.output
-def backendOutput = project(':backend').sourceSets.main.output
 def branchOutputs = branchNames.collect { String branch ->
-    project(":bridge-${branch}").sourceSets.main.output
+    project(":bridge:${branch}").sourceSets.main.output
 }
 
 tasks.register('bridgeJar', Jar) {
     dependsOn ':core:jar'
-    dependsOn ':backend:compileJava'
     dependsOn 'checkBridgeApi'
     dependsOn 'fetchLwjglNatives'
     dependsOn ':native:assemble'
@@ -34,7 +32,6 @@ tasks.register('bridgeJar', Jar) {
     // JVM payload: every class of every module, unchanged. Source set outputs rather than module jars,
     // which would drag their own manifests into the bridge jar.
     from(coreOutput)
-    from(backendOutput)
     branchOutputs.each { output -> from(output) }
 
     // The native bridge, at the resource path copper.bridge.Bridge.prepare() reads back at runtime:

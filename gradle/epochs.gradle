@@ -80,7 +80,7 @@ ext.prepareEpoch = { String branch -> fetchEpoch(epochInfo(branch).ref) }
 
 /** Whether a branch subproject has any code yet; pack asks the same question when it builds the jar. */
 ext.branchHasSources = { String branch ->
-    !fileTree("bridge-${branch}/src") { include '**/*.java' }.isEmpty()
+    !fileTree("bridge/${branch}/src") { include '**/*.java' }.isEmpty()
 }
 
 // The subprojects that carry an epoch: one per version branch.

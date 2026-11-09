@@ -4,7 +4,7 @@
 apply from: "$rootDir/gradle/version.gradle"
 apply from: "$rootDir/gradle/epochs.gradle"
 
-configure(subprojects - project(':native')) {
+configure(subprojects - project(':native') - project(':bridge')) {
     apply plugin: 'java-library'
 
     group = 'com.github.MDTCopper.bridge'
@@ -25,21 +25,5 @@ configure(subprojects - project(':native')) {
         options.encoding = 'UTF-8'
         options.locale = 'en_US'
         options.addStringOption('Xdoclint:none', '-quiet')
-    }
-}
-
-// A branch may use classes from any lower branch, not only the one before it. All lower branches are on its
-// compile classpath; the API check follows the same edges backwards and validates every used class at this
-// branch's ends.
-configure(subprojects.findAll { it.name ==~ /bridge-v\d+/ }) {
-    def version = it.name.substring('bridge-v'.length()) as int
-    dependencies {
-        api project(':backend')
-    }
-    if (version > 1) {
-        dependencies {
-            for (int lower = 1; lower < version; lower++)
-                compileOnly project(":bridge-v${lower}")
-        }
     }
 }

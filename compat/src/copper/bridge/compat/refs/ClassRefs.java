@@ -118,7 +118,7 @@ public final class ClassRefs {
                 if (refTag[i] != 9 && refTag[i] != 10 && refTag[i] != 11)
                     continue;
                 String owner = utf8[className[refClass[i]]];
-                if (owner == null || !(owner.startsWith("arc/") || owner.startsWith("mindustry/")))
+                if (owner == null || !isGameOrArc(owner))
                     continue;
                 String name = utf8[natName[refNat[i]]];
                 String descriptor = utf8[natDescriptor[refNat[i]]];
@@ -130,6 +130,12 @@ public final class ClassRefs {
             return null;
         }
         return file;
+    }
+
+    /** A reference the check owns: arc or the game, in either package spelling. */
+    private static boolean isGameOrArc(String owner) {
+        return owner.startsWith("arc/") || owner.startsWith("mindustry/")
+                || owner.startsWith("io/anuke/arc/") || owner.startsWith("io/anuke/mindustry/");
     }
 
     /** Reads the source file name and the class-level {@code @CompatRange}; the class structure is skipped. */

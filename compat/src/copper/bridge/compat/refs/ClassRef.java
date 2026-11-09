@@ -19,7 +19,7 @@ public final class ClassRef {
     }
 
     public boolean isArc() {
-        return owner.startsWith("arc/");
+        return owner.startsWith("arc/") || owner.startsWith("io/anuke/arc/");
     }
 
     public String key() {

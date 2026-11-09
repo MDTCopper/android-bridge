@@ -3,6 +3,7 @@ package copper.bridge.compat;
 import copper.bridge.compat.check.*;
 import copper.bridge.compat.config.CheckConfig;
 import copper.bridge.compat.refs.*;
+import copper.bridge.compat.sources.Git;
 import copper.bridge.compat.sources.RefJars;
 
 import java.nio.file.*;
@@ -13,20 +14,47 @@ import java.util.*;
  * member whose declaration changed inside the range still compiles and only fails on the older device.
  *
  * <p>Reads the compiled branch classes, keeps the references into arc and mindustry, and compares their
- * declarations at the two ends of the branch's range. Both ends are official desktop jars that the build
- * stages and passes in as {@code --jar <ref>=<path>}; the check itself never downloads. Additions are
- * allowed; a changed or removed declaration fails the build. A class annotated with {@code @CompatRange} gets
- * that ref as its file's ends.
+ * declarations at the two ends of the branch's range. Additions are allowed; a changed or removed declaration
+ * fails the build. A class annotated with {@code @CompatRange} gets that ref as its file's ends.
+ *
+ * <p>Two modes read the ends: {@code jar} (the default) reads the staged desktop jars handed in as
+ * {@code --jar <ref>=<path>}; {@code code} reads the game and arc sources at the named revisions in the clones
+ * given by {@code --mindustry} and {@code --arc}, so a range can be probed without building or downloading
+ * anything. The code mode resolves the arc revision from the game commit's {@code archash} unless one is named.
  */
 public final class Check {
 
     public static void main(String[] args) {
         Map<String, String> options = parse(args);
         String branch = required(options, "branch");
-        CheckConfig config = CheckConfig.load(Paths.get(required(options, "properties")), branch);
         Path bridge = Paths.get(required(options, "bridge"));
-
         List<ClassRef> refs = ClassRefs.read(bridge);
+        String mode = options.getOrDefault("mode", "jar").trim();
+
+        List<String> issues;
+        if ("code".equals(mode)) {
+            issues = checkCode(options, refs);
+        } else if ("jar".equals(mode)) {
+            issues = checkJar(args, options, branch, refs);
+        } else {
+            throw new IllegalArgumentException("unknown --mode " + mode + " (jar or code)");
+        }
+
+        System.out.println(branch + " (" + mode + "): checking " + refs.size()
+                + " referenced arc/mindustry member(s)");
+        for (String issue : issues)
+            System.out.println("  " + issue);
+        if (issues.isEmpty()) {
+            System.out.println("API check passed");
+        } else {
+            System.out.println("API check FAILED: " + issues.size() + " incompatible reference(s)");
+            System.exit(1);
+        }
+    }
+
+    private static List<String> checkJar(String[] args, Map<String, String> options, String branch,
+                                         List<ClassRef> refs) {
+        CheckConfig config = CheckConfig.load(Paths.get(required(options, "properties")), branch);
         Range branchRange = new Range(config.floor, config.ceiling);
         Map<String, Range> overrides = new HashMap<>();
         for (ClassRef ref : refs) {
@@ -44,19 +72,69 @@ public final class Check {
                 jars.add(spec.substring(0, split), Paths.get(spec.substring(split + 1)));
             }
 
-            List<String> issues = ApiComparer.compare(refs, branchRange, overrides, jars);
-            System.out.println(branch + ": checking " + refs.size() + " referenced arc/mindustry member(s)");
             System.out.println("  floor   " + config.floor);
             System.out.println("  ceiling " + config.ceiling);
-            for (String issue : issues)
-                System.out.println("  " + issue);
-            if (issues.isEmpty()) {
-                System.out.println("API check passed");
-            } else {
-                System.out.println("API check FAILED: " + issues.size() + " incompatible reference(s)");
-                System.exit(1);
+            return ApiComparer.compare(refs, branchRange, overrides, jars);
+        }
+    }
+
+    private static List<String> checkCode(Map<String, String> options, List<ClassRef> refs) {
+        Path gameDir = Paths.get(required(options, "mindustry"));
+        Path arcDir = Paths.get(required(options, "arc"));
+        boolean merged = Boolean.parseBoolean(options.getOrDefault("merged", "false"));
+        Git game = new Git(gameDir.toString());
+        Git arc = new Git(arcDir.toString());
+
+        String gameFloor = commit(game, required(options, "game-floor"));
+        String gameCeiling = commit(game, required(options, "game-ceiling"));
+        String arcFloor = options.containsKey("arc-floor")
+                ? commit(arc, options.get("arc-floor"))
+                : arcAt(game, arcDir, merged, gameFloor);
+        String arcCeiling = options.containsKey("arc-ceiling")
+                ? commit(arc, options.get("arc-ceiling"))
+                : arcAt(game, arcDir, merged, gameCeiling);
+        Range branchRange = new Range(gameFloor, gameCeiling, arcFloor, arcCeiling);
+
+        Map<String, Range> overrides = new HashMap<>();
+        for (ClassRef ref : refs) {
+            if (ref.overrideKey != null && !overrides.containsKey(ref.overrideKey)) {
+                String[] ends = ref.overrideKey.split("\\|", -1);
+                String floor = "default".equals(ends[0]) ? gameFloor : commit(game, ends[0]);
+                String ceiling = "default".equals(ends[1]) ? gameCeiling : commit(game, ends[1]);
+                overrides.put(ref.overrideKey, new Range(floor, ceiling,
+                        "default".equals(ends[0]) ? arcFloor : arcAt(game, arcDir, merged, floor),
+                        "default".equals(ends[1]) ? arcCeiling : arcAt(game, arcDir, merged, ceiling)));
             }
         }
+
+        System.out.println("  game    " + shortCommit(gameFloor) + " .. " + shortCommit(gameCeiling));
+        System.out.println("  arc     " + shortCommit(arcFloor) + " .. " + shortCommit(arcCeiling));
+        return SourceComparer.compare(refs, branchRange, overrides, gameDir, arcDir);
+    }
+
+    private static String commit(Git git, String revision) {
+        try {
+            return git.run("rev-parse", "--verify", revision + "^{commit}").trim();
+        } catch (IllegalStateException e) {
+            throw new IllegalArgumentException("cannot resolve revision " + revision, e);
+        }
+    }
+
+    private static String arcAt(Git game, Path arcDir, boolean merged, String gameCommit) {
+        if (merged)
+            return gameCommit;
+        String archash = null;
+        for (String line : game.run("show", gameCommit + ":gradle.properties").split("\n")) {
+            line = line.trim();
+            if (line.startsWith("archash=")) {
+                archash = line.substring("archash=".length()).trim();
+                break;
+            }
+        }
+        if (archash == null || archash.isEmpty())
+            throw new IllegalStateException("no archash declared by " + gameCommit
+                    + "; pass --arc-floor and --arc-ceiling");
+        return commit(new Git(arcDir.toString()), archash);
     }
 
     private static Map<String, String> parse(String[] args) {
@@ -90,5 +168,9 @@ public final class Check {
         if (value == null || value.trim().isEmpty())
             throw new IllegalArgumentException("missing --" + key);
         return value.trim();
+    }
+
+    private static String shortCommit(String commit) {
+        return commit.length() > 10 ? commit.substring(0, 10) : commit;
     }
 }

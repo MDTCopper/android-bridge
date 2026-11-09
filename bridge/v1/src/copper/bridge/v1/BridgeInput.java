@@ -1,5 +1,7 @@
 package copper.bridge.v1;
 
+import copper.bridge.annotation.BridgeInterface;
+
 import io.anuke.arc.*;
 import io.anuke.arc.input.*;
 import copper.bridge.jvm.*;
@@ -8,7 +10,7 @@ import copper.bridge.util.*;
 import java.util.*;
 
 /** The game's input, fed from the packed batches ART produces; polled and read on the game loop thread alone. */
-public class BridgeInput extends Input implements InputHost {
+public class BridgeInput extends Input {
     private static final int MAX_TOUCHES = 20;
 
     private static final Peripheral ONSCREEN_KEYBOARD = Peripheral.OnscreenKeyboard;
@@ -246,7 +248,7 @@ public class BridgeInput extends Input implements InputHost {
     //region text input and other peripherals
 
     /** Shows the text input dialog ART owns; the answer arrives on the game loop. */
-    @Override
+    @BridgeInterface
     public void getTextInput(TextInput info) {
         // the 6 line's TextInput has no hint line and no empty-answer flag, so the dialog gets neither
         JvmCall.textInput(info.title, "", info.text, false, info.multiline,
@@ -255,29 +257,29 @@ public class BridgeInput extends Input implements InputHost {
                 .onCanceled(info.canceled);
     }
 
-    @Override
+    @BridgeInterface
     public void setOnscreenKeyboardVisible(boolean visible) {
         JvmCall.onscreenKeyboard(visible);
     }
 
-    @Override
+    @BridgeInterface
     public void vibrate(int milliseconds) {
         JvmCall.vibrate(milliseconds);
     }
 
-    @Override
+    @BridgeInterface
     public void vibrate(long[] pattern, int repeat) {
         JvmCall.vibrate(pattern, repeat);
     }
 
-    @Override
+    @BridgeInterface
     public void cancelVibrate() {
         JvmCall.cancelVibrate();
     }
 
     /** Reports the peripherals this bridge can serve. The vibrator is answered by ART rather than guessed, and nothing
      *  else is bridged: claiming one would hand the game a peripheral that never answers. */
-    @Override
+    @BridgeInterface
     public boolean isPeripheralAvailable(Peripheral peripheral) {
         if (peripheral == ONSCREEN_KEYBOARD) return true;
         if (peripheral == MULTITOUCH_SCREEN) return true;
@@ -286,13 +288,13 @@ public class BridgeInput extends Input implements InputHost {
     }
 
     /** The display's rotation in degrees, translated on the ART side, which owns the constants. */
-    @Override
+    @BridgeInterface
     public int getRotation() {
         return JvmCall.screenRotationDegrees();
     }
 
     /** Whether the device's display is natively landscape, asked of ART and not cached. */
-    @Override
+    @BridgeInterface
     public Orientation getNativeOrientation() {
         return JvmCall.isNativeLandscape() ? LANDSCAPE : PORTRAIT;
     }
@@ -300,47 +302,47 @@ public class BridgeInput extends Input implements InputHost {
 
     //region polling
 
-    @Override
+    @BridgeInterface
     public int mouseX() {
         return touchX[0];
     }
 
-    @Override
+    @BridgeInterface
     public int mouseX(int pointer) {
         return touchX[pointer];
     }
 
-    @Override
+    @BridgeInterface
     public int mouseY() {
         return touchY[0];
     }
 
-    @Override
+    @BridgeInterface
     public int mouseY(int pointer) {
         return touchY[pointer];
     }
 
-    @Override
+    @BridgeInterface
     public int deltaX() {
         return deltaX[0];
     }
 
-    @Override
+    @BridgeInterface
     public int deltaX(int pointer) {
         return deltaX[pointer];
     }
 
-    @Override
+    @BridgeInterface
     public int deltaY() {
         return deltaY[0];
     }
 
-    @Override
+    @BridgeInterface
     public int deltaY(int pointer) {
         return deltaY[pointer];
     }
 
-    @Override
+    @BridgeInterface
     public boolean isTouched() {
         for (int pointer = 0; pointer < MAX_TOUCHES; pointer++) {
             if (touched[pointer]) return true;
@@ -348,22 +350,22 @@ public class BridgeInput extends Input implements InputHost {
         return false;
     }
 
-    @Override
+    @BridgeInterface
     public boolean isTouched(int pointer) {
         return touched[pointer];
     }
 
-    @Override
+    @BridgeInterface
     public boolean justTouched() {
         return justTouched;
     }
 
-    @Override
+    @BridgeInterface
     public float getPressure(int pointer) {
         return pressure[pointer];
     }
 
-    @Override
+    @BridgeInterface
     public long getCurrentEventTime() {
         return currentEventTimeStamp;
     }

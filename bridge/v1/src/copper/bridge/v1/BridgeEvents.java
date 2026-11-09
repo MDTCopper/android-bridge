@@ -19,16 +19,16 @@ public class BridgeEvents implements Events {
     /** Cached once: the constant names changed case inside the range, the order did not. */
     private static final KeyCode[] KEYS = KeyCode.values();
 
-    private final GraphicsHost graphics;
-    private final InputHost input;
-    private final Iterable<?> listeners;
+    private final BridgeGraphics graphics;
+    private final BridgeInput input;
+    private final Array<ApplicationListener> listeners;
 
     private volatile boolean running = true;
     private volatile boolean paused;
     private boolean surfaceReady;
 
-    public BridgeEvents(GraphicsHost graphics, InputHost input,
-                        Iterable<?> listeners) {
+    public BridgeEvents(BridgeGraphics graphics, BridgeInput input,
+                        Array<ApplicationListener> listeners) {
         this.graphics = graphics;
         this.input = input;
         this.listeners = listeners;
@@ -65,8 +65,8 @@ public class BridgeEvents implements Events {
         // Only the surface arriving before the loop starts separates itself here: the loop wires that one up itself.
         if (surfaceReady) {
             if (graphics.createSurface(window, width, height)) {
-                for (Object listener : listeners)
-                    ((ApplicationListener)listener).resize(width, height);
+                for (ApplicationListener listener : listeners)
+                    listener.resize(width, height);
             }
         }
     }
@@ -79,8 +79,8 @@ public class BridgeEvents implements Events {
             return;
 
         graphics.surfaceResized(width, height);
-        for (Object listener : listeners)
-            ((ApplicationListener)listener).resize(width, height);
+        for (ApplicationListener listener : listeners)
+            listener.resize(width, height);
     }
 
     @Override
@@ -99,8 +99,8 @@ public class BridgeEvents implements Events {
 
         // input state has to be dropped, or a key held across the pause stays down forever
         input.onPause();
-        for (Object listener : listeners)
-            ((ApplicationListener)listener).pause();
+        for (ApplicationListener listener : listeners)
+            listener.pause();
         Log.info("paused");
     }
 
@@ -112,8 +112,8 @@ public class BridgeEvents implements Events {
 
         input.onResume();
         graphics.markResumed();
-        for (Object listener : listeners)
-            ((ApplicationListener)listener).resume();
+        for (ApplicationListener listener : listeners)
+            listener.resume();
         Log.info("resumed");
     }
 

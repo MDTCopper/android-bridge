@@ -1,5 +1,7 @@
 package copper.bridge.v1;
 
+import copper.bridge.annotation.BridgeInterface;
+
 import io.anuke.arc.*;
 import io.anuke.arc.collection.*;
 
@@ -171,75 +173,75 @@ public class BridgeApplication implements Application {
         }
     }
 
-    @Override
+    @BridgeInterface
     public Array<ApplicationListener> getListeners() {
         return listeners;
     }
 
-    @Override
+    @BridgeInterface
     public ApplicationType getType() {
         return ApplicationType.Android;
     }
 
-    @Override
+    @BridgeInterface
     public int getVersion() {
         return JvmCall.getOsVersion();
     }
 
-    @Override
+    @BridgeInterface
     public long getNativeHeap() {
         return JvmCall.getNativeHeap();
     }
 
-    @Override
+    @BridgeInterface
     public long getJavaHeap() {
         return Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
     }
 
     /** {@code arc.Net} is an interface at this branch's floor; the game's own {@code Vars.net} does the real work. */
     private static class NoNet implements Net {
-        @Override
+        @BridgeInterface
         public void http(HttpRequest request, io.anuke.arc.function.Consumer<HttpResponse> success,
                          io.anuke.arc.function.Consumer<Throwable> failure) {
             if (failure != null)
                 failure.accept(new IllegalStateException("no HTTP stack on the bridge"));
         }
 
-        @Override
+        @BridgeInterface
         public boolean openURI(String uri) {
             return JvmCall.openUri(uri);
         }
     }
 
-    @Override
+    @BridgeInterface
     public String getClipboardText() {
         return JvmCall.getClipboardText();
     }
 
-    @Override
+    @BridgeInterface
     public void setClipboardText(String text) {
         JvmCall.setClipboardText(text);
     }
 
-    /** Not on the interface at the range's floor, so no {@code @Override}; the game asks for it where it exists. */
+    /** Not on the interface at the range's floor, so no {@code @BridgeInterface}; the game asks for it where it exists. */
     public boolean openURI(String uri) {
         return JvmCall.openUri(uri);
     }
 
-    /** Not on the interface at the range's floor, so no {@code @Override}. */
+    /** Not on the interface at the range's floor, so no {@code @BridgeInterface}. */
     public boolean openFolder(String folder) {
         return JvmCall.openFolder(folder);
     }
 
     /** Queues work for the loop thread, the only thread allowed to touch the game. */
-    @Override
+    @BridgeInterface
     public void post(Runnable runnable) {
         synchronized (runnables) {
             runnables.add(runnable);
         }
     }
 
-    @Override
+    @BridgeInterface
     public void exit() {
         JvmCall.finishActivity();
         events.onDestroy();

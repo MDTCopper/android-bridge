@@ -148,28 +148,6 @@ public final class ClassRefs {
         return refs;
     }
 
-    /** References into another bridge branch, which the check follows to that branch's classes. */
-    public static List<BridgeRef> readBridge(Path directory) {
-        List<BridgeRef> refs = new ArrayList<>();
-        try (Stream<Path> stream = Files.walk(directory)) {
-            for (Path path : stream.filter(p -> p.toString().endsWith(".class")).collect(Collectors.toList())) {
-                String className = directory.relativize(path).toString().replace('\\', '/');
-                className = className.substring(0, className.length() - ".class".length());
-                ClassFile file = of(path, className);
-                if (file == null)
-                    continue;
-                for (ClassRef ref : file.refs) {
-                    int branch = BridgeRef.branchOf(ref.owner);
-                    if (branch > 0)
-                        refs.add(new BridgeRef(ref.sourceClass, ref.owner, ref.name, ref.descriptor, branch));
-                }
-            }
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-        return refs;
-    }
-
     private static boolean isGameOrArc(String owner) {
         return owner.startsWith("arc/") || owner.startsWith("mindustry/")
                 || owner.startsWith("io/anuke/arc/") || owner.startsWith("io/anuke/mindustry/");

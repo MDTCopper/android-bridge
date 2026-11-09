@@ -6,12 +6,18 @@ def branchNames = project.ext.branchNames
 // closure is evaluated while the jar is built, and reaching for the project then is what the
 // configuration cache refuses.
 def coreOutput = project(':core').sourceSets.main.output
-def branchOutputs = branchNames.collect { String branch ->
-    project(":bridge:${branch}").sourceSets.main.output
+def branchZips = branchNames.collectEntries { String branch ->
+    def classes = project(":bridge:${branch}").sourceSets.main.output.classesDirs
+    [(branch): tasks.register("branchZip${branch.capitalize()}", Zip) {
+        archiveFileName = "${branch}.zip"
+        destinationDirectory = layout.buildDirectory.dir('branch-zips')
+        from(classes) { include '**/*.class' }
+    }]
 }
 
 tasks.register('bridgeJar', Jar) {
     dependsOn ':core:jar'
+    dependsOn branchZips.values()
     dependsOn 'checkBridgeApi'
     dependsOn 'fetchLwjglNatives'
     dependsOn ':native:assemble'
@@ -32,7 +38,9 @@ tasks.register('bridgeJar', Jar) {
     // JVM payload: every class of every module, unchanged. Source set outputs rather than module jars,
     // which would drag their own manifests into the bridge jar.
     from(coreOutput)
-    branchOutputs.each { output -> from(output) }
+    branchZips.each { branch, zip ->
+        from(zip.flatMap { it.archiveFile }) { into 'branches' }
+    }
 
     // The native bridge, at the resource path copper.bridge.Bridge.prepare() reads back at runtime:
     // "native/bridge/<abi>/libcopperbridge.so". The staged libraries come from the native build.

@@ -1,10 +1,15 @@
 package copper.bridge.v3;
 
+import copper.bridge.annotation.BridgeInterface;
+
 import io.anuke.arc.*;
 import io.anuke.arc.collection.*;
 
 import copper.bridge.*;
 import copper.bridge.gen.*;
+import copper.bridge.v3.BridgeGraphics;
+import copper.bridge.v3.BridgeEvents;
+import copper.bridge.v3.BridgeFiles;
 import copper.bridge.jvm.Surface;
 import copper.bridge.util.*;
 
@@ -102,9 +107,8 @@ public class BridgeApplication implements Application {
 
             graphics.beginFrame();
             input.processEvents();
-            // Application.defaultUpdate does this; autosave() arrived later in the range
-            autosaveSettings();
-            updateTime();
+            // Application.defaultUpdate does this
+            UPDATE_TIME.run();
             for (ApplicationListener listener : listeners)
                 listener.update();
             input.processDevices();
@@ -155,48 +159,13 @@ public class BridgeApplication implements Application {
         }
     }
 
-    /** {@code Settings.autosave} is absent at the range's floor; there is nothing to drive there. */
-    private static final java.lang.reflect.Method AUTOSAVE = autosaveMethod();
+    /** {@code updateGlobal} exists on the newer end of this branch; the older Time advances through update().
+     *  The choice is made once, so the loop calls a plain lambda body. */
+    private static final Runnable UPDATE_TIME = updateTime();
 
-    private static java.lang.reflect.Method autosaveMethod() {
-        try {
-            return Settings.class.getMethod("autosave");
-        } catch (Throwable ignored) {
-            return null;
-        }
-    }
-
-    private static void autosaveSettings() {
-        if (AUTOSAVE == null)
-            return;
-        try {
-            AUTOSAVE.invoke(Core.settings);
-        } catch (Throwable ignored) {
-        }
-    }
-
-    /** {@code Time.updateGlobal} arrived before v99 but after 4550; the older Time advances through update(). */
-    private static final java.lang.reflect.Method UPDATE_TIME = updateTimeMethod();
-
-    private static java.lang.reflect.Method updateTimeMethod() {
-        try {
-            return io.anuke.arc.util.Time.class.getMethod("updateGlobal");
-        } catch (Throwable ignored) {
-            try {
-                return io.anuke.arc.util.Time.class.getMethod("update");
-            } catch (Throwable ignoredToo) {
-                return null;
-            }
-        }
-    }
-
-    private static void updateTime() {
-        if (UPDATE_TIME == null)
-            return;
-        try {
-            UPDATE_TIME.invoke(null);
-        } catch (Throwable ignored) {
-        }
+    private static Runnable updateTime() {
+        Runnable global = MethodLambdas.staticRunnable(io.anuke.arc.util.Time.class, "updateGlobal");
+        return global != null ? global : io.anuke.arc.util.Time::update;
     }
 
     /** {@code Thread.sleep} with arc's old semantics: an interrupt is swallowed, not re-armed. */
@@ -207,96 +176,84 @@ public class BridgeApplication implements Application {
         }
     }
 
-    /**
-     * Installs the audio implementation the running game declares: the abstract arc.Audio this branch compiles
-     * against, or the SoloudAudio the 11234 build has under its SoLoud name. No mock - a silent game would hide the
-     * failure it stands for.
-     */
+    //SoloudAudio is not in this range; LegacyAudio is the only implementation.
     private static void initAudio() {
-        io.anuke.arc.Audio audio;
         try {
-            audio = (io.anuke.arc.Audio) Class.forName("io.anuke.arc.audio.SoloudAudio").getConstructor().newInstance();
-        } catch (Throwable soloud) {
-            try {
-                audio = new LegacyAudio();
-            } catch (Throwable legacy) {
-                Log.error("audio", legacy);
-                return;
-            }
+            Core.audio = new LegacyAudio();
+        } catch (Throwable legacy) {
+            Log.error("audio", legacy);
         }
-
-        Core.audio = audio;
     }
 
-    @Override
+    @BridgeInterface
     public Array<ApplicationListener> getListeners() {
         return listeners;
     }
 
-    @Override
+    @BridgeInterface
     public ApplicationType getType() {
         return ApplicationType.Android;
     }
 
-    @Override
+    @BridgeInterface
     public int getVersion() {
         return JvmCall.getOsVersion();
     }
 
-    @Override
+    @BridgeInterface
     public long getNativeHeap() {
         return JvmCall.getNativeHeap();
     }
 
-    @Override
+    @BridgeInterface
     public long getJavaHeap() {
         return Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
     }
 
     /** {@code arc.Net} is an interface at this branch's floor; the game's own {@code Vars.net} does the real work. */
     private static class NoNet implements Net {
-        @Override
+        @BridgeInterface
         public void http(HttpRequest request, io.anuke.arc.function.Consumer<HttpResponse> success,
                          io.anuke.arc.function.Consumer<Throwable> failure) {
             if (failure != null)
                 failure.accept(new IllegalStateException("no HTTP stack on the bridge"));
         }
 
-        @Override
+        @BridgeInterface
         public boolean openURI(String uri) {
             return JvmCall.openUri(uri);
         }
     }
 
-    @Override
+    @BridgeInterface
     public String getClipboardText() {
         return JvmCall.getClipboardText();
     }
 
-    @Override
+    @BridgeInterface
     public void setClipboardText(String text) {
         JvmCall.setClipboardText(text);
     }
 
-    /** Not on the interface at the range's floor, so no {@code @Override}; the game asks for it where it exists. */
+    /** Not on the interface at the range's floor, so no {@code @BridgeInterface}; the game asks for it where it exists. */
     public boolean openURI(String uri) {
         return JvmCall.openUri(uri);
     }
 
-    /** Not on the interface at the range's floor, so no {@code @Override}. */
+    /** Not on the interface at the range's floor, so no {@code @BridgeInterface}. */
     public boolean openFolder(String folder) {
         return JvmCall.openFolder(folder);
     }
 
     /** Queues work for the loop thread, the only thread allowed to touch the game. */
-    @Override
+    @BridgeInterface
     public void post(Runnable runnable) {
         synchronized (runnables) {
             runnables.add(runnable);
         }
     }
 
-    @Override
+    @BridgeInterface
     public void exit() {
         JvmCall.finishActivity();
         events.onDestroy();

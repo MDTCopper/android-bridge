@@ -1,5 +1,7 @@
 package copper.bridge.v6;
 
+import copper.bridge.annotation.BridgeInterface;
+
 import arc.*;
 import arc.Graphics.Cursor.*;
 import arc.graphics.*;
@@ -22,7 +24,7 @@ import java.nio.*;
  * and OpenGL ES bindings are the only route to GL, and ART hands the window over as an opaque native pointer. A
  * pause destroys only the window surface, so GL objects survive a resume.
  */
-public class BridgeGraphics extends Graphics implements copper.bridge.v6.GraphicsHost {
+public class BridgeGraphics extends Graphics {
     /** Coverage sampling attribute; not in LWJGL's core EGL headers. */
     private static final int EGL_COVERAGE_SAMPLES_NV = 0x30E1;
 
@@ -370,7 +372,7 @@ public class BridgeGraphics extends Graphics implements copper.bridge.v6.Graphic
         resumed = true;
     }
 
-    /** v8 asks its Graphics for this; v6 has neither a caller nor the interface method, so no {@code @Override}. */
+    /** v8 asks its Graphics for this; v6 has neither a caller nor the interface method, so no {@code @BridgeInterface}. */
     public void safeInsetsUpdated(int top, int bottom, int left, int right) {
         safeInsetTop = top;
         safeInsetBottom = bottom;
@@ -378,7 +380,7 @@ public class BridgeGraphics extends Graphics implements copper.bridge.v6.Graphic
         safeInsetRight = right;
     }
 
-    /** @see #safeInsetsUpdated; no {@code @Override} for the same reason. */
+    /** @see #safeInsetsUpdated; no {@code @BridgeInterface} for the same reason. */
     public int[] getSafeInsets() {
         return new int[]{safeInsetLeft, safeInsetRight, safeInsetTop, safeInsetBottom};
     }
@@ -412,18 +414,18 @@ public class BridgeGraphics extends Graphics implements copper.bridge.v6.Graphic
             EGL10.eglSwapBuffers(eglDisplay, eglSurface);
     }
 
-    @Override
+    @BridgeInterface
     public GL20 getGL20() {
         return gl20;
     }
 
     /** Abstract on the older end of the range, concrete on the newer one; the same answer either way. */
-    @Override
+    @BridgeInterface
     public boolean isGL30Available() {
         return gl30 != null;
     }
 
-    @Override
+    @BridgeInterface
     public void setGL20(GL20 gl20) {
         this.gl20 = gl20;
         if (gl30 == null) {
@@ -432,12 +434,12 @@ public class BridgeGraphics extends Graphics implements copper.bridge.v6.Graphic
         }
     }
 
-    @Override
+    @BridgeInterface
     public GL30 getGL30() {
         return gl30;
     }
 
-    @Override
+    @BridgeInterface
     public void setGL30(GL30 gl30) {
         this.gl30 = gl30;
         if (gl30 != null) {
@@ -448,187 +450,187 @@ public class BridgeGraphics extends Graphics implements copper.bridge.v6.Graphic
         }
     }
 
-    @Override
+    @BridgeInterface
     public int getWidth() {
         return width;
     }
 
-    @Override
+    @BridgeInterface
     public int getHeight() {
         return height;
     }
 
-    @Override
+    @BridgeInterface
     public int getBackBufferWidth() {
         return width;
     }
 
-    @Override
+    @BridgeInterface
     public int getBackBufferHeight() {
         return height;
     }
 
-    @Override
+    @BridgeInterface
     public long getFrameId() {
         return frameId;
     }
 
-    @Override
+    @BridgeInterface
     public float getDeltaTime() {
         return deltaTime;
     }
 
-    /** Abstract on the older end of the range, removed before its newer one: no {@code @Override} on purpose. */
+    /** Abstract on the older end of the range, removed before its newer one: no {@code @BridgeInterface} on purpose. */
     @SuppressWarnings("unused")
     public float getRawDeltaTime() {
         return deltaTime;
     }
 
-    @Override
+    @BridgeInterface
     public int getFramesPerSecond() {
         return fps;
     }
 
-    @Override
+    @BridgeInterface
     public GLVersion getGLVersion() {
         return glVersion;
     }
 
-    @Override
+    @BridgeInterface
     public float getPpiX() {
         return Bridge.options.xdpi;
     }
 
-    @Override
+    @BridgeInterface
     public float getPpiY() {
         return Bridge.options.ydpi;
     }
 
-    @Override
+    @BridgeInterface
     public float getPpcX() {
         return Bridge.options.xdpi / 2.54f;
     }
 
-    @Override
+    @BridgeInterface
     public float getPpcY() {
         return Bridge.options.ydpi / 2.54f;
     }
 
     /** ART's display density; arc scales the whole mobile UI by it. */
-    @Override
+    @BridgeInterface
     public float getDensity() {
         return Bridge.options.density;
     }
 
-    /** Never called: a bridge that only draws into the activity's surface has no window. No {@code @Override} on
+    /** Never called: a bridge that only draws into the activity's surface has no window. No {@code @BridgeInterface} on
      *  purpose - arc declares it abstract up to v156 and removes it in v157. */
     @SuppressWarnings("unused")
     public boolean setWindowedMode(int width, int height) {
         return false;
     }
 
-    @Override
+    @BridgeInterface
     public void setTitle(String title) {
     }
 
-    @Override
+    @BridgeInterface
     public void setVSync(boolean vsync) {
     }
 
-    @Override
+    @BridgeInterface
     public BufferFormat getBufferFormat() {
         return bufferFormat;
     }
 
-    @Override
+    @BridgeInterface
     public boolean supportsExtension(String extension) {
         if (extensions == null && gl20 != null)
             extensions = gl20.glGetString(GL20.GL_EXTENSIONS);
         return extensions != null && extensions.contains(extension);
     }
 
-    @Override
+    @BridgeInterface
     public boolean isContinuousRendering() {
         return true;
     }
 
-    @Override
+    @BridgeInterface
     public void setContinuousRendering(boolean isContinuous) {
     }
 
-    @Override
+    @BridgeInterface
     public void requestRendering() {
     }
 
-    @Override
+    @BridgeInterface
     public boolean isFullscreen() {
         return true;
     }
 
-    @Override
+    @BridgeInterface
     public Cursor newCursor(Pixmap pixmap, int xHotspot, int yHotspot) {
         return null;
     }
 
-    @Override
+    @BridgeInterface
     protected void setCursor(Cursor cursor) {
     }
 
-    @Override
+    @BridgeInterface
     protected void setSystemCursor(SystemCursor systemCursor) {
     }
 
     /** The surface belongs to the host activity, so a resize request from the game has nothing to act on. */
-    @Override
+    @BridgeInterface
     public void setResizable(boolean resizable) {
     }
 
     /** The window is the host activity's, not something the game decorates. */
-    @Override
+    @BridgeInterface
     public void setUndecorated(boolean undecorated) {
     }
 
-    @Override
+    @BridgeInterface
     public Monitor getPrimaryMonitor() {
         return null;
     }
 
-    @Override
+    @BridgeInterface
     public Monitor getMonitor() {
         return null;
     }
 
-    @Override
+    @BridgeInterface
     public Monitor[] getMonitors() {
         return new Monitor[0];
     }
 
-    @Override
+    @BridgeInterface
     public DisplayMode[] getDisplayModes() {
         return new DisplayMode[0];
     }
 
-    @Override
+    @BridgeInterface
     public DisplayMode[] getDisplayModes(Monitor monitor) {
         return new DisplayMode[0];
     }
 
-    @Override
+    @BridgeInterface
     public DisplayMode getDisplayMode() {
         return null;
     }
 
-    @Override
+    @BridgeInterface
     public DisplayMode getDisplayMode(Monitor monitor) {
         return null;
     }
 
-    @Override
+    @BridgeInterface
     public boolean supportsDisplayModeChange() {
         return false;
     }
 
-    @Override
+    @BridgeInterface
     public boolean setFullscreenMode(DisplayMode displayMode) {
         return false;
     }

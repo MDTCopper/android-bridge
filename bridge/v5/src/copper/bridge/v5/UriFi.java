@@ -1,5 +1,7 @@
 package copper.bridge.v5;
 
+import copper.bridge.annotation.BridgeInterface;
+
 import io.anuke.arc.Files.FileType;
 import io.anuke.arc.files.*;
 import io.anuke.arc.util.ArcRuntimeException;
@@ -23,13 +25,13 @@ public class UriFi extends Fi {
         this.type = FileType.values()[3]; //absolute
     }
 
-    @Override
+    @BridgeInterface
     public InputStream read() {
         byte[] data = JvmCall.readUri(uri);
         return new ByteArrayInputStream(data == null ? new byte[0] : data);
     }
 
-    @Override
+    @BridgeInterface
     public OutputStream write(boolean append) {
         // a document is one write: appending would mean reading it back and rewriting it
         if (append)
@@ -37,23 +39,23 @@ public class UriFi extends Fi {
         return new DocumentOutputStream(uri);
     }
 
-    @Override
+    @BridgeInterface
     public boolean exists() {
         return true;
     }
 
-    @Override
+    @BridgeInterface
     public long length() {
         byte[] data = JvmCall.readUri(uri);
         return data == null ? 0 : data.length;
     }
 
-    @Override
+    @BridgeInterface
     public String name() {
         return file.getName();
     }
 
-    @Override
+    @BridgeInterface
     public String extension() {
         String name = file.getName();
         int dot = name.lastIndexOf('.');
@@ -82,19 +84,19 @@ public class UriFi extends Fi {
             this.folder = new File(System.getProperty("java.io.tmpdir", "."));
         }
 
-        @Override
+        @BridgeInterface
         public void write(int value) throws IOException {
             ensureRoom(1);
             target.write(value);
         }
 
-        @Override
+        @BridgeInterface
         public void write(byte[] data, int offset, int length) throws IOException {
             ensureRoom(length);
             target.write(data, offset, length);
         }
 
-        @Override
+        @BridgeInterface
         public void close() throws IOException {
             if (closed)
                 return;

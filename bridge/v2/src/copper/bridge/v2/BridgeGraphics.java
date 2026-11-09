@@ -1,5 +1,7 @@
 package copper.bridge.v2;
 
+import copper.bridge.annotation.BridgeInterface;
+
 import io.anuke.arc.*;
 import io.anuke.arc.Graphics.Cursor.*;
 import io.anuke.arc.graphics.*;
@@ -105,7 +107,7 @@ public class BridgeGraphics extends Graphics {
             }
         }
 
-        Configuration.DISABLE_HASH_CHECKS.set(true);
+        setConfig("DISABLE_HASH_CHECKS", true);
         Configuration.EGL_LIBRARY_NAME.set(egl);
         Configuration.OPENGLES_LIBRARY_NAME.set(gles);
         Configuration.OPENGLES_EXPLICIT_INIT.set(true);
@@ -275,6 +277,15 @@ public class BridgeGraphics extends Graphics {
         }
     }
 
+    /** The option exists in LWJGL 3.4 but not in the 3.2 tree the old game jar bundles, so it is set by name. */
+    private static void setConfig(String name, Object value) {
+        try {
+            Object option = Configuration.class.getField(name).get(null);
+            option.getClass().getMethod("set", Object.class).invoke(option, value);
+        } catch (Throwable ignored) {
+        }
+    }
+
     private static int esMajor(String version) {
         String prefix = "OpenGL ES ";
         int start = version.indexOf(prefix);
@@ -285,14 +296,6 @@ public class BridgeGraphics extends Graphics {
         while (end < version.length() && Character.isDigit(version.charAt(end)))
             end++;
         return end == start ? 0 : Integer.parseInt(version.substring(start, end));
-    }
-
-    /** {@code arc.graphics.Gl} does not exist at the range's floor; there is no static batch state to reset there. */
-    private static void resetGl() {
-        try {
-            Class.forName("io.anuke.arc.graphics.Gl").getMethod("reset").invoke(null);
-        } catch (Throwable ignored) {
-        }
     }
 
     /** The ES3 wrapper must not be installed on a device that only offers ES2. */
@@ -323,7 +326,6 @@ public class BridgeGraphics extends Graphics {
             Core.gl30 = gl30;
         }
 
-        resetGl();
         Log.info("GL", "renderer: " + renderer);
         Log.info("GL", "vendor: " + vendor);
         Log.info("GL", "version: " + version);
@@ -397,18 +399,18 @@ public class BridgeGraphics extends Graphics {
             EGL10.eglSwapBuffers(eglDisplay, eglSurface);
     }
 
-    @Override
+    @BridgeInterface
     public GL20 getGL20() {
         return gl20;
     }
 
     /** Abstract on the older end of the range, concrete on the newer one; the same answer either way. */
-    @Override
+    @BridgeInterface
     public boolean isGL30Available() {
         return gl30 != null;
     }
 
-    @Override
+    @BridgeInterface
     public void setGL20(GL20 gl20) {
         this.gl20 = gl20;
         if (gl30 == null) {
@@ -417,12 +419,12 @@ public class BridgeGraphics extends Graphics {
         }
     }
 
-    @Override
+    @BridgeInterface
     public GL30 getGL30() {
         return gl30;
     }
 
-    @Override
+    @BridgeInterface
     public void setGL30(GL30 gl30) {
         this.gl30 = gl30;
         if (gl30 != null) {
@@ -433,187 +435,187 @@ public class BridgeGraphics extends Graphics {
         }
     }
 
-    @Override
+    @BridgeInterface
     public int getWidth() {
         return width;
     }
 
-    @Override
+    @BridgeInterface
     public int getHeight() {
         return height;
     }
 
-    @Override
+    @BridgeInterface
     public int getBackBufferWidth() {
         return width;
     }
 
-    @Override
+    @BridgeInterface
     public int getBackBufferHeight() {
         return height;
     }
 
-    @Override
+    @BridgeInterface
     public long getFrameId() {
         return frameId;
     }
 
-    @Override
+    @BridgeInterface
     public float getDeltaTime() {
         return deltaTime;
     }
 
-    /** Abstract on the older end of the range, removed before its newer one: no {@code @Override} on purpose. */
+    /** Abstract on the older end of the range, removed before its newer one: no {@code @BridgeInterface} on purpose. */
     @SuppressWarnings("unused")
     public float getRawDeltaTime() {
         return deltaTime;
     }
 
-    @Override
+    @BridgeInterface
     public int getFramesPerSecond() {
         return fps;
     }
 
-    @Override
+    @BridgeInterface
     public GLVersion getGLVersion() {
         return glVersion;
     }
 
-    @Override
+    @BridgeInterface
     public float getPpiX() {
         return Bridge.options.xdpi;
     }
 
-    @Override
+    @BridgeInterface
     public float getPpiY() {
         return Bridge.options.ydpi;
     }
 
-    @Override
+    @BridgeInterface
     public float getPpcX() {
         return Bridge.options.xdpi / 2.54f;
     }
 
-    @Override
+    @BridgeInterface
     public float getPpcY() {
         return Bridge.options.ydpi / 2.54f;
     }
 
     /** ART's display density; arc scales the whole mobile UI by it. */
-    @Override
+    @BridgeInterface
     public float getDensity() {
         return Bridge.options.density;
     }
 
-    /** Never called: a bridge that only draws into the activity's surface has no window. No {@code @Override} on
+    /** Never called: a bridge that only draws into the activity's surface has no window. No {@code @BridgeInterface} on
      *  purpose - arc declares it abstract up to v156 and removes it in v157. */
     @SuppressWarnings("unused")
     public boolean setWindowedMode(int width, int height) {
         return false;
     }
 
-    @Override
+    @BridgeInterface
     public void setTitle(String title) {
     }
 
-    @Override
+    @BridgeInterface
     public void setVSync(boolean vsync) {
     }
 
-    @Override
+    @BridgeInterface
     public BufferFormat getBufferFormat() {
         return bufferFormat;
     }
 
-    @Override
+    @BridgeInterface
     public boolean supportsExtension(String extension) {
         if (extensions == null && gl20 != null)
             extensions = gl20.glGetString(GL20.GL_EXTENSIONS);
         return extensions != null && extensions.contains(extension);
     }
 
-    @Override
+    @BridgeInterface
     public boolean isContinuousRendering() {
         return true;
     }
 
-    @Override
+    @BridgeInterface
     public void setContinuousRendering(boolean isContinuous) {
     }
 
-    @Override
+    @BridgeInterface
     public void requestRendering() {
     }
 
-    @Override
+    @BridgeInterface
     public boolean isFullscreen() {
         return true;
     }
 
-    @Override
+    @BridgeInterface
     public Cursor newCursor(Pixmap pixmap, int xHotspot, int yHotspot) {
         return null;
     }
 
-    @Override
+    @BridgeInterface
     protected void setCursor(Cursor cursor) {
     }
 
-    @Override
+    @BridgeInterface
     protected void setSystemCursor(SystemCursor systemCursor) {
     }
 
     /** The surface belongs to the host activity, so a resize request from the game has nothing to act on. */
-    @Override
+    @BridgeInterface
     public void setResizable(boolean resizable) {
     }
 
     /** The window is the host activity's, not something the game decorates. */
-    @Override
+    @BridgeInterface
     public void setUndecorated(boolean undecorated) {
     }
 
-    @Override
+    @BridgeInterface
     public Monitor getPrimaryMonitor() {
         return null;
     }
 
-    @Override
+    @BridgeInterface
     public Monitor getMonitor() {
         return null;
     }
 
-    @Override
+    @BridgeInterface
     public Monitor[] getMonitors() {
         return new Monitor[0];
     }
 
-    @Override
+    @BridgeInterface
     public DisplayMode[] getDisplayModes() {
         return new DisplayMode[0];
     }
 
-    @Override
+    @BridgeInterface
     public DisplayMode[] getDisplayModes(Monitor monitor) {
         return new DisplayMode[0];
     }
 
-    @Override
+    @BridgeInterface
     public DisplayMode getDisplayMode() {
         return null;
     }
 
-    @Override
+    @BridgeInterface
     public DisplayMode getDisplayMode(Monitor monitor) {
         return null;
     }
 
-    @Override
+    @BridgeInterface
     public boolean supportsDisplayModeChange() {
         return false;
     }
 
-    @Override
+    @BridgeInterface
     public boolean setFullscreenMode(DisplayMode displayMode) {
         return false;
     }

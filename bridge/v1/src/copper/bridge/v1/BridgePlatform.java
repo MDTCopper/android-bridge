@@ -1,5 +1,7 @@
 package copper.bridge.v1;
 
+import copper.bridge.annotation.BridgeInterface;
+
 import io.anuke.arc.*;
 import io.anuke.arc.files.*;
 import io.anuke.arc.function.*;
@@ -19,23 +21,23 @@ public class BridgePlatform extends Platform {
         Platform.instance = this;
     }
 
-    @Override
+    @BridgeInterface
     public void hide() {
         JvmCall.hide();
     }
 
-    @Override
+    @BridgeInterface
     public void beginForceLandscape() {
         JvmCall.forceLandscape(true);
     }
 
-    @Override
+    @BridgeInterface
     public void endForceLandscape() {
         JvmCall.forceLandscape(false);
     }
 
     /** Left empty on purpose: a share sheet would need a {@code FileProvider} in the host app's manifest. */
-    @Override
+    @BridgeInterface
     public void shareFile(FileHandle file) {
     }
 
@@ -43,7 +45,7 @@ public class BridgePlatform extends Platform {
      * The era's chooser carries a description and a predicate instead of an extension list; the predicate is
      * applied to the paths the picker returns, since ART cannot turn it back into a MIME filter.
      */
-    @Override
+    @BridgeInterface
     public void showFileChooser(String text, String content, Consumer<FileHandle> cons, boolean open,
                                 Predicate<String> filetype) {
         JvmCall.showFileChooser(open, false, text, null, new String[] {""})

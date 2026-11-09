@@ -1,5 +1,7 @@
 package copper.bridge.v8;
 
+import copper.bridge.annotation.BridgeInterface;
+
 import arc.*;
 import arc.files.*;
 import arc.func.*;
@@ -74,25 +76,25 @@ public abstract class BridgeLauncher extends ClientLauncher implements Platform 
                 .onError(message -> Log.error("file chooser failed: " + message));
     }
 
-    @Override
+    @BridgeInterface
     public void hide() {
         JvmCall.hide();
     }
 
     /** Pins the game to landscape, or releases it to the user's rotation setting; released, the game can end up
      *  portrait. */
-    @Override
+    @BridgeInterface
     public void beginForceLandscape() {
         JvmCall.forceLandscape(true);
     }
 
-    @Override
+    @BridgeInterface
     public void endForceLandscape() {
         JvmCall.forceLandscape(false);
     }
 
     /** Left empty on purpose: a share sheet would need a {@code FileProvider} in the host app's manifest. */
-    @Override
+    @BridgeInterface
     public void shareFile(Fi file) {
     }
 }

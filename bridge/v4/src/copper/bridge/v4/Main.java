@@ -30,8 +30,6 @@ public class Main {
 
         // the game wraps its logger while it sets up: the printed copy is what this bridge wants, the native side
         // turning the process's stdout and stderr into logcat and the log file. The flag moved inside the range.
-        markLoggerLoaded();
-
         configureLog();
 
         BridgeApplication application = new BridgeApplication();
@@ -53,38 +51,10 @@ public class Main {
         }
     }
 
-    /** Marks the game's logger as already installed; the field is {@code loadedFileLogger} on the newer end and
-     *  {@code loadedLogger} on the older one. */
-    private static void markLoggerLoaded() {
-        try {
-            Vars.class.getField("loadedFileLogger").setBoolean(null, true);
-        } catch (Throwable ignored) {
-            try {
-                Vars.class.getField("loadedLogger").setBoolean(null, true);
-            } catch (Throwable ignoredToo) {
-            }
-        }
-    }
-
-    /**
-     * Turns the game's log colors off and, when asked, its level up. Both are fields on every version in the range;
-     * they are private on the older ones, which is why they are set through arc's own reflector rather than
-     * assigned.
-     */
     private static void configureLog() {
-        setStatic(io.anuke.arc.util.Log.class, "useColors", false);
+        io.anuke.arc.util.Log.setUseColors(false);
         if (Bridge.options.debug || Bridge.options.verbose)
-            setStatic(io.anuke.arc.util.Log.class, "level", io.anuke.arc.util.Log.LogLevel.debug);
-    }
-
-    /** Reflection without arc's helper, which does not exist at the range's floor. */
-    private static void setStatic(Class<?> owner, String name, Object value) {
-        try {
-            java.lang.reflect.Field field = owner.getDeclaredField(name);
-            field.setAccessible(true);
-            field.set(null, value);
-        } catch (Throwable ignored) {
-        }
+            io.anuke.arc.util.Log.setLogLevel(io.anuke.arc.util.Log.LogLevel.debug);
     }
 
     private static void prepareArcNatives() {

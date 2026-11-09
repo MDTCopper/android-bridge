@@ -1,9 +1,14 @@
 package copper.bridge.v5;
 
+import copper.bridge.annotation.BridgeInterface;
+
 import io.anuke.arc.*;
 import io.anuke.arc.collection.*;
 
 import copper.bridge.*;
+import copper.bridge.v5.BridgeEvents;
+import copper.bridge.v5.BridgeGraphics;
+import copper.bridge.v5.BridgeInput;
 import copper.bridge.gen.*;
 import copper.bridge.jvm.Surface;
 import copper.bridge.util.*;
@@ -102,8 +107,7 @@ public class BridgeApplication implements Application {
 
             graphics.beginFrame();
             input.processEvents();
-            // Application.defaultUpdate does this; autosave() arrived later in the range
-            autosaveSettings();
+            // Application.defaultUpdate does this
             io.anuke.arc.util.Time.updateGlobal();
             for (ApplicationListener listener : listeners)
                 listener.update();
@@ -155,26 +159,6 @@ public class BridgeApplication implements Application {
         }
     }
 
-    /** {@code Settings.autosave} is absent at the range's floor; there is nothing to drive there. */
-    private static final java.lang.reflect.Method AUTOSAVE = autosaveMethod();
-
-    private static java.lang.reflect.Method autosaveMethod() {
-        try {
-            return Settings.class.getMethod("autosave");
-        } catch (Throwable ignored) {
-            return null;
-        }
-    }
-
-    private static void autosaveSettings() {
-        if (AUTOSAVE == null)
-            return;
-        try {
-            AUTOSAVE.invoke(Core.settings);
-        } catch (Throwable ignored) {
-        }
-    }
-
     /** {@code Thread.sleep} with arc's old semantics: an interrupt is swallowed, not re-armed. */
     private static void sleep(long millis) {
         try {
@@ -183,76 +167,64 @@ public class BridgeApplication implements Application {
         }
     }
 
-    /**
-     * Installs the audio implementation the running game declares: the abstract arc.Audio this branch compiles
-     * against, or the SoloudAudio the 11234 build has under its SoLoud name. No mock - a silent game would hide the
-     * failure it stands for.
-     */
+    //SoloudAudio is not in this range; LegacyAudio is the only implementation.
     private static void initAudio() {
-        io.anuke.arc.Audio audio;
         try {
-            audio = (io.anuke.arc.Audio) Class.forName("io.anuke.arc.audio.SoloudAudio").getConstructor().newInstance();
-        } catch (Throwable soloud) {
-            try {
-                audio = new LegacyAudio();
-            } catch (Throwable legacy) {
-                Log.error("audio", legacy);
-                return;
-            }
+            Core.audio = new LegacyAudio();
+        } catch (Throwable legacy) {
+            Log.error("audio", legacy);
         }
-
-        Core.audio = audio;
     }
 
-    @Override
+    @BridgeInterface
     public Array<ApplicationListener> getListeners() {
         return listeners;
     }
 
-    @Override
+    @BridgeInterface
     public ApplicationType getType() {
         return ApplicationType.Android;
     }
 
-    @Override
+    @BridgeInterface
     public int getVersion() {
         return JvmCall.getOsVersion();
     }
 
-    @Override
+    @BridgeInterface
     public long getNativeHeap() {
         return JvmCall.getNativeHeap();
     }
 
-    @Override
+    @BridgeInterface
     public String getClipboardText() {
         return JvmCall.getClipboardText();
     }
 
-    @Override
+    @BridgeInterface
     public void setClipboardText(String text) {
         JvmCall.setClipboardText(text);
     }
 
-    /** Not on the interface at the range's floor, so no {@code @Override}; the game asks for it where it exists. */
+    /** Not on the interface at the range's floor, so no {@code @BridgeInterface}; the game asks for it where it exists. */
     public boolean openURI(String uri) {
         return JvmCall.openUri(uri);
     }
 
-    /** Not on the interface at the range's floor, so no {@code @Override}. */
+    /** Not on the interface at the range's floor, so no {@code @BridgeInterface}. */
     public boolean openFolder(String folder) {
         return JvmCall.openFolder(folder);
     }
 
     /** Queues work for the loop thread, the only thread allowed to touch the game. */
-    @Override
+    @BridgeInterface
     public void post(Runnable runnable) {
         synchronized (runnables) {
             runnables.add(runnable);
         }
     }
 
-    @Override
+    @BridgeInterface
     public void exit() {
         JvmCall.finishActivity();
         events.onDestroy();

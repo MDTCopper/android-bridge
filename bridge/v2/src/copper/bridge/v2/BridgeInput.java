@@ -1,5 +1,7 @@
 package copper.bridge.v2;
 
+import copper.bridge.annotation.BridgeInterface;
+
 import io.anuke.arc.*;
 import io.anuke.arc.input.*;
 import copper.bridge.jvm.*;
@@ -17,18 +19,6 @@ public class BridgeInput extends Input {
     private static final Peripheral PRESSURE = Peripheral.Pressure;
     private static final Orientation LANDSCAPE = Orientation.Landscape;
     private static final Orientation PORTRAIT = Orientation.Portrait;
-
-    /** Absent at the range's floor; looked up once so the frame loop does not pay for a failed lookup. */
-    private static final java.lang.reflect.Method POST_UPDATE = postUpdateMethod();
-
-    private static java.lang.reflect.Method postUpdateMethod() {
-        try {
-            return InputDevice.class.getMethod("postUpdate");
-        } catch (Throwable ignored) {
-            return null;
-        }
-    }
-
 
     /** The schema this bridge binds; an inner class because this one already extends arc's {@code Input}. */
     public final class Events extends InputBatch {
@@ -206,13 +196,8 @@ public class BridgeInput extends Input {
     }
 
     /** Not a loop over {@code Input.devices}: arc removes that field in v152, and the keyboard is its only device. */
+    /** Absent in this range; the input devices have no per-frame update pass. */
     public void processDevices() {
-        if (POST_UPDATE == null)
-            return;
-        try {
-            POST_UPDATE.invoke(keyboard);
-        } catch (Throwable ignored) {
-        }
     }
 
     public void onPause() {
@@ -262,48 +247,39 @@ public class BridgeInput extends Input {
 
     //region text input and other peripherals
 
-    /** {@code TextInput.numeric} was added after 4550; the older dialog has no numeric mode to ask for. */
-    private static boolean numeric(TextInput info) {
-        try {
-            return (boolean)TextInput.class.getField("numeric").get(info);
-        } catch (Throwable ignored) {
-            return false;
-        }
-    }
-
     /** Shows the text input dialog ART owns; the answer arrives on the game loop. */
-    @Override
+    @BridgeInterface
     public void getTextInput(TextInput info) {
         // the 6 line's TextInput has no hint line and no empty-answer flag, so the dialog gets neither
-        JvmCall.textInput(info.title, "", info.text, numeric(info), info.multiline,
+        JvmCall.textInput(info.title, "", info.text, false, info.multiline,
                 info.maxLength, false)
                 .onResult(value -> info.accepted.accept(value))
                 .onCanceled(info.canceled);
     }
 
-    @Override
+    @BridgeInterface
     public void setOnscreenKeyboardVisible(boolean visible) {
         JvmCall.onscreenKeyboard(visible);
     }
 
-    @Override
+    @BridgeInterface
     public void vibrate(int milliseconds) {
         JvmCall.vibrate(milliseconds);
     }
 
-    @Override
+    @BridgeInterface
     public void vibrate(long[] pattern, int repeat) {
         JvmCall.vibrate(pattern, repeat);
     }
 
-    @Override
+    @BridgeInterface
     public void cancelVibrate() {
         JvmCall.cancelVibrate();
     }
 
     /** Reports the peripherals this bridge can serve. The vibrator is answered by ART rather than guessed, and nothing
      *  else is bridged: claiming one would hand the game a peripheral that never answers. */
-    @Override
+    @BridgeInterface
     public boolean isPeripheralAvailable(Peripheral peripheral) {
         if (peripheral == ONSCREEN_KEYBOARD) return true;
         if (peripheral == MULTITOUCH_SCREEN) return true;
@@ -312,13 +288,13 @@ public class BridgeInput extends Input {
     }
 
     /** The display's rotation in degrees, translated on the ART side, which owns the constants. */
-    @Override
+    @BridgeInterface
     public int getRotation() {
         return JvmCall.screenRotationDegrees();
     }
 
     /** Whether the device's display is natively landscape, asked of ART and not cached. */
-    @Override
+    @BridgeInterface
     public Orientation getNativeOrientation() {
         return JvmCall.isNativeLandscape() ? LANDSCAPE : PORTRAIT;
     }
@@ -326,47 +302,47 @@ public class BridgeInput extends Input {
 
     //region polling
 
-    @Override
+    @BridgeInterface
     public int mouseX() {
         return touchX[0];
     }
 
-    @Override
+    @BridgeInterface
     public int mouseX(int pointer) {
         return touchX[pointer];
     }
 
-    @Override
+    @BridgeInterface
     public int mouseY() {
         return touchY[0];
     }
 
-    @Override
+    @BridgeInterface
     public int mouseY(int pointer) {
         return touchY[pointer];
     }
 
-    @Override
+    @BridgeInterface
     public int deltaX() {
         return deltaX[0];
     }
 
-    @Override
+    @BridgeInterface
     public int deltaX(int pointer) {
         return deltaX[pointer];
     }
 
-    @Override
+    @BridgeInterface
     public int deltaY() {
         return deltaY[0];
     }
 
-    @Override
+    @BridgeInterface
     public int deltaY(int pointer) {
         return deltaY[pointer];
     }
 
-    @Override
+    @BridgeInterface
     public boolean isTouched() {
         for (int pointer = 0; pointer < MAX_TOUCHES; pointer++) {
             if (touched[pointer]) return true;
@@ -374,22 +350,22 @@ public class BridgeInput extends Input {
         return false;
     }
 
-    @Override
+    @BridgeInterface
     public boolean isTouched(int pointer) {
         return touched[pointer];
     }
 
-    @Override
+    @BridgeInterface
     public boolean justTouched() {
         return justTouched;
     }
 
-    @Override
+    @BridgeInterface
     public float getPressure(int pointer) {
         return pressure[pointer];
     }
 
-    @Override
+    @BridgeInterface
     public long getCurrentEventTime() {
         return currentEventTimeStamp;
     }

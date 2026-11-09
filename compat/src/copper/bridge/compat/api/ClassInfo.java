@@ -1,16 +1,22 @@
 package copper.bridge.compat.api;
 
+import org.objectweb.asm.*;
+
 import java.util.*;
 
-/** The declarations of one class file. */
+/** The declarations and supertypes of one class file. */
 public final class ClassInfo {
     public final String name;
     public final int access;
+    public final String superName;
+    public final String[] interfaces;
     private final Map<String, MemberInfo> members = new HashMap<>();
 
-    ClassInfo(String name, int access) {
+    public ClassInfo(String name, int access, String superName, String[] interfaces) {
         this.name = name;
         this.access = access;
+        this.superName = superName;
+        this.interfaces = interfaces == null ? new String[0] : interfaces;
     }
 
     void add(MemberInfo member) {
@@ -29,5 +35,41 @@ public final class ClassInfo {
                 return true;
         }
         return false;
+    }
+
+    /** Reads one class file without code, debug data or frames. */
+    public static ClassInfo parse(byte[] bytes) {
+        Collector collector = new Collector();
+        new ClassReader(bytes).accept(collector,
+                ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
+        return collector.info;
+    }
+
+    private static final class Collector extends ClassVisitor {
+        ClassInfo info;
+
+        Collector() {
+            super(Opcodes.ASM9);
+        }
+
+        @Override
+        public void visit(int version, int access, String name, String signature, String superName,
+                          String[] interfaces) {
+            info = new ClassInfo(name, access, superName, interfaces);
+        }
+
+        @Override
+        public FieldVisitor visitField(int access, String name, String descriptor, String signature,
+                                       Object value) {
+            info.add(new MemberInfo(name, descriptor, access));
+            return null;
+        }
+
+        @Override
+        public MethodVisitor visitMethod(int access, String name, String descriptor, String signature,
+                                         String[] exceptions) {
+            info.add(new MemberInfo(name, descriptor, access));
+            return null;
+        }
     }
 }

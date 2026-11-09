@@ -1,5 +1,7 @@
 package copper.bridge.v6;
 
+import copper.bridge.annotation.BridgeInterface;
+
 import arc.*;
 import arc.files.*;
 import arc.util.*;
@@ -22,34 +24,34 @@ public class BridgeFiles implements Files {
         this.cacheFolder = new File(require(Bridge.options.cacheFolder, "cache folder"), "files");
     }
 
-    @Override
+    @BridgeInterface
     public Fi get(String path, FileType type) {
         return new BridgeFi(this, path, type);
     }
 
-    /** The bridge keeps scratch files under its own cache folder, not arc's local("cache"). No {@code @Override}:
+    /** The bridge keeps scratch files under its own cache folder, not arc's local("cache"). No {@code @BridgeInterface}:
      *  the interface method arrived after this branch's epoch. */
     public String getCachePath() {
         if (!cacheFolder.isDirectory()) cacheFolder.mkdirs();
         return cacheFolder.getAbsolutePath();
     }
 
-    @Override
+    @BridgeInterface
     public String getExternalStoragePath() {
         return dataFolder.getAbsolutePath() + File.separator;
     }
 
-    @Override
+    @BridgeInterface
     public boolean isExternalStorageAvailable() {
         return usable(dataFolder);
     }
 
-    @Override
+    @BridgeInterface
     public String getLocalStoragePath() {
         return dataFolder.getAbsolutePath() + File.separator;
     }
 
-    @Override
+    @BridgeInterface
     public boolean isLocalStorageAvailable() {
         return usable(dataFolder);
     }

@@ -1,5 +1,7 @@
 package copper.bridge.v6;
 
+import copper.bridge.annotation.BridgeInterface;
+
 import arc.graphics.*;
 import java.nio.*;
 import org.lwjgl.opengles.*;
@@ -21,257 +23,257 @@ public class BridgeGL20 implements GL20 {
         throw new IllegalArgumentException("Unsupported buffer type for GL data: " + buffer.getClass().getName());
     }
 
-    @Override
+    @BridgeInterface
     public void glActiveTexture(int texture) {
         GLES20.glActiveTexture(texture);
     }
 
-    @Override
+    @BridgeInterface
     public void glBindTexture(int target, int texture) {
         GLES20.glBindTexture(target, texture);
     }
 
-    @Override
+    @BridgeInterface
     public void glBlendFunc(int sfactor, int dfactor) {
         GLES20.glBlendFunc(sfactor, dfactor);
     }
 
-    @Override
+    @BridgeInterface
     public void glClear(int mask) {
         GLES20.glClear(mask);
     }
 
-    @Override
+    @BridgeInterface
     public void glClearColor(float red, float green, float blue, float alpha) {
         GLES20.glClearColor(red, green, blue, alpha);
     }
 
-    @Override
+    @BridgeInterface
     public void glClearDepthf(float depth) {
         GLES20.glClearDepthf(depth);
     }
 
-    @Override
+    @BridgeInterface
     public void glClearStencil(int s) {
         GLES20.glClearStencil(s);
     }
 
-    @Override
+    @BridgeInterface
     public void glColorMask(boolean red, boolean green, boolean blue, boolean alpha) {
         GLES20.glColorMask(red, green, blue, alpha);
     }
 
-    @Override
+    @BridgeInterface
     public void glCompressedTexImage2D(int target, int level, int internalformat, int width, int height, int border, int imageSize, Buffer data) {
         GLES20.glCompressedTexImage2D(target, level, internalformat, width, height, border, imageSize, bufferAddress(data));
     }
 
-    @Override
+    @BridgeInterface
     public void glCompressedTexSubImage2D(int target, int level, int xoffset, int yoffset, int width, int height, int format, int imageSize, Buffer data) {
         GLES20.glCompressedTexSubImage2D(target, level, xoffset, yoffset, width, height, format, imageSize, bufferAddress(data));
     }
 
-    @Override
+    @BridgeInterface
     public void glCopyTexImage2D(int target, int level, int internalformat, int x, int y, int width, int height, int border) {
         GLES20.glCopyTexImage2D(target, level, internalformat, x, y, width, height, border);
     }
 
-    @Override
+    @BridgeInterface
     public void glCopyTexSubImage2D(int target, int level, int xoffset, int yoffset, int x, int y, int width, int height) {
         GLES20.glCopyTexSubImage2D(target, level, xoffset, yoffset, x, y, width, height);
     }
 
-    @Override
+    @BridgeInterface
     public void glCullFace(int mode) {
         GLES20.glCullFace(mode);
     }
 
-    @Override
+    @BridgeInterface
     public void glDeleteTexture(int texture) {
         GLES20.glDeleteTextures(texture);
     }
 
-    @Override
+    @BridgeInterface
     public void glDepthFunc(int func) {
         GLES20.glDepthFunc(func);
     }
 
-    @Override
+    @BridgeInterface
     public void glDepthMask(boolean flag) {
         GLES20.glDepthMask(flag);
     }
 
-    @Override
+    @BridgeInterface
     public void glDepthRangef(float zNear, float zFar) {
         GLES20.glDepthRangef(zNear, zFar);
     }
 
-    @Override
+    @BridgeInterface
     public void glDisable(int cap) {
         GLES20.glDisable(cap);
     }
 
-    @Override
+    @BridgeInterface
     public void glDrawArrays(int mode, int first, int count) {
         GLES20.glDrawArrays(mode, first, count);
     }
 
-    @Override
+    @BridgeInterface
     public void glDrawElements(int mode, int count, int type, Buffer indices) {
         GLES20.glDrawElements(mode, count, type, bufferAddress(indices));
     }
 
-    @Override
+    @BridgeInterface
     public void glEnable(int cap) {
         GLES20.glEnable(cap);
     }
 
-    @Override
+    @BridgeInterface
     public void glFinish() {
         GLES20.glFinish();
     }
 
-    @Override
+    @BridgeInterface
     public void glFlush() {
         GLES20.glFlush();
     }
 
-    @Override
+    @BridgeInterface
     public void glFrontFace(int mode) {
         GLES20.glFrontFace(mode);
     }
 
-    @Override
+    @BridgeInterface
     public int glGenTexture() {
         return GLES20.glGenTextures();
     }
 
-    @Override
+    @BridgeInterface
     public int glGetError() {
         return GLES20.glGetError();
     }
 
-    @Override
+    @BridgeInterface
     public void glGetIntegerv(int pname, IntBuffer params) {
         GLES20.glGetIntegerv(pname, params);
     }
 
-    @Override
+    @BridgeInterface
     public String glGetString(int name) {
         return GLES20.glGetString(name);
     }
 
-    @Override
+    @BridgeInterface
     public void glHint(int target, int mode) {
         GLES20.glHint(target, mode);
     }
 
-    @Override
+    @BridgeInterface
     public void glLineWidth(float width) {
         GLES20.glLineWidth(width);
     }
 
-    @Override
+    @BridgeInterface
     public void glPixelStorei(int pname, int param) {
         GLES20.glPixelStorei(pname, param);
     }
 
-    @Override
+    @BridgeInterface
     public void glPolygonOffset(float factor, float units) {
         GLES20.glPolygonOffset(factor, units);
     }
 
-    @Override
+    @BridgeInterface
     public void glReadPixels(int x, int y, int width, int height, int format, int type, Buffer pixels) {
         GLES20.glReadPixels(x, y, width, height, format, type, bufferAddress(pixels));
     }
 
-    @Override
+    @BridgeInterface
     public void glScissor(int x, int y, int width, int height) {
         GLES20.glScissor(x, y, width, height);
     }
 
-    @Override
+    @BridgeInterface
     public void glStencilFunc(int func, int ref, int mask) {
         GLES20.glStencilFunc(func, ref, mask);
     }
 
-    @Override
+    @BridgeInterface
     public void glStencilMask(int mask) {
         GLES20.glStencilMask(mask);
     }
 
-    @Override
+    @BridgeInterface
     public void glStencilOp(int fail, int zfail, int zpass) {
         GLES20.glStencilOp(fail, zfail, zpass);
     }
 
-    @Override
+    @BridgeInterface
     public void glTexImage2D(int target, int level, int internalformat, int width, int height, int border, int format, int type, Buffer pixels) {
         GLES20.glTexImage2D(target, level, internalformat, width, height, border, format, type, bufferAddress(pixels));
     }
 
-    @Override
+    @BridgeInterface
     public void glTexParameterf(int target, int pname, float param) {
         GLES20.glTexParameterf(target, pname, param);
     }
 
-    @Override
+    @BridgeInterface
     public void glTexSubImage2D(int target, int level, int xoffset, int yoffset, int width, int height, int format, int type, Buffer pixels) {
         GLES20.glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, bufferAddress(pixels));
     }
 
-    @Override
+    @BridgeInterface
     public void glViewport(int x, int y, int width, int height) {
         GLES20.glViewport(x, y, width, height);
     }
 
-    @Override
+    @BridgeInterface
     public void glAttachShader(int program, int shader) {
         GLES20.glAttachShader(program, shader);
     }
 
-    @Override
+    @BridgeInterface
     public void glBindAttribLocation(int program, int index, String name) {
         GLES20.glBindAttribLocation(program, index, name);
     }
 
-    @Override
+    @BridgeInterface
     public void glBindBuffer(int target, int buffer) {
         GLES20.glBindBuffer(target, buffer);
     }
 
-    @Override
+    @BridgeInterface
     public void glBindFramebuffer(int target, int framebuffer) {
         GLES20.glBindFramebuffer(target, framebuffer);
     }
 
-    @Override
+    @BridgeInterface
     public void glBindRenderbuffer(int target, int renderbuffer) {
         GLES20.glBindRenderbuffer(target, renderbuffer);
     }
 
-    @Override
+    @BridgeInterface
     public void glBlendColor(float red, float green, float blue, float alpha) {
         GLES20.glBlendColor(red, green, blue, alpha);
     }
 
-    @Override
+    @BridgeInterface
     public void glBlendEquation(int mode) {
         GLES20.glBlendEquation(mode);
     }
 
-    @Override
+    @BridgeInterface
     public void glBlendEquationSeparate(int modeRGB, int modeAlpha) {
         GLES20.glBlendEquationSeparate(modeRGB, modeAlpha);
     }
 
-    @Override
+    @BridgeInterface
     public void glBlendFuncSeparate(int srcRGB, int dstRGB, int srcAlpha, int dstAlpha) {
         GLES20.glBlendFuncSeparate(srcRGB, dstRGB, srcAlpha, dstAlpha);
     }
 
-    @Override
+    @BridgeInterface
     public void glBufferData(int target, int size, Buffer data, int usage) {
         if (data == null) {
             GLES20.glBufferData(target, (long)size, usage);
@@ -280,122 +282,122 @@ public class BridgeGL20 implements GL20 {
         }
     }
 
-    @Override
+    @BridgeInterface
     public void glBufferSubData(int target, int offset, int size, Buffer data) {
         GLES20.nglBufferSubData(target, (long)offset, (long)size, bufferAddress(data));
     }
 
-    @Override
+    @BridgeInterface
     public int glCheckFramebufferStatus(int target) {
         return GLES20.glCheckFramebufferStatus(target);
     }
 
-    @Override
+    @BridgeInterface
     public void glCompileShader(int shader) {
         GLES20.glCompileShader(shader);
     }
 
-    @Override
+    @BridgeInterface
     public int glCreateProgram() {
         return GLES20.glCreateProgram();
     }
 
-    @Override
+    @BridgeInterface
     public int glCreateShader(int type) {
         return GLES20.glCreateShader(type);
     }
 
-    @Override
+    @BridgeInterface
     public void glDeleteBuffer(int buffer) {
         GLES20.glDeleteBuffers(buffer);
     }
 
-    @Override
+    @BridgeInterface
     public void glDeleteFramebuffer(int framebuffer) {
         GLES20.glDeleteFramebuffers(framebuffer);
     }
 
-    @Override
+    @BridgeInterface
     public void glDeleteProgram(int program) {
         GLES20.glDeleteProgram(program);
     }
 
-    @Override
+    @BridgeInterface
     public void glDeleteRenderbuffer(int renderbuffer) {
         GLES20.glDeleteRenderbuffers(renderbuffer);
     }
 
-    @Override
+    @BridgeInterface
     public void glDeleteShader(int shader) {
         GLES20.glDeleteShader(shader);
     }
 
-    @Override
+    @BridgeInterface
     public void glDetachShader(int program, int shader) {
         GLES20.glDetachShader(program, shader);
     }
 
-    @Override
+    @BridgeInterface
     public void glDisableVertexAttribArray(int index) {
         GLES20.glDisableVertexAttribArray(index);
     }
 
-    @Override
+    @BridgeInterface
     public void glDrawElements(int mode, int count, int type, int indices) {
         GLES20.glDrawElements(mode, count, type, (long)indices);
     }
 
-    @Override
+    @BridgeInterface
     public void glEnableVertexAttribArray(int index) {
         GLES20.glEnableVertexAttribArray(index);
     }
 
-    @Override
+    @BridgeInterface
     public void glFramebufferRenderbuffer(int target, int attachment, int renderbuffertarget, int renderbuffer) {
         GLES20.glFramebufferRenderbuffer(target, attachment, renderbuffertarget, renderbuffer);
     }
 
-    @Override
+    @BridgeInterface
     public void glFramebufferTexture2D(int target, int attachment, int textarget, int texture, int level) {
         GLES20.glFramebufferTexture2D(target, attachment, textarget, texture, level);
     }
 
-    @Override
+    @BridgeInterface
     public int glGenBuffer() {
         return GLES20.glGenBuffers();
     }
 
-    @Override
+    @BridgeInterface
     public void glGenerateMipmap(int target) {
         GLES20.glGenerateMipmap(target);
     }
 
-    @Override
+    @BridgeInterface
     public int glGenFramebuffer() {
         return GLES20.glGenFramebuffers();
     }
 
-    @Override
+    @BridgeInterface
     public int glGenRenderbuffer() {
         return GLES20.glGenRenderbuffers();
     }
 
-    @Override
+    @BridgeInterface
     public String glGetActiveAttrib(int program, int index, IntBuffer size, IntBuffer type) {
         return GLES20.glGetActiveAttrib(program, index, size, type);
     }
 
-    @Override
+    @BridgeInterface
     public String glGetActiveUniform(int program, int index, IntBuffer size, IntBuffer type) {
         return GLES20.glGetActiveUniform(program, index, size, type);
     }
 
-    @Override
+    @BridgeInterface
     public int glGetAttribLocation(int program, String name) {
         return GLES20.glGetAttribLocation(program, name);
     }
 
-    @Override
+    @BridgeInterface
     public void glGetBooleanv(int pname, Buffer params) {
         if (params instanceof ByteBuffer) {
             GLES20.glGetBooleanv(pname, (ByteBuffer)params);
@@ -417,187 +419,187 @@ public class BridgeGL20 implements GL20 {
         throw new IllegalArgumentException("Unsupported buffer type for boolean GL results: " + params.getClass().getName());
     }
 
-    @Override
+    @BridgeInterface
     public void glGetBufferParameteriv(int target, int pname, IntBuffer params) {
         GLES20.glGetBufferParameteriv(target, pname, params);
     }
 
-    @Override
+    @BridgeInterface
     public void glGetFloatv(int pname, FloatBuffer params) {
         GLES20.glGetFloatv(pname, params);
     }
 
-    @Override
+    @BridgeInterface
     public void glGetFramebufferAttachmentParameteriv(int target, int attachment, int pname, IntBuffer params) {
         GLES20.glGetFramebufferAttachmentParameteriv(target, attachment, pname, params);
     }
 
-    @Override
+    @BridgeInterface
     public void glGetProgramiv(int program, int pname, IntBuffer params) {
         GLES20.glGetProgramiv(program, pname, params);
     }
 
-    @Override
+    @BridgeInterface
     public String glGetProgramInfoLog(int program) {
         return GLES20.glGetProgramInfoLog(program);
     }
 
-    @Override
+    @BridgeInterface
     public void glGetRenderbufferParameteriv(int target, int pname, IntBuffer params) {
         GLES20.glGetRenderbufferParameteriv(target, pname, params);
     }
 
-    @Override
+    @BridgeInterface
     public void glGetShaderiv(int shader, int pname, IntBuffer params) {
         GLES20.glGetShaderiv(shader, pname, params);
     }
 
-    @Override
+    @BridgeInterface
     public String glGetShaderInfoLog(int shader) {
         return GLES20.glGetShaderInfoLog(shader);
     }
 
-    @Override
+    @BridgeInterface
     public void glGetShaderPrecisionFormat(int shadertype, int precisiontype, IntBuffer range, IntBuffer precision) {
         GLES20.glGetShaderPrecisionFormat(shadertype, precisiontype, range, precision);
     }
 
-    @Override
+    @BridgeInterface
     public void glGetTexParameterfv(int target, int pname, FloatBuffer params) {
         GLES20.glGetTexParameterfv(target, pname, params);
     }
 
-    @Override
+    @BridgeInterface
     public void glGetTexParameteriv(int target, int pname, IntBuffer params) {
         GLES20.glGetTexParameteriv(target, pname, params);
     }
 
-    @Override
+    @BridgeInterface
     public void glGetUniformfv(int program, int location, FloatBuffer params) {
         GLES20.glGetUniformfv(program, location, params);
     }
 
-    @Override
+    @BridgeInterface
     public void glGetUniformiv(int program, int location, IntBuffer params) {
         GLES20.glGetUniformiv(program, location, params);
     }
 
-    @Override
+    @BridgeInterface
     public int glGetUniformLocation(int program, String name) {
         return GLES20.glGetUniformLocation(program, name);
     }
 
-    @Override
+    @BridgeInterface
     public void glGetVertexAttribfv(int index, int pname, FloatBuffer params) {
         GLES20.glGetVertexAttribfv(index, pname, params);
     }
 
-    @Override
+    @BridgeInterface
     public void glGetVertexAttribiv(int index, int pname, IntBuffer params) {
         GLES20.glGetVertexAttribiv(index, pname, params);
     }
 
-    @Override
+    @BridgeInterface
     public boolean glIsBuffer(int buffer) {
         return GLES20.glIsBuffer(buffer);
     }
 
-    @Override
+    @BridgeInterface
     public boolean glIsEnabled(int cap) {
         return GLES20.glIsEnabled(cap);
     }
 
-    @Override
+    @BridgeInterface
     public boolean glIsFramebuffer(int framebuffer) {
         return GLES20.glIsFramebuffer(framebuffer);
     }
 
-    @Override
+    @BridgeInterface
     public boolean glIsProgram(int program) {
         return GLES20.glIsProgram(program);
     }
 
-    @Override
+    @BridgeInterface
     public boolean glIsRenderbuffer(int renderbuffer) {
         return GLES20.glIsRenderbuffer(renderbuffer);
     }
 
-    @Override
+    @BridgeInterface
     public boolean glIsShader(int shader) {
         return GLES20.glIsShader(shader);
     }
 
-    @Override
+    @BridgeInterface
     public boolean glIsTexture(int texture) {
         return GLES20.glIsTexture(texture);
     }
 
-    @Override
+    @BridgeInterface
     public void glLinkProgram(int program) {
         GLES20.glLinkProgram(program);
     }
 
-    @Override
+    @BridgeInterface
     public void glReleaseShaderCompiler() {
         GLES20.glReleaseShaderCompiler();
     }
 
-    @Override
+    @BridgeInterface
     public void glRenderbufferStorage(int target, int internalformat, int width, int height) {
         GLES20.glRenderbufferStorage(target, internalformat, width, height);
     }
 
-    @Override
+    @BridgeInterface
     public void glSampleCoverage(float value, boolean invert) {
         GLES20.glSampleCoverage(value, invert);
     }
 
-    @Override
+    @BridgeInterface
     public void glShaderSource(int shader, String string) {
         GLES20.glShaderSource(shader, string);
     }
 
-    @Override
+    @BridgeInterface
     public void glStencilFuncSeparate(int face, int func, int ref, int mask) {
         GLES20.glStencilFuncSeparate(face, func, ref, mask);
     }
 
-    @Override
+    @BridgeInterface
     public void glStencilMaskSeparate(int face, int mask) {
         GLES20.glStencilMaskSeparate(face, mask);
     }
 
-    @Override
+    @BridgeInterface
     public void glStencilOpSeparate(int face, int fail, int zfail, int zpass) {
         GLES20.glStencilOpSeparate(face, fail, zfail, zpass);
     }
 
-    @Override
+    @BridgeInterface
     public void glTexParameterfv(int target, int pname, FloatBuffer params) {
         GLES20.glTexParameterfv(target, pname, params);
     }
 
-    @Override
+    @BridgeInterface
     public void glTexParameteri(int target, int pname, int param) {
         GLES20.glTexParameteri(target, pname, param);
     }
 
-    @Override
+    @BridgeInterface
     public void glTexParameteriv(int target, int pname, IntBuffer params) {
         GLES20.glTexParameteriv(target, pname, params);
     }
 
-    @Override
+    @BridgeInterface
     public void glUniform1f(int location, float x) {
         GLES20.glUniform1f(location, x);
     }
 
-    @Override
+    @BridgeInterface
     public void glUniform1fv(int location, int count, FloatBuffer v) {
         GLES20.nglUniform1fv(location, count, bufferAddress(v));
     }
 
-    @Override
+    @BridgeInterface
     public void glUniform1fv(int location, int count, float[] v, int offset) {
         try(MemoryStack stack = MemoryStack.stackPush()) {
             FloatBuffer values = stack.mallocFloat(count);
@@ -607,17 +609,17 @@ public class BridgeGL20 implements GL20 {
         }
     }
 
-    @Override
+    @BridgeInterface
     public void glUniform1i(int location, int x) {
         GLES20.glUniform1i(location, x);
     }
 
-    @Override
+    @BridgeInterface
     public void glUniform1iv(int location, int count, IntBuffer v) {
         GLES20.nglUniform1iv(location, count, bufferAddress(v));
     }
 
-    @Override
+    @BridgeInterface
     public void glUniform1iv(int location, int count, int[] v, int offset) {
         try(MemoryStack stack = MemoryStack.stackPush()) {
             IntBuffer values = stack.mallocInt(count);
@@ -627,17 +629,17 @@ public class BridgeGL20 implements GL20 {
         }
     }
 
-    @Override
+    @BridgeInterface
     public void glUniform2f(int location, float x, float y) {
         GLES20.glUniform2f(location, x, y);
     }
 
-    @Override
+    @BridgeInterface
     public void glUniform2fv(int location, int count, FloatBuffer v) {
         GLES20.nglUniform2fv(location, count, bufferAddress(v));
     }
 
-    @Override
+    @BridgeInterface
     public void glUniform2fv(int location, int count, float[] v, int offset) {
         try(MemoryStack stack = MemoryStack.stackPush()) {
             FloatBuffer values = stack.mallocFloat(count * 2);
@@ -647,17 +649,17 @@ public class BridgeGL20 implements GL20 {
         }
     }
 
-    @Override
+    @BridgeInterface
     public void glUniform2i(int location, int x, int y) {
         GLES20.glUniform2i(location, x, y);
     }
 
-    @Override
+    @BridgeInterface
     public void glUniform2iv(int location, int count, IntBuffer v) {
         GLES20.nglUniform2iv(location, count, bufferAddress(v));
     }
 
-    @Override
+    @BridgeInterface
     public void glUniform2iv(int location, int count, int[] v, int offset) {
         try(MemoryStack stack = MemoryStack.stackPush()) {
             IntBuffer values = stack.mallocInt(count * 2);
@@ -667,17 +669,17 @@ public class BridgeGL20 implements GL20 {
         }
     }
 
-    @Override
+    @BridgeInterface
     public void glUniform3f(int location, float x, float y, float z) {
         GLES20.glUniform3f(location, x, y, z);
     }
 
-    @Override
+    @BridgeInterface
     public void glUniform3fv(int location, int count, FloatBuffer v) {
         GLES20.nglUniform3fv(location, count, bufferAddress(v));
     }
 
-    @Override
+    @BridgeInterface
     public void glUniform3fv(int location, int count, float[] v, int offset) {
         try(MemoryStack stack = MemoryStack.stackPush()) {
             FloatBuffer values = stack.mallocFloat(count * 3);
@@ -687,17 +689,17 @@ public class BridgeGL20 implements GL20 {
         }
     }
 
-    @Override
+    @BridgeInterface
     public void glUniform3i(int location, int x, int y, int z) {
         GLES20.glUniform3i(location, x, y, z);
     }
 
-    @Override
+    @BridgeInterface
     public void glUniform3iv(int location, int count, IntBuffer v) {
         GLES20.nglUniform3iv(location, count, bufferAddress(v));
     }
 
-    @Override
+    @BridgeInterface
     public void glUniform3iv(int location, int count, int[] v, int offset) {
         try(MemoryStack stack = MemoryStack.stackPush()) {
             IntBuffer values = stack.mallocInt(count * 3);
@@ -707,17 +709,17 @@ public class BridgeGL20 implements GL20 {
         }
     }
 
-    @Override
+    @BridgeInterface
     public void glUniform4f(int location, float x, float y, float z, float w) {
         GLES20.glUniform4f(location, x, y, z, w);
     }
 
-    @Override
+    @BridgeInterface
     public void glUniform4fv(int location, int count, FloatBuffer v) {
         GLES20.nglUniform4fv(location, count, bufferAddress(v));
     }
 
-    @Override
+    @BridgeInterface
     public void glUniform4fv(int location, int count, float[] v, int offset) {
         try(MemoryStack stack = MemoryStack.stackPush()) {
             FloatBuffer values = stack.mallocFloat(count * 4);
@@ -727,17 +729,17 @@ public class BridgeGL20 implements GL20 {
         }
     }
 
-    @Override
+    @BridgeInterface
     public void glUniform4i(int location, int x, int y, int z, int w) {
         GLES20.glUniform4i(location, x, y, z, w);
     }
 
-    @Override
+    @BridgeInterface
     public void glUniform4iv(int location, int count, IntBuffer v) {
         GLES20.nglUniform4iv(location, count, bufferAddress(v));
     }
 
-    @Override
+    @BridgeInterface
     public void glUniform4iv(int location, int count, int[] v, int offset) {
         try(MemoryStack stack = MemoryStack.stackPush()) {
             IntBuffer values = stack.mallocInt(count * 4);
@@ -747,12 +749,12 @@ public class BridgeGL20 implements GL20 {
         }
     }
 
-    @Override
+    @BridgeInterface
     public void glUniformMatrix2fv(int location, int count, boolean transpose, FloatBuffer value) {
         GLES20.nglUniformMatrix2fv(location, count, transpose, bufferAddress(value));
     }
 
-    @Override
+    @BridgeInterface
     public void glUniformMatrix2fv(int location, int count, boolean transpose, float[] value, int offset) {
         try(MemoryStack stack = MemoryStack.stackPush()) {
             FloatBuffer values = stack.mallocFloat(count * 4);
@@ -762,12 +764,12 @@ public class BridgeGL20 implements GL20 {
         }
     }
 
-    @Override
+    @BridgeInterface
     public void glUniformMatrix3fv(int location, int count, boolean transpose, FloatBuffer value) {
         GLES20.nglUniformMatrix3fv(location, count, transpose, bufferAddress(value));
     }
 
-    @Override
+    @BridgeInterface
     public void glUniformMatrix3fv(int location, int count, boolean transpose, float[] value, int offset) {
         try(MemoryStack stack = MemoryStack.stackPush()) {
             FloatBuffer values = stack.mallocFloat(count * 9);
@@ -777,12 +779,12 @@ public class BridgeGL20 implements GL20 {
         }
     }
 
-    @Override
+    @BridgeInterface
     public void glUniformMatrix4fv(int location, int count, boolean transpose, FloatBuffer value) {
         GLES20.nglUniformMatrix4fv(location, count, transpose, bufferAddress(value));
     }
 
-    @Override
+    @BridgeInterface
     public void glUniformMatrix4fv(int location, int count, boolean transpose, float[] value, int offset) {
         try(MemoryStack stack = MemoryStack.stackPush()) {
             FloatBuffer values = stack.mallocFloat(count * 16);
@@ -792,62 +794,62 @@ public class BridgeGL20 implements GL20 {
         }
     }
 
-    @Override
+    @BridgeInterface
     public void glUseProgram(int program) {
         GLES20.glUseProgram(program);
     }
 
-    @Override
+    @BridgeInterface
     public void glValidateProgram(int program) {
         GLES20.glValidateProgram(program);
     }
 
-    @Override
+    @BridgeInterface
     public void glVertexAttrib1f(int indx, float x) {
         GLES20.glVertexAttrib1f(indx, x);
     }
 
-    @Override
+    @BridgeInterface
     public void glVertexAttrib1fv(int indx, FloatBuffer values) {
         GLES20.glVertexAttrib1fv(indx, values);
     }
 
-    @Override
+    @BridgeInterface
     public void glVertexAttrib2f(int indx, float x, float y) {
         GLES20.glVertexAttrib2f(indx, x, y);
     }
 
-    @Override
+    @BridgeInterface
     public void glVertexAttrib2fv(int indx, FloatBuffer values) {
         GLES20.glVertexAttrib2fv(indx, values);
     }
 
-    @Override
+    @BridgeInterface
     public void glVertexAttrib3f(int indx, float x, float y, float z) {
         GLES20.glVertexAttrib3f(indx, x, y, z);
     }
 
-    @Override
+    @BridgeInterface
     public void glVertexAttrib3fv(int indx, FloatBuffer values) {
         GLES20.glVertexAttrib3fv(indx, values);
     }
 
-    @Override
+    @BridgeInterface
     public void glVertexAttrib4f(int indx, float x, float y, float z, float w) {
         GLES20.glVertexAttrib4f(indx, x, y, z, w);
     }
 
-    @Override
+    @BridgeInterface
     public void glVertexAttrib4fv(int indx, FloatBuffer values) {
         GLES20.glVertexAttrib4fv(indx, values);
     }
 
-    @Override
+    @BridgeInterface
     public void glVertexAttribPointer(int indx, int size, int type, boolean normalized, int stride, Buffer ptr) {
         GLES20.glVertexAttribPointer(indx, size, type, normalized, stride, bufferAddress(ptr));
     }
 
-    @Override
+    @BridgeInterface
     public void glVertexAttribPointer(int indx, int size, int type, boolean normalized, int stride, int ptr) {
         GLES20.glVertexAttribPointer(indx, size, type, normalized, stride, (long)ptr);
     }

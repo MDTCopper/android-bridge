@@ -1,5 +1,7 @@
 package copper.bridge.v7;
 
+import copper.bridge.annotation.BridgeInterface;
+
 import arc.*;
 import arc.struct.*;
 
@@ -186,55 +188,55 @@ public class BridgeApplication implements Application {
         Core.audio = audio;
     }
 
-    @Override
+    @BridgeInterface
     public Seq<ApplicationListener> getListeners() {
         return listeners;
     }
 
-    @Override
+    @BridgeInterface
     public ApplicationType getType() {
         return ANDROID;
     }
 
-    @Override
+    @BridgeInterface
     public int getVersion() {
         return JvmCall.getOsVersion();
     }
 
-    @Override
+    @BridgeInterface
     public long getNativeHeap() {
         return JvmCall.getNativeHeap();
     }
 
-    @Override
+    @BridgeInterface
     public String getClipboardText() {
         return JvmCall.getClipboardText();
     }
 
-    @Override
+    @BridgeInterface
     public void setClipboardText(String text) {
         JvmCall.setClipboardText(text);
     }
 
-    @Override
+    @BridgeInterface
     public boolean openURI(String uri) {
         return JvmCall.openUri(uri);
     }
 
-    @Override
+    @BridgeInterface
     public boolean openFolder(String folder) {
         return JvmCall.openFolder(folder);
     }
 
     /** Queues work for the loop thread, the only thread allowed to touch the game. */
-    @Override
+    @BridgeInterface
     public void post(Runnable runnable) {
         synchronized (runnables) {
             runnables.add(runnable);
         }
     }
 
-    @Override
+    @BridgeInterface
     public void exit() {
         JvmCall.finishActivity();
         events.onDestroy();

@@ -162,7 +162,7 @@ public class BridgeOptions {
             for (File jar : loaderJars)
                 path.add(jar.getAbsolutePath());
         } else {
-            addBridgeEntries(path);
+            addBridgeJar(path);
         }
         return path;
     }
@@ -175,11 +175,16 @@ public class BridgeOptions {
         return path;
     }
 
-    /** The entries both classpaths share: the bridge jar, then the game jars - never the staged arc natives. */
-    private void addBridgeEntries(List<String> path) {
+    /** The JVM startup classpath: the bridge jar only; game jars are loaded by the branch loader. */
+    private void addBridgeJar(List<String> path) {
         File bridgeJar = Bridge.jar();
         if (bridgeJar != null)
             path.add(bridgeJar.getAbsolutePath());
+    }
+
+    /** The loader classpath: the bridge jar and the game jars - never the staged arc natives. */
+    private void addBridgeEntries(List<String> path) {
+        addBridgeJar(path);
         for (File jar : gameJars)
             path.add(jar.getAbsolutePath());
     }

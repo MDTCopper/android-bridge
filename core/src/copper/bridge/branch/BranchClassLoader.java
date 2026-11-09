@@ -62,12 +62,17 @@ public final class BranchClassLoader extends ClassLoader {
                     loaded = defineClass(name, branch, 0, branch.length);
                     // the VM owns the class now; keeping the bytes would only double its memory
                     branchClasses.remove(internal);
-                } else if (isGame(name)) {
-                    loaded = loadGame(name);
+                } else {
+                    // not a branch class: the parent owns bridge/core classes and must win over the game jar
+                    try {
+                        loaded = super.loadClass(name, false);
+                    } catch (ClassNotFoundException parentMiss) {
+                        // only a class the parent does not know comes from the game jar
+                        loaded = loadGame(name);
+                        if (loaded == null)
+                            throw parentMiss;
+                    }
                 }
-
-                if (loaded == null)
-                    loaded = super.loadClass(name, false);
             }
 
             if (resolve)
@@ -118,8 +123,4 @@ public final class BranchClassLoader extends ClassLoader {
         return null;
     }
 
-    private static boolean isGame(String name) {
-        return name.startsWith("arc.") || name.startsWith("io.anuke.arc.")
-                || name.startsWith("mindustry.") || name.startsWith("io.anuke.mindustry.");
-    }
 }

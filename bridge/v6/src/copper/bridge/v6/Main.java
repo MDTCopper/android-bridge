@@ -75,9 +75,8 @@ public class Main {
     }
 
     private static void prepareArcNatives() {
-        if (!Bridge.options.foundArcNative || Bridge.options.arcNativeFolder == null) {
-            ArcNativesLoader.disableNativesLoading = true;
-            Log.warn("no arc natives were staged; arc will use its non-native code paths");
+        if (Bridge.options.arcNativeFolder == null) {
+            Log.warn("no arc natives were staged; arc cannot load its native code paths");
             return;
         }
 

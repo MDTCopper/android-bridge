@@ -30,8 +30,6 @@ public class BridgeOptions {
     public File arcLibPath;
     public File bridgeJar;
     public File arcNativeFolder;
-    /** Whether staging found arc's own {@code libarc.so}, without which arc's native code paths are unusable. */
-    public boolean foundArcNative;
 
     /** Whether ANGLE is requested: the device's own libraries when {@link #anglePath} is {@code null}. */
     public boolean angle = false;
@@ -95,7 +93,6 @@ public class BridgeOptions {
         put(props, "customMainClass", customMainClass);
         putFile(props, "arcLibPath", arcLibPath);
         putFile(props, "arcNativeFolder", arcNativeFolder);
-        put(props, "foundArcNative", Boolean.toString(foundArcNative));
         putFile(props, "bridgeJar", bridgeJar);
         putFile(props, "bridgeLibrary", bridgeLibrary);
         put(props, "angle", Boolean.toString(angle));
@@ -134,7 +131,6 @@ public class BridgeOptions {
         options.customMainClass = emptyToNull(get(props, "customMainClass"));
         options.arcLibPath = getFile(props, "arcLibPath");
         options.arcNativeFolder = getFile(props, "arcNativeFolder");
-        options.foundArcNative = Boolean.parseBoolean(get(props, "foundArcNative"));
         options.bridgeJar = getFile(props, "bridgeJar");
         options.bridgeLibrary = getFile(props, "bridgeLibrary");
         options.angle = Boolean.parseBoolean(get(props, "angle", "false"));

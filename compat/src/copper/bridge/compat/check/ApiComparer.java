@@ -60,7 +60,8 @@ public final class ApiComparer {
                 issues.add("declaration changed or removed: " + ref.owner + "." + ref.name + " " + ref.descriptor);
                 continue;
             }
-            if ((floorMember.access & ACCESS_MASK) != (ceilingMember.access & ACCESS_MASK)) {
+            if (!ref.name.equals("<init>")
+                    && (floorMember.access & ACCESS_MASK) != (ceilingMember.access & ACCESS_MASK)) {
                 issues.add("declaration changed: " + ref.owner + "." + ref.name + " " + ref.descriptor
                         + " access " + floorMember.access + " -> " + ceilingMember.access);
             }

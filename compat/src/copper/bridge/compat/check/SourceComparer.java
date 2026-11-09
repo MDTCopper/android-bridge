@@ -106,6 +106,10 @@ public final class SourceComparer {
                 continue;
             }
 
+            // constructor visibility does not matter to a subclass calling super(...)
+            if (ref.name.equals("<init>"))
+                continue;
+
             for (MemberSignature signature : floorSignatures) {
                 if (!ceilingSignatures.contains(signature)) {
                     issues.add("declaration changed or removed: " + ref.owner + "." + ref.name

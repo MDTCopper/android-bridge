@@ -103,12 +103,12 @@ public class JvmArgs {
     /** Assembles the argument vector handed to {@code JLI_Launch}; {@code java} is {@code argv[0]}. */
     public List<String> build() {
         String java = Bridge.options.javaExecutable.getAbsolutePath();
-        classpath = Bridge.options.jvmClasspath();
+        classpath = jvmClasspath();
 
         List<String> loaderArgs = new ArrayList<>();
         if (Bridge.options.usesCustomLoader())
             loaderArgs.add(BridgeOptions.CLASS_PATH_OPTION + "=" + String.join(File.pathSeparator,
-                    Bridge.options.bridgeClasspath()));
+                    bridgeClasspath()));
         loaderArgs.addAll(Bridge.options.positional);
 
         List<String> args = new ArrayList<>();
@@ -121,6 +121,35 @@ public class JvmArgs {
         args.add(mainClass());
         args.addAll(loaderArgs);
         return args;
+    }
+
+    /** The JVM startup classpath: the bridge (or the loader) plus every game jar. */
+    private List<String> jvmClasspath() {
+        List<String> path = new ArrayList<>();
+        if (Bridge.options.usesCustomLoader()) {
+            for (File jar : Bridge.options.loaderJars)
+                path.add(jar.getAbsolutePath());
+        } else {
+            addBridgeJar(path);
+        }
+        for (File jar : Bridge.options.gameJars)
+            path.add(jar.getAbsolutePath());
+        return path;
+    }
+
+    /** What a custom loader gets as its own bridge classpath: the bridge jar and the game jars. */
+    private List<String> bridgeClasspath() {
+        List<String> path = new ArrayList<>();
+        addBridgeJar(path);
+        for (File jar : Bridge.options.gameJars)
+            path.add(jar.getAbsolutePath());
+        return path;
+    }
+
+    private void addBridgeJar(List<String> path) {
+        File bridgeJar = Bridge.jar();
+        if (bridgeJar != null)
+            path.add(bridgeJar.getAbsolutePath());
     }
 
     /** The environment the JVM starts with; the caller only has to pass it to the native setter. */

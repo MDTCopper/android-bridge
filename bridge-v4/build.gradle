@@ -1,10 +1,10 @@
 
 /**
- * v3: the rest of the 6 line and the whole 7 and 8 line - releases 114.0 and up, bleeding-edge builds
+ * v4: the rest of the 6 line and the whole 7 and 8 line - releases 114.0 and up, bleeding-edge builds
  * 11247 and up, open at the top for releases and stopping at the last 8 build (27928).
  *
  * 11247 is the first build with the concrete arc.audio.Audio and without the abstract one; the 6 line's
- * low end, which has the abstract class and needs an implementation of it, is v2's range.
+ * low end, which has the abstract class and needs an implementation of it, is v3's range.
  *
  * It compiles against the v159 epoch, the newest shape it has to survive and deliberately not the range
  * floor, so one source satisfies both directions: implement what the newest epoch demands and reference

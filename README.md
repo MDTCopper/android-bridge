@@ -24,7 +24,7 @@
 * android-bridge is a JVM bridge that runs the **desktop version** of Mindustry on Android
 * **Several games or versions in one app**, with as many isolated sets of data and mod configuration
 * **Bytecode patchers such as Mixin keep working**, and loaders such as CopperLoader and Fabric run as they are
-* It runs vanilla Mindustry: official releases 102.0 and up, bleeding-edge builds 6428 and up
+* It runs vanilla Mindustry: official releases 101.1 and up, bleeding-edge builds 6320 and up
 * The game itself needs no changes and no repackaging — it runs the official release jar as it is
 * This repository is the bridge alone; the host app is yours to write, or to pick an existing one
 
@@ -56,7 +56,7 @@
 
 | Item | Range |
 |---|---|
-| Game version | Official releases **102.0 and up** <br> Bleeding-edge builds **6428 and up** <br> (the two numbering schemes are independent and not comparable) |
+| Game version | Official releases **101.1 and up** <br> Bleeding-edge builds **6320 and up** <br> (the two numbering schemes are independent and not comparable) |
 | Android | **11 (API 30) and up** |
 | ABI | `arm64-v8a`, `armeabi-v7a`, `x86_64` |
 | Game jar | Must be a **desktop release build with assets**; a classes-only one does not run |

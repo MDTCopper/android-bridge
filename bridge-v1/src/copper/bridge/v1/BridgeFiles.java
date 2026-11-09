@@ -1,8 +1,8 @@
 package copper.bridge.v1;
 
-import arc.*;
-import arc.files.*;
-import arc.util.*;
+import io.anuke.arc.*;
+import io.anuke.arc.files.*;
+import io.anuke.arc.util.*;
 import copper.bridge.*;
 
 import java.io.*;

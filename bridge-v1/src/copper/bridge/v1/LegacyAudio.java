@@ -1,7 +1,7 @@
 package copper.bridge.v1;
 
-import arc.audio.*;
-import arc.files.*;
+import io.anuke.arc.audio.*;
+import io.anuke.arc.files.*;
 
 import copper.bridge.gen.*;
 
@@ -9,7 +9,7 @@ import copper.bridge.gen.*;
  * The abstract arc.Audio of the 6 line's low end. Only ever constructed below 113, where the class still exists -
  * which is why the branch compiles at v112 - so its references are checked against v112, not the range's top.
  */
-public class LegacyAudio extends arc.Audio {
+public class LegacyAudio extends io.anuke.arc.Audio {
 
     public LegacyAudio() {
     }

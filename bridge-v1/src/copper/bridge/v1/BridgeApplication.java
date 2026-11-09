@@ -1,7 +1,7 @@
 package copper.bridge.v1;
 
-import arc.*;
-import arc.struct.*;
+import io.anuke.arc.*;
+import io.anuke.arc.collection.*;
 
 import copper.bridge.*;
 import copper.bridge.gen.*;
@@ -18,8 +18,6 @@ import java.util.*;
 public class BridgeApplication implements Application {
     private static final long SURFACE_TIMEOUT_MILLIS = 20000;
 
-    /** {@code android}, by ordinal: the constant is capitalized on the range's older end. */
-    public static final ApplicationType ANDROID = ApplicationType.values()[0];
 
     public final BridgeGraphics graphics;
     public final BridgeInput input;
@@ -106,7 +104,7 @@ public class BridgeApplication implements Application {
             input.processEvents();
             // Application.defaultUpdate does this; autosave() arrived later in the range
             autosaveSettings();
-            arc.util.Time.updateGlobal();
+            io.anuke.arc.util.Time.updateGlobal();
             for (ApplicationListener listener : listeners)
                 listener.update();
             input.processDevices();
@@ -191,9 +189,9 @@ public class BridgeApplication implements Application {
      * failure it stands for.
      */
     private static void initAudio() {
-        arc.Audio audio;
+        io.anuke.arc.Audio audio;
         try {
-            audio = (arc.Audio) Class.forName("arc.audio.SoloudAudio").getConstructor().newInstance();
+            audio = (io.anuke.arc.Audio) Class.forName("io.anuke.arc.audio.SoloudAudio").getConstructor().newInstance();
         } catch (Throwable soloud) {
             try {
                 audio = new LegacyAudio();
@@ -213,7 +211,7 @@ public class BridgeApplication implements Application {
 
     @Override
     public ApplicationType getType() {
-        return ANDROID;
+        return ApplicationType.Android;
     }
 
     @Override
@@ -236,12 +234,12 @@ public class BridgeApplication implements Application {
         JvmCall.setClipboardText(text);
     }
 
-    @Override
+    /** Not on the interface at the range's floor, so no {@code @Override}; the game asks for it where it exists. */
     public boolean openURI(String uri) {
         return JvmCall.openUri(uri);
     }
 
-    @Override
+    /** Not on the interface at the range's floor, so no {@code @Override}. */
     public boolean openFolder(String folder) {
         return JvmCall.openFolder(folder);
     }

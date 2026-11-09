@@ -1,10 +1,10 @@
 package copper.bridge.v1;
 
-import arc.util.*;
+import io.anuke.arc.util.*;
 import copper.bridge.*;
 import copper.bridge.jvm.Launch;
 import copper.bridge.util.Log;
-import mindustry.*;
+import io.anuke.mindustry.*;
 
 import java.io.*;
 
@@ -72,9 +72,19 @@ public class Main {
      * assigned.
      */
     private static void configureLog() {
-        Reflect.set(arc.util.Log.class, "useColors", false);
+        setStatic(io.anuke.arc.util.Log.class, "useColors", false);
         if (Bridge.options.debug || Bridge.options.verbose)
-            Reflect.set(arc.util.Log.class, "level", arc.util.Log.LogLevel.debug);
+            setStatic(io.anuke.arc.util.Log.class, "level", io.anuke.arc.util.Log.LogLevel.debug);
+    }
+
+    /** Reflection without arc's helper, which does not exist at the range's floor. */
+    private static void setStatic(Class<?> owner, String name, Object value) {
+        try {
+            java.lang.reflect.Field field = owner.getDeclaredField(name);
+            field.setAccessible(true);
+            field.set(null, value);
+        } catch (Throwable ignored) {
+        }
     }
 
     private static void prepareArcNatives() {

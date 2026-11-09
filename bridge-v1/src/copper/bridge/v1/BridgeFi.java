@@ -1,8 +1,8 @@
 package copper.bridge.v1;
 
-import arc.Files.*;
-import arc.files.*;
-import arc.util.*;
+import io.anuke.arc.Files.*;
+import io.anuke.arc.files.*;
+import io.anuke.arc.util.*;
 
 import java.io.*;
 
@@ -14,6 +14,8 @@ import java.io.*;
  * jars.
  */
 public class BridgeFi extends Fi {
+    /** The constant names changed case inside the range; the order did not. Index 3 is absolute, 4 is local. */
+    private static final FileType[] FILE_TYPES = FileType.values();
     private final BridgeFiles files;
 
     BridgeFi(BridgeFiles files, String fileName, FileType type) {
@@ -45,14 +47,14 @@ public class BridgeFi extends Fi {
     public Fi parent() {
         File parent = file.getParentFile();
         if (parent == null) {
-            parent = type == FileType.absolute ? new File("/") : new File("");
+            parent = type == FILE_TYPES[3] ? new File("/") : new File("");
         }
         return new BridgeFi(files, parent, type);
     }
 
     @Override
     public File file() {
-        if (type == FileType.local) return new File(files.getLocalStoragePath(), file.getPath());
+        if (type == FILE_TYPES[4]) return new File(files.getLocalStoragePath(), file.getPath());
         return super.file();
     }
 }

@@ -7,7 +7,7 @@ import copper.bridge.util.*;
 import java.util.*;
 
 /** The game's input, fed from the packed batches ART produces; polled and read on the game loop thread alone. */
-public class BridgeInput extends Input {
+public class BridgeInput extends Input implements copper.bridge.jvm.InputHost {
     private static final int MAX_TOUCHES = 20;
 
     /** Cached once: the constant names changed case inside the range, the order did not. */

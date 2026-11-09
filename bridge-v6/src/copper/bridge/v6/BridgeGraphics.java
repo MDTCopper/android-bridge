@@ -306,7 +306,7 @@ public class BridgeGraphics extends Graphics implements copper.bridge.v1.Graphic
         String version = gl20.glGetString(GL20.GL_VERSION);
         String vendor = gl20.glGetString(GL20.GL_VENDOR);
         String renderer = gl20.glGetString(GL20.GL_RENDERER);
-        glVersion = new GLVersion(Application.ApplicationType.Android, version, vendor, renderer);
+        glVersion = new GLVersion(Application.ApplicationType.values()[0], version, vendor, renderer);
 
         // GLVersion exposes atLeast/majorVersion only on the newer end and getMajorVersion on the older one, so
         // read the version string itself.

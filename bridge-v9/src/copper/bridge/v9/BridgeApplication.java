@@ -8,6 +8,7 @@ import arc.util.Threads;
 
 import copper.bridge.*;
 import copper.bridge.gen.*;
+import copper.bridge.v8.BridgeInput;
 import copper.bridge.v8.BridgeEvents;
 import copper.bridge.v6.BridgeFiles;
 import copper.bridge.jvm.Surface;

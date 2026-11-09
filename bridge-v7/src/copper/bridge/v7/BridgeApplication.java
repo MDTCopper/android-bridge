@@ -5,6 +5,7 @@ import arc.struct.*;
 
 import copper.bridge.*;
 import copper.bridge.gen.*;
+import copper.bridge.v6.BridgeGraphics;
 import copper.bridge.v6.BridgeInput;
 import copper.bridge.v6.BridgeEvents;
 import copper.bridge.v6.BridgeFiles;

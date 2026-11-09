@@ -10,6 +10,9 @@ import java.util.*;
  * {@code vN}'s range: its game/arc symbols are checked at the user's ends, and its bridge references are followed
  * further down. A forward reference is an error because the version table never selects a newer branch for an older
  * game.
+ *
+ * <p>Reflection targets are not followed: the branch that owns the class validates them against its own ends, and
+ * re-checking them at a later branch would reject probes that are legitimately always present there.
  */
 public final class BridgeClosure {
 
@@ -25,7 +28,7 @@ public final class BridgeClosure {
     public static Result expand(Path bridge, Map<Integer, Path> branchDirs, int version) {
         Result result = new Result();
         Map<String, ClassRef> refs = new LinkedHashMap<>();
-        Map<String, ReflectionRef> reflections = new LinkedHashMap<>();
+
         Set<String> visited = new HashSet<>();
         java.util.List<BridgeRef> initial = ClassRefs.readBridge(bridge);
         Deque<BridgeRef> queue = new ArrayDeque<>(initial);
@@ -66,14 +69,8 @@ public final class BridgeClosure {
                                 usedBranch));
                 }
             }
-            for (ReflectionRef reflected : ReflectionRefs.readClass(classFile, ref.owner)) {
-                ReflectionRef plain = new ReflectionRef(reflected.sourceClass, reflected.owner, reflected.member,
-                        reflected.kind, null);
-                reflections.putIfAbsent(plain.key(), plain);
-            }
         }
         result.refs.addAll(refs.values());
-        result.reflections.addAll(reflections.values());
         return result;
     }
 }

@@ -15,7 +15,7 @@ public final class ArcReflectComparer {
     private ArcReflectComparer() {
     }
 
-    public static List<String> compare(List<ArcReflectRef> refs, Range range, RefJars jars) {
+    public static List<String> compareJar(List<ArcReflectRef> refs, Range range, RefJars jars) {
         List<String> issues = new ArrayList<>();
         for (ArcReflectRef ref : refs) {
             boolean floor = exists(jars.jar(range.floor), ref);

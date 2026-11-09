@@ -94,8 +94,8 @@ public final class Check {
             System.out.println("  ceiling " + config.ceiling);
             issues.addAll(ApiComparer.compare(refs, branchRange, overrides, jars));
             issues.addAll(ReflectionComparer.compareJar(reflections, branchRange, overrides, jars));
-            issues.addAll(BridgeInterfaceComparer.compare(interfaces, branchRange, jars, bridge));
-            issues.addAll(ArcReflectComparer.compare(reflect, branchRange, jars));
+            issues.addAll(BridgeInterfaceComparer.compareJar(interfaces, branchRange, jars, bridge));
+            issues.addAll(ArcReflectComparer.compareJar(reflect, branchRange, jars));
             return issues;
         }
     }

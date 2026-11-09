@@ -22,8 +22,8 @@ public final class BridgeInterfaceComparer {
     private BridgeInterfaceComparer() {
     }
 
-    public static List<String> compare(List<BridgeInterfaceRef> refs, Range range, RefJars jars,
-                                       Path bridgeClasses) {
+    public static List<String> compareJar(List<BridgeInterfaceRef> refs, Range range, RefJars jars,
+                                          Path bridgeClasses) {
         BridgeInterfaceComparer comparer = new BridgeInterfaceComparer();
         comparer.indexBranch(bridgeClasses);
         List<String> issues = new ArrayList<>();

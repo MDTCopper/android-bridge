@@ -30,14 +30,14 @@ public class Main {
         Log.debug("classpath = " + System.getProperty("java.class.path"));
         Log.debug("class loader = " + Main.class.getClassLoader());
 
-        Launch.start(gameArgs(args));
+        Launch.start(toGameArgs(args));
     }
 
     /**
      * The game's arguments: this command line without the bridge's own option, which a loader forwarding its whole
      * command line would otherwise hand to the game. Everything else is the caller's, in order.
      */
-    private static String[] gameArgs(String[] args) {
+    private static String[] toGameArgs(String[] args) {
         List<String> game = new ArrayList<>();
         for (int i = 0; i < args.length; i++) {
             if (args[i].startsWith(BridgeOptions.CLASS_PATH_OPTION + "="))

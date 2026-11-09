@@ -62,12 +62,15 @@ namespace copper::bridge::jre::Launcher {
         if (status != 0) {
             Log::InfoF("LAUNCHER", "the JVM exited with %d, exiting", status);
             // Unrecoverable: end the process here and now, before anything else can run.
+            fflush(nullptr);
+            Log::CloseFile();
             _exit(status);
         }
 
         Log::Info("LAUNCHER", "the JVM is gone, leaving this screen");
         fflush(nullptr);
         RequestArtEnd();
+        Log::CloseFile();
 
         for (;;)
             pause();

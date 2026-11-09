@@ -47,6 +47,11 @@ public class Log {
     private static Writer fileWriter = null;
     private static String logFilePath = null;
 
+    static {
+        // a host that ends the process without an explicit close still gets the Java-side lines out
+        Runtime.getRuntime().addShutdownHook(new Thread(Log::closeOutputFile, "copper-log-close"));
+    }
+
     public static void setLevel(Level level) {
         Log.level = level;
     }

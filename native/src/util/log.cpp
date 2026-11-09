@@ -183,6 +183,21 @@ namespace copper::bridge::util::Log {
         logLevel = level;
     }
 
+    void CloseFile() {
+        // Finish partial lines first; flushing a stream calls LogLine, which takes the file lock itself.
+        for (Stream& stream : streams) {
+            std::lock_guard<std::mutex> guard(stream.mutex);
+            FlushLineLocked(stream);
+        }
+
+        std::lock_guard<std::mutex> guard(fileMutex);
+        if (logFd < 0)
+            return;
+        fsync(logFd);
+        close(logFd);
+        logFd = -1;
+    }
+
     const std::string& Path() {
         return logPath;
     }

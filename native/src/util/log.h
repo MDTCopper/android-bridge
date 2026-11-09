@@ -24,6 +24,9 @@ namespace copper::bridge::util::Log {
     // Opens the log file once, and remembers whether lines may also go to Android's log. False means it could not be.
     bool OpenFile(const std::string& path, bool wanted);
 
+    // Flushes buffered partial lines, syncs the file and closes it. Safe to call more than once.
+    void CloseFile();
+
     // The level the log writes at: a line above it is dropped, wherever it came from. Java's, asked for at setup.
     void SetLevel(Level level);
 

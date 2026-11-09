@@ -5,6 +5,7 @@ import copper.bridge.gen.*;
 import copper.bridge.util.WireCharBuffer;
 
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.function.IntSupplier;
 
 /**
@@ -25,9 +26,12 @@ public final class InputEngine extends InputBatch {
 
         void scroll(float amount);
 
-        void keyDown(int deviceCode, int repeat);
+        /** Unique id of the mapped key, used for down-state bookkeeping. */
+        int keyId(int deviceCode);
 
-        void keyUp(int deviceCode, WireCharBuffer chars);
+        void keyPressed(int deviceCode);
+
+        void keyReleased(int deviceCode, WireCharBuffer chars);
 
         void text(WireCharBuffer chars);
     }
@@ -41,6 +45,7 @@ public final class InputEngine extends InputBatch {
     private final int[] deltaY = new int[MAX_POINTERS];
     private final float[] pressure = new float[MAX_POINTERS];
     private final boolean[] touched = new boolean[MAX_POINTERS];
+    private final BitSet downState = new BitSet();
     /** The Android pointer id a slot is tracking, or -1 when the slot is free. */
     private final int[] realId = new int[MAX_POINTERS];
 
@@ -141,12 +146,22 @@ public final class InputEngine extends InputBatch {
 
     @Override
     public void keyDown(int deviceCode, int repeat) {
-        sink.keyDown(deviceCode, repeat);
+        if (repeat > 0) return;
+
+        int id = sink.keyId(deviceCode);
+        if (id < 0 || downState.get(id)) return;
+
+        downState.set(id);
+        sink.keyPressed(deviceCode);
     }
 
     @Override
     public void keyUp(int deviceCode, WireCharBuffer chars) {
-        sink.keyUp(deviceCode, chars);
+        int id = sink.keyId(deviceCode);
+        if (id < 0 || !downState.get(id)) return;
+
+        downState.clear(id);
+        sink.keyReleased(deviceCode, chars);
     }
 
     @Override
@@ -165,6 +180,12 @@ public final class InputEngine extends InputBatch {
             JvmBatch.input.processRecords();
             JvmBatch.input.next();
         }
+    }
+
+    /** Clears pointer and key state; called on pause and resume. */
+    public void clear() {
+        downState.clear();
+        clearPointers();
     }
 
     public void clearPointers() {

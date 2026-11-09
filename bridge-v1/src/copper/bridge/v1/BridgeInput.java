@@ -19,7 +19,6 @@ public class BridgeInput extends Input implements InputHost {
     private static final Orientation PORTRAIT = Orientation.Portrait;
 
     private final InputEngine engine;
-    private final boolean[] downState = new boolean[KeyCode.all.length];
 
     public BridgeInput() {
         engine = new InputEngine(new Sink(), () -> Core.graphics.getHeight());
@@ -51,25 +50,18 @@ public class BridgeInput extends Input implements InputHost {
         }
 
         @Override
-        public void keyDown(int deviceCode, int repeat) {
-            if (repeat > 0) return;
-
-            KeyCode key = KeyMap.getKeyCode(deviceCode);
-            int index = key.ordinal();
-            if (downState[index]) return;
-
-            downState[index] = true;
-            inputMultiplexer.keyDown(key);
+        public int keyId(int deviceCode) {
+            return KeyMap.getKeyCode(deviceCode).ordinal();
         }
 
         @Override
-        public void keyUp(int deviceCode, WireCharBuffer chars) {
-            KeyCode key = KeyMap.getKeyCode(deviceCode);
-            int index = key.ordinal();
-            if (!downState[index]) return;
+        public void keyPressed(int deviceCode) {
+            inputMultiplexer.keyDown(KeyMap.getKeyCode(deviceCode));
+        }
 
-            downState[index] = false;
-            inputMultiplexer.keyUp(key);
+        @Override
+        public void keyReleased(int deviceCode, WireCharBuffer chars) {
+            inputMultiplexer.keyUp(KeyMap.getKeyCode(deviceCode));
             type(chars);
         }
 
@@ -109,8 +101,7 @@ public class BridgeInput extends Input implements InputHost {
     }
 
     private void clearState() {
-        Arrays.fill(downState, false);
-        engine.clearPointers();
+        engine.clear();
     }
     //region text input and other peripherals
 

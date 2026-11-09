@@ -17,7 +17,6 @@ import java.util.*;
  * the loop that turns forwarded events back into a lifecycle on one thread with the EGL context current.
  */
 public class BridgeApplication implements Application, GameLoop.Host {
-    private static final long SURFACE_TIMEOUT_MILLIS = 20000;
 
 
     public final BridgeGraphics graphics;
@@ -27,12 +26,8 @@ public class BridgeApplication implements Application, GameLoop.Host {
 
     protected final Array<ApplicationListener> listeners = new Array<>();
 
-    /** Plain lists: Array.addAll and Array.clear return void on the older end of the range. */
-    private final List<Runnable> runnables = new ArrayList<>();
-    private final List<Runnable> executedRunnables = new ArrayList<>();
+    private final GameLoop gameLoop = new GameLoop();
 
-    /** Set once the first frame was handed to the surface: the ART side takes down whatever it showed until then. */
-    private boolean firstFrameMarked;
 
     public BridgeApplication() {
         this.graphics = new BridgeGraphics();
@@ -55,8 +50,8 @@ public class BridgeApplication implements Application, GameLoop.Host {
 
         graphics.configure();
 
-        if (!waitForWindow()) {
-            Log.error("no surface arrived within " + SURFACE_TIMEOUT_MILLIS + "ms; the game cannot start");
+        if (!gameLoop.waitForWindow()) {
+            Log.error("no surface arrived within " + GameLoop.SURFACE_TIMEOUT_MILLIS + "ms; the game cannot start");
             return;
         }
 
@@ -71,51 +66,22 @@ public class BridgeApplication implements Application, GameLoop.Host {
         for (ApplicationListener listener : listeners)
             listener.resize(graphics.getWidth(), graphics.getHeight());
 
-        new GameLoop().run(this);
+        gameLoop.run(this);
 
         teardown();
     }
 
-    /** Waits for ART to hand over the native window, taking events while waiting: ART creates the surface once its
-     *  main thread is free again, so the window pointer arrives as one of those events. */
-    private boolean waitForWindow() {
-        long deadline = System.currentTimeMillis() + SURFACE_TIMEOUT_MILLIS;
-        while (!Surface.ready()) {
-            JvmBus.pump();
-            if (Surface.ready())
-                return true;
-            if (System.currentTimeMillis() >= deadline)
-                return false;
-            sleep(2);
-        }
-        return true;
-    }
+
 
     @Override
     public boolean running() {
         return events.running();
     }
-
     @Override
-    public boolean paused() {
-        return events.paused();
+    public boolean canDraw() {
+        return !events.paused() && events.surfaceReady();
     }
 
-    @Override
-    public boolean surfaceReady() {
-        return events.surfaceReady();
-    }
-
-    @Override
-    public void pump() {
-        JvmBus.pump();
-        runPosted();
-    }
-
-    @Override
-    public void idle() {
-        sleep(4);
-    }
 
     @Override
     public void frame() {
@@ -131,10 +97,6 @@ public class BridgeApplication implements Application, GameLoop.Host {
         graphics.swapBuffers();
     }
 
-    @Override
-    public void firstFrame() {
-        JvmCall.onFirstFrameDrawn();
-    }
 
 
     private void teardown() {
@@ -159,20 +121,7 @@ public class BridgeApplication implements Application, GameLoop.Host {
         Log.info("game loop ended");
     }
 
-    private void runPosted() {
-        synchronized (runnables) {
-            executedRunnables.clear();
-            executedRunnables.addAll(runnables);
-            runnables.clear();
-        }
-        for (Runnable executedRunnable : executedRunnables) {
-            try {
-                executedRunnable.run();
-            } catch (Throwable t) {
-                Log.error(t);
-            }
-        }
-    }
+
 
     /** {@code Settings.autosave} is absent at the range's floor; the lambda is null there. */
     private static Runnable AUTOSAVE;
@@ -237,9 +186,7 @@ public class BridgeApplication implements Application, GameLoop.Host {
     /** Queues work for the loop thread, the only thread allowed to touch the game. */
     @Override
     public void post(Runnable runnable) {
-        synchronized (runnables) {
-            runnables.add(runnable);
-        }
+        gameLoop.post(runnable);
     }
 
     @Override

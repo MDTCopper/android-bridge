@@ -11,6 +11,15 @@ import java.util.*;
 public class BridgeInput extends Input {
     private static final int MAX_TOUCHES = 20;
 
+    // The enum constants were renamed without changing their order, so the ordinals below pick the same value at
+    // both ends of the range.
+    private static final Peripheral ONSCREEN_KEYBOARD = Peripheral.values()[1]; //onscreenKeyboard
+    private static final Peripheral MULTITOUCH_SCREEN = Peripheral.values()[2]; //multitouchScreen
+    private static final Peripheral VIBRATOR = Peripheral.values()[5]; //vibrator
+    private static final Peripheral PRESSURE = Peripheral.values()[8]; //pressure
+    private static final Orientation LANDSCAPE = Orientation.values()[0]; //landscape
+    private static final Orientation PORTRAIT = Orientation.values()[1]; //portrait
+
     /** The schema this bridge binds; an inner class because this one already extends arc's {@code Input}. */
     public final class Events extends InputBatch {
         @Override
@@ -272,10 +281,10 @@ public class BridgeInput extends Input {
      *  else is bridged: claiming one would hand the game a peripheral that never answers. */
     @Override
     public boolean isPeripheralAvailable(Peripheral peripheral) {
-        if (peripheral == Peripheral.onscreenKeyboard) return true;
-        if (peripheral == Peripheral.multitouchScreen) return true;
-        if (peripheral == Peripheral.vibrator) return JvmCall.isVibratorAvailable();
-        return peripheral == Peripheral.pressure;
+        if (peripheral == ONSCREEN_KEYBOARD) return true;
+        if (peripheral == MULTITOUCH_SCREEN) return true;
+        if (peripheral == VIBRATOR) return JvmCall.isVibratorAvailable();
+        return peripheral == PRESSURE;
     }
 
     /** The display's rotation in degrees, translated on the ART side, which owns the constants. */
@@ -287,7 +296,7 @@ public class BridgeInput extends Input {
     /** Whether the device's display is natively landscape, asked of ART and not cached. */
     @Override
     public Orientation getNativeOrientation() {
-        return JvmCall.isNativeLandscape() ? Orientation.landscape : Orientation.portrait;
+        return JvmCall.isNativeLandscape() ? LANDSCAPE : PORTRAIT;
     }
     //endregion
 

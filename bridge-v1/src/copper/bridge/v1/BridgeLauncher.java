@@ -77,8 +77,8 @@ public class BridgeLauncher extends ClientLauncher implements Platform {
         pick(open, title, new String[] {""}, cons);
     }
 
-    /** The same picker with a file-type filter; the multi-entry default arrived in this branch's range. */
-    @Override
+    /** The same picker with a file-type filter. The interface gained this method after the range's floor, so it
+     *  carries no {@code @Override}. */
     public void showMultiFileChooser(Cons<Fi> cons, String... extensions) {
         pick(true, "@open", extensions, cons);
     }

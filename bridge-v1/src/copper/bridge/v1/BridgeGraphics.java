@@ -275,6 +275,18 @@ public class BridgeGraphics extends Graphics {
         }
     }
 
+    private static int esMajor(String version) {
+        String prefix = "OpenGL ES ";
+        int start = version.indexOf(prefix);
+        if (start < 0)
+            return 0;
+        start += prefix.length();
+        int end = start;
+        while (end < version.length() && Character.isDigit(version.charAt(end)))
+            end++;
+        return end == start ? 0 : Integer.parseInt(version.substring(start, end));
+    }
+
     /** The ES3 wrapper must not be installed on a device that only offers ES2. */
     private void setupGL() {
         GLES.createCapabilities();
@@ -286,9 +298,11 @@ public class BridgeGraphics extends Graphics {
         String version = gl20.glGetString(GL20.GL_VERSION);
         String vendor = gl20.glGetString(GL20.GL_VENDOR);
         String renderer = gl20.glGetString(GL20.GL_RENDERER);
-        glVersion = new GLVersion(Application.ApplicationType.android, version, vendor, renderer);
+        glVersion = new GLVersion(BridgeApplication.ANDROID, version, vendor, renderer);
 
-        boolean supportsES3 = glVersion.atLeast(3, 0) && glVersion.majorVersion > 2;
+        // GLVersion exposes atLeast/majorVersion only on the newer end and getMajorVersion on the older one, so
+        // read the version string itself.
+        boolean supportsES3 = esMajor(version) >= 3;
         // an explicit request is not quietly downgraded: the caller asked for a version this context cannot be
         if (Bridge.options.glMode == GLMode.GL3 && !supportsES3)
             throw new IllegalStateException("OpenGL ES 3 was requested, but the context is " + version);
@@ -432,6 +446,12 @@ public class BridgeGraphics extends Graphics {
 
     @Override
     public float getDeltaTime() {
+        return deltaTime;
+    }
+
+    /** Abstract on the older end of the range, removed before its newer one: no {@code @Override} on purpose. */
+    @SuppressWarnings("unused")
+    public float getRawDeltaTime() {
         return deltaTime;
     }
 

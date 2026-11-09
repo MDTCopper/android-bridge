@@ -8,6 +8,8 @@ import copper.bridge.gen.*;
 import copper.bridge.jvm.Surface;
 import copper.bridge.util.*;
 
+import java.util.*;
+
 /**
  * arc's application object for the JVM side of the bridge. On Android arc is driven by ART - the activity owns the
  * lifecycle callbacks, a {@code GLSurfaceView} owns the render thread - and neither exists here, so this class owns
@@ -16,6 +18,9 @@ import copper.bridge.util.*;
 public class BridgeApplication implements Application {
     private static final long SURFACE_TIMEOUT_MILLIS = 20000;
 
+    /** {@code android}, by ordinal: the constant is capitalized on the range's older end. */
+    public static final ApplicationType ANDROID = ApplicationType.values()[0];
+
     public final BridgeGraphics graphics;
     public final BridgeInput input;
     public final BridgeFiles files;
@@ -23,8 +28,9 @@ public class BridgeApplication implements Application {
 
     protected final Seq<ApplicationListener> listeners = new Seq<>();
 
-    protected final Seq<Runnable> runnables = new Seq<>();
-    private final Seq<Runnable> executedRunnables = new Seq<>();
+    /** Plain lists: Seq.addAll and Seq.clear return void on the older end of the range and Seq here. */
+    private final List<Runnable> runnables = new ArrayList<>();
+    private final List<Runnable> executedRunnables = new ArrayList<>();
 
     /** Set once the first frame was handed to the surface: the ART side takes down whatever it showed until then. */
     private boolean firstFrameMarked;
@@ -187,7 +193,7 @@ public class BridgeApplication implements Application {
 
     @Override
     public ApplicationType getType() {
-        return ApplicationType.android;
+        return ANDROID;
     }
 
     @Override

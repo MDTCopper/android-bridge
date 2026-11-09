@@ -17,7 +17,7 @@ public class BridgeInput extends Input implements copper.bridge.v1.InputHost {
     /** Absent at the range's floor; the lambda calls the newer postUpdate directly. */
     private final Runnable postUpdate = MethodLambdas.boundRunnable(keyboard, "postUpdate");
 
-    // The enum constants were renamed without changing their order, so the ordinals survive the range.
+    // v6..v8 share this class; the enum constants were renamed without changing their order.
     private static final Peripheral ONSCREEN_KEYBOARD = Peripheral.values()[1]; //onscreenKeyboard
     private static final Peripheral MULTITOUCH_SCREEN = Peripheral.values()[2]; //multitouchScreen
     private static final Peripheral VIBRATOR = Peripheral.values()[5]; //vibrator

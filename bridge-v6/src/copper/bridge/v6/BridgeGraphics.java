@@ -50,6 +50,7 @@ public class BridgeGraphics extends Graphics implements copper.bridge.v1.Graphic
 
     private int width;
     private int height;
+    private int safeInsetLeft, safeInsetRight, safeInsetTop, safeInsetBottom;
 
     private long frameId = -1;
     private long lastFrameTime = -1;
@@ -306,6 +307,7 @@ public class BridgeGraphics extends Graphics implements copper.bridge.v1.Graphic
         String version = gl20.glGetString(GL20.GL_VERSION);
         String vendor = gl20.glGetString(GL20.GL_VENDOR);
         String renderer = gl20.glGetString(GL20.GL_RENDERER);
+        // Ordinal, not the constant: its spelling changes before v8, the order does not.
         glVersion = new GLVersion(Application.ApplicationType.values()[0], version, vendor, renderer);
 
         // GLVersion exposes atLeast/majorVersion only on the newer end and getMajorVersion on the older one, so
@@ -366,6 +368,19 @@ public class BridgeGraphics extends Graphics implements copper.bridge.v1.Graphic
      *  the game as one delta and step its physics in one jump. */
     public void markResumed() {
         resumed = true;
+    }
+
+    /** v8 asks its Graphics for this; v6 has neither a caller nor the interface method, so no {@code @Override}. */
+    public void safeInsetsUpdated(int top, int bottom, int left, int right) {
+        safeInsetTop = top;
+        safeInsetBottom = bottom;
+        safeInsetLeft = left;
+        safeInsetRight = right;
+    }
+
+    /** @see #safeInsetsUpdated; no {@code @Override} for the same reason. */
+    public int[] getSafeInsets() {
+        return new int[]{safeInsetLeft, safeInsetRight, safeInsetTop, safeInsetBottom};
     }
 
     public void beginFrame() {

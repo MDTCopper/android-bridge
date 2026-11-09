@@ -20,6 +20,7 @@ public class JvmArgs {
     private final List<String> user = new ArrayList<>();
     private final List<String> notes = new ArrayList<>();
     private final Map<String, String> properties = new LinkedHashMap<>();
+    private List<String> classpath = new ArrayList<>();
 
     public JvmArgs() {
         this.user.addAll(Bridge.options.jvmArgs);
@@ -100,7 +101,16 @@ public class JvmArgs {
     }
 
     /** Assembles the argument vector handed to {@code JLI_Launch}; {@code java} is {@code argv[0]}. */
-    public List<String> build(String java, String mainClass, List<String> classpath, List<String> loaderArgs) {
+    public List<String> build() {
+        String java = Bridge.options.javaExecutable.getAbsolutePath();
+        classpath = Bridge.options.jvmClasspath();
+
+        List<String> loaderArgs = new ArrayList<>();
+        if (Bridge.options.usesCustomLoader())
+            loaderArgs.add(BridgeOptions.CLASS_PATH_OPTION + "=" + String.join(File.pathSeparator,
+                    Bridge.options.bridgeClasspath()));
+        loaderArgs.addAll(Bridge.options.positional);
+
         List<String> args = new ArrayList<>();
         args.add(java);
         args.addAll(properties());
@@ -108,13 +118,50 @@ public class JvmArgs {
         args.addAll(user);
         args.add("-cp");
         args.add(String.join(File.pathSeparator, classpath));
-        args.add(mainClass);
+        args.add(mainClass());
         args.addAll(loaderArgs);
         return args;
     }
 
+    /** The environment the JVM starts with; the caller only has to pass it to the native setter. */
+    public Map<String, String> environment() {
+        Map<String, String> env = new LinkedHashMap<>();
+        env.put("JAVA_HOME", Bridge.options.javaHome.getAbsolutePath());
+        env.put("HOME", Bridge.options.gameDataFolder.getAbsolutePath());
+        env.put("MINDUSTRY_DATA_DIR", Bridge.options.gameDataFolder.getAbsolutePath());
+        env.put("TMPDIR", new File(Bridge.options.cacheFolder, "tmp").getAbsolutePath());
+        env.put("PATH", new File(Bridge.options.javaHome, "bin").getAbsolutePath() + ":" + System.getenv("PATH"));
+
+        StringBuilder ld = new StringBuilder();
+        for (File dir : libraryDirs()) {
+            if (ld.length() > 0)
+                ld.append(':');
+            ld.append(dir.getAbsolutePath());
+        }
+        env.put("LD_LIBRARY_PATH", ld.toString());
+        return env;
+    }
+
+    /** JRE library directories, then the staged arc natives: the order the linker is pointed at. */
+    public List<File> libraryDirs() {
+        File lib = new File(Bridge.options.javaHome, "lib");
+        List<File> dirs = new ArrayList<>();
+        dirs.add(new File(lib, "jli"));
+        for (String arch : Device.archCandidates()) {
+            dirs.add(new File(new File(lib, arch), "server"));
+            dirs.add(new File(new File(lib, arch), "client"));
+            dirs.add(new File(lib, arch));
+        }
+        dirs.add(lib);
+
+        File nativeFolder = Bridge.options.arcNativeFolder;
+        if (nativeFolder != null && nativeFolder.exists())
+            dirs.add(nativeFolder);
+        return dirs;
+    }
+
     /** Logs the classpath and the override notes; the whole argument vector is a debug line, not an info one. */
-    public void print(List<String> args, String jre, List<String> classpath) {
+    public void print(List<String> args, String jre) {
         Log.info("jre  = " + jre);
 
         Log.info("classpath:");
@@ -129,7 +176,7 @@ public class JvmArgs {
             Log.debug("  " + arg);
     }
 
-    public String mainClass() {
+    private String mainClass() {
         return Bridge.options.usesCustomLoader() ? Bridge.options.customMainClass : "copper.bridge.jvm.Main";
     }
 

@@ -89,8 +89,8 @@ public final class BranchClassLoader extends ClassLoader {
             if (jar.getJarEntry(name) == null)
                 continue;
             try {
-                return new URL("jar:" + new File(jar.getName()).toURI().toURL() + "!/" + name);
-            } catch (MalformedURLException ignored) {
+                return new URI("jar:" + new File(jar.getName()).toURI().toURL() + "!/" + name).toURL();
+            } catch (URISyntaxException | MalformedURLException ignored) {
             }
         }
         return null;

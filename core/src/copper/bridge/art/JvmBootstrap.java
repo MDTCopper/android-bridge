@@ -11,7 +11,7 @@ import java.util.*;
  * Starts the JVM from the ART side, on its own thread: {@code JLI_Launch} does not return until the game exits. The
  * order below is the one the Android linker forces.
  */
-public class Bootstrap {
+public class JvmBootstrap {
 
     public static void start() {
         File jre = Bridge.options.javaHome;

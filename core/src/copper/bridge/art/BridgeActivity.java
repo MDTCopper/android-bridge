@@ -94,7 +94,7 @@ public class BridgeActivity extends android.app.Activity {
 
     private void startJvm() {
         try {
-            Bootstrap.start();
+            JvmBootstrap.start();
         } catch (Throwable e) {
             Log.error("failed to start the JVM");
             Log.error(e);

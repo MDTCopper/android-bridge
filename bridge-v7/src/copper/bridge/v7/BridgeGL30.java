@@ -1,6 +1,7 @@
 package copper.bridge.v7;
 
 import arc.graphics.*;
+import copper.bridge.v6.BridgeGL20;
 import java.nio.*;
 import org.lwjgl.*;
 import org.lwjgl.opengles.*;

@@ -22,6 +22,7 @@ sourceSets {
 
 dependencies {
     api project(':core')
+    // the render core is shared with v2/v3
 
     // android.jar supplies android.*; the JVM side never loads these classes.
     def sdkRoot = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")

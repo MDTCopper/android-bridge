@@ -22,7 +22,6 @@ sourceSets {
 dependencies {
     api project(':core')
     // the shared 6-line classes are compiled once in v2; v3 adds only its ClientLauncher entry points
-    compileOnly project(':bridge-v2')
 
     // android.jar supplies android.*; the JVM side never loads these classes.
     def sdkRoot = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")

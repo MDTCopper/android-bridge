@@ -5,6 +5,7 @@ import io.anuke.arc.input.KeyCode;
 import io.anuke.arc.collection.*;
 
 import copper.bridge.gen.*;
+import copper.bridge.v2.BridgeGraphics;
 import copper.bridge.jvm.Events;
 import copper.bridge.jvm.MusicListeners;
 import copper.bridge.jvm.Surface;

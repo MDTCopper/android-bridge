@@ -27,7 +27,8 @@ public final class BridgeClosure {
         Map<String, ClassRef> refs = new LinkedHashMap<>();
         Map<String, ReflectionRef> reflections = new LinkedHashMap<>();
         Set<String> visited = new HashSet<>();
-        Deque<BridgeRef> queue = new ArrayDeque<>(ClassRefs.readBridge(bridge));
+        java.util.List<BridgeRef> initial = ClassRefs.readBridge(bridge);
+        Deque<BridgeRef> queue = new ArrayDeque<>(initial);
 
         while (!queue.isEmpty()) {
             BridgeRef ref = queue.removeFirst();
@@ -53,7 +54,8 @@ public final class BridgeClosure {
                 continue;
             }
 
-            for (ClassRef used : ClassRefs.readClass(classFile, ref.owner)) {
+            java.util.List<ClassRef> targetRefs = ClassRefs.readClass(classFile, ref.owner);
+            for (ClassRef used : targetRefs) {
                 if (used.isGameOrArc()) {
                     ClassRef plain = new ClassRef(used.sourceClass, used.owner, used.name, used.descriptor, null);
                     refs.putIfAbsent(plain.key(), plain);
@@ -70,7 +72,6 @@ public final class BridgeClosure {
                 reflections.putIfAbsent(plain.key(), plain);
             }
         }
-
         result.refs.addAll(refs.values());
         result.reflections.addAll(reflections.values());
         return result;

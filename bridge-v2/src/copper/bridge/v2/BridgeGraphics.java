@@ -6,6 +6,8 @@ import io.anuke.arc.graphics.*;
 import io.anuke.arc.graphics.glutils.*;
 
 import copper.bridge.*;
+import copper.bridge.v1.BridgeGL20;
+import copper.bridge.v1.BridgeGL30;
 import copper.bridge.BridgeOptions.GLMode;
 import copper.bridge.jvm.*;
 import copper.bridge.util.*;

@@ -22,7 +22,6 @@ sourceSets {
 dependencies {
     api project(':core')
     // the pre-ClientLauncher platform hooks are identical in v1 and v2; v2 reuses v1's class
-    compileOnly project(':bridge-v1')
 
     // android.jar supplies android.*; the JVM side never loads these classes.
     def sdkRoot = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")

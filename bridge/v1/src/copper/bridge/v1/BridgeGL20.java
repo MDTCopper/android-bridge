@@ -853,4 +853,75 @@ public class BridgeGL20 implements GL20 {
     public void glVertexAttribPointer(int indx, int size, int type, boolean normalized, int stride, int ptr) {
         GLES20.glVertexAttribPointer(indx, size, type, normalized, stride, (long)ptr);
     }
+
+    // The floor's interface takes NIO buffers where the ceiling takes arrays and single ids. Both spellings stay on
+    // the class; the floor calls these, the ceiling calls the methods above.
+    @BridgeOverride
+    public void glGenTextures(int n, IntBuffer textures) {
+        GLES20.nglGenTextures(n, bufferAddress(textures));
+    }
+
+    @BridgeOverride
+    public void glDeleteTextures(int n, IntBuffer textures) {
+        GLES20.nglDeleteTextures(n, bufferAddress(textures));
+    }
+
+    @BridgeOverride
+    public void glGenBuffers(int n, IntBuffer buffers) {
+        GLES20.nglGenBuffers(n, bufferAddress(buffers));
+    }
+
+    @BridgeOverride
+    public void glDeleteBuffers(int n, IntBuffer buffers) {
+        GLES20.nglDeleteBuffers(n, bufferAddress(buffers));
+    }
+
+    @BridgeOverride
+    public void glGenFramebuffers(int n, IntBuffer framebuffers) {
+        GLES20.nglGenFramebuffers(n, bufferAddress(framebuffers));
+    }
+
+    @BridgeOverride
+    public void glDeleteFramebuffers(int n, IntBuffer framebuffers) {
+        GLES20.nglDeleteFramebuffers(n, bufferAddress(framebuffers));
+    }
+
+    @BridgeOverride
+    public void glGenRenderbuffers(int n, IntBuffer renderbuffers) {
+        GLES20.nglGenRenderbuffers(n, bufferAddress(renderbuffers));
+    }
+
+    @BridgeOverride
+    public void glDeleteRenderbuffers(int n, IntBuffer renderbuffers) {
+        GLES20.nglDeleteRenderbuffers(n, bufferAddress(renderbuffers));
+    }
+
+    @BridgeOverride
+    public void glGetAttachedShaders(int program, int maxCount, Buffer count, IntBuffer shaders) {
+        GLES20.nglGetAttachedShaders(program, maxCount, bufferAddress(count), bufferAddress(shaders));
+    }
+
+    @BridgeOverride
+    public String glGetActiveAttrib(int program, int index, IntBuffer size, Buffer type) {
+        if (!(type instanceof IntBuffer))
+            throw new IllegalArgumentException("unsupported active attribute type buffer: " + type.getClass().getName());
+        return GLES20.glGetActiveAttrib(program, index, size, (IntBuffer)type);
+    }
+
+    @BridgeOverride
+    public String glGetActiveUniform(int program, int index, IntBuffer size, Buffer type) {
+        if (!(type instanceof IntBuffer))
+            throw new IllegalArgumentException("unsupported active uniform type buffer: " + type.getClass().getName());
+        return GLES20.glGetActiveUniform(program, index, size, (IntBuffer)type);
+    }
+
+    @BridgeOverride
+    public void glGetVertexAttribPointerv(int index, int pname, Buffer pointer) {
+        GLES20.nglGetVertexAttribPointerv(index, pname, bufferAddress(pointer));
+    }
+
+    @BridgeOverride
+    public void glShaderBinary(int n, IntBuffer shaders, int binaryFormat, Buffer binary, int length) {
+        GLES20.nglShaderBinary(n, bufferAddress(shaders), binaryFormat, bufferAddress(binary), length);
+    }
 }

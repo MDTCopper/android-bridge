@@ -3,6 +3,7 @@ package copper.bridge.compat.check;
 import copper.bridge.compat.api.*;
 import copper.bridge.compat.sources.RefJars;
 import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
 
 import java.io.*;
 import java.nio.file.*;
@@ -10,13 +11,14 @@ import java.util.*;
 import java.util.stream.*;
 
 /**
- * Forces a branch class to implement a method whose game supertype declares it abstract at the floor and a default
- * method at the ceiling.
+ * Forces a branch class to implement every method its game supertype leaves abstract at the floor.
  *
- * <p>The branch compiles against the ceiling, so {@code javac} is satisfied with the default; the floor has no method
- * body, and the call only fails on that device, as an {@code AbstractMethodError}. The reverse direction and methods
- * abstract at both ends are already enforced by compilation, and methods that disappear at the ceiling are not an
- * abstract/default change; none of those are reported here.
+ * <p>The branch compiles against the ceiling, so {@code javac} only enforces the methods that are abstract there.
+ * A method that is abstract at the floor and default or gone at the ceiling is therefore easy to miss: the class
+ * loads on the older device and the first call fails as an {@code AbstractMethodError}. This comparer reports any
+ * such method the class does not declare. A method abstract at the ceiling as well is already enforced by the
+ * compiler and is not reported here. A floor method whose descriptor names a type the ceiling no longer has cannot
+ * be declared in source at all; it is printed as a warning instead of an error.
  */
 public final class ImplementationComparer {
     private final Map<String, ClassInfo> branch = new HashMap<>();
@@ -50,16 +52,39 @@ public final class ImplementationComparer {
             for (Map.Entry<String, Boolean> entry : floor.entrySet()) {
                 if (!entry.getValue())
                     continue;
-                // only an abstract-at-floor/default-at-ceiling change; the other directions cannot be left unimplemented
-                if (!Boolean.FALSE.equals(ceiling.get(entry.getKey())))
+                // a method still abstract at the ceiling is enforced by compiling the branch against it
+                if (Boolean.TRUE.equals(ceiling.get(entry.getKey())))
                     continue;
                 if (comparer.implemented(type, entry.getKey()))
                     continue;
-                issues.add("method is abstract at floor but a default at ceiling and not implemented: " + type.name
+                // The branch compiles against the ceiling: a type that is gone there cannot appear in a source
+                // declaration, so the floor method cannot be added without a compile-time placeholder.
+                if (!representable(entry.getKey(), jars.jar(range.ceiling))) {
+                    System.out.println("  warning: " + type.name + "." + entry.getKey()
+                            + " is abstract at the floor but uses a type absent at the ceiling");
+                    continue;
+                }
+                issues.add("method is abstract at floor but not implemented: " + type.name
                         + "." + entry.getKey() + " (floor " + range.floor + ", ceiling " + range.ceiling + ")");
             }
         }
         return issues;
+    }
+
+    /** Whether every type in the method descriptor exists in the ceiling jar, so source can name it. */
+    private static boolean representable(String key, JarIndex ceiling) {
+        Type method = Type.getMethodType(key.substring(key.indexOf('(')));
+        for (Type type : method.getArgumentTypes()) {
+            if (!present(type, ceiling))
+                return false;
+        }
+        return present(method.getReturnType(), ceiling);
+    }
+
+    private static boolean present(Type type, JarIndex ceiling) {
+        if (type.getSort() == Type.ARRAY)
+            type = type.getElementType();
+        return type.getSort() != Type.OBJECT || ceiling.classInfo(type.getInternalName()) != null;
     }
 
     private void index(Path directory) {

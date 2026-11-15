@@ -554,4 +554,18 @@ public class BridgeGraphics extends Graphics {
     @BridgeOverride
     protected void setSystemCursor(SystemCursor systemCursor) {
     }
+
+    /** The floor still declares these; the ceiling removed the whole desktop-display group. */
+    @BridgeOverride
+    public boolean supportsDisplayModeChange() {
+        return false;
+    }
+
+    @BridgeOverride
+    public void setUndecorated(boolean undecorated) {
+    }
+
+    @BridgeOverride
+    public void setResizable(boolean resizable) {
+    }
 }

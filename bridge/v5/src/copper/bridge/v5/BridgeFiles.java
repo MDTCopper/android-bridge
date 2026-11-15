@@ -29,6 +29,12 @@ public class BridgeFiles implements Files {
         return new BridgeFi(this, path, type);
     }
 
+    /** The floor's name for {@link #get}; the interface renamed it inside this branch's range. */
+    @BridgeOverride
+    public Fi getFileHandle(String path, FileType type) {
+        return new BridgeFi(this, path, type);
+    }
+
     // Default methods at this branch's ceiling, abstract at its floor: declaring them keeps the older end working.
     @BridgeOverride
     public Fi classpath(String path) {

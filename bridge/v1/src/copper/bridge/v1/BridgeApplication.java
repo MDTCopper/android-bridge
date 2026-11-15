@@ -207,6 +207,10 @@ public class BridgeApplication implements Application {
         }
 
         @BridgeOverride
+        public void cancelHttpRequest(HttpRequest request) {
+        }
+
+        @BridgeOverride
         public boolean openURI(String uri) {
             return JvmCall.openUri(uri);
         }

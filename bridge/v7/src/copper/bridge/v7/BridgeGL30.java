@@ -449,4 +449,91 @@ public class BridgeGL30 extends BridgeGL20 implements GL30 {
     public void glInvalidateSubFramebuffer(int target, int numAttachments, IntBuffer attachments, int x, int y, int width, int height) {
         GLES30.nglInvalidateSubFramebuffer(target, numAttachments, bufferAddress(attachments), x, y, width, height);
     }
+
+    // The floor's interface still has the int[] and String overloads; the ceiling removed them. They stay for the
+    // older end and are never called on the newer one.
+    @BridgeOverride
+    public void glGenQueries(int n, int[] ids, int offset) {
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            IntBuffer buffer = stack.mallocInt(n);
+            buffer.position(0);
+            GLES30.nglGenQueries(n, bufferAddress(buffer));
+            buffer.get(ids, offset, n);
+        }
+    }
+
+    @BridgeOverride
+    public void glDeleteQueries(int n, int[] ids, int offset) {
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            IntBuffer buffer = stack.mallocInt(n);
+            buffer.put(ids, offset, n);
+            buffer.position(0);
+            GLES30.nglDeleteQueries(n, bufferAddress(buffer));
+        }
+    }
+
+    @BridgeOverride
+    public void glGenVertexArrays(int n, int[] arrays, int offset) {
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            IntBuffer buffer = stack.mallocInt(n);
+            buffer.position(0);
+            GLES30.nglGenVertexArrays(n, bufferAddress(buffer));
+            buffer.get(arrays, offset, n);
+        }
+    }
+
+    @BridgeOverride
+    public void glDeleteVertexArrays(int n, int[] arrays, int offset) {
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            IntBuffer buffer = stack.mallocInt(n);
+            buffer.put(arrays, offset, n);
+            buffer.position(0);
+            GLES30.nglDeleteVertexArrays(n, bufferAddress(buffer));
+        }
+    }
+
+    @BridgeOverride
+    public String glGetActiveUniformBlockName(int program, int uniformBlockIndex) {
+        return GLES30.glGetActiveUniformBlockName(program, uniformBlockIndex);
+    }
+
+    @BridgeOverride
+    public void glGenSamplers(int count, int[] samplers, int offset) {
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            IntBuffer buffer = stack.mallocInt(count);
+            buffer.position(0);
+            GLES30.nglGenSamplers(count, bufferAddress(buffer));
+            buffer.get(samplers, offset, count);
+        }
+    }
+
+    @BridgeOverride
+    public void glDeleteSamplers(int count, int[] samplers, int offset) {
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            IntBuffer buffer = stack.mallocInt(count);
+            buffer.put(samplers, offset, count);
+            buffer.position(0);
+            GLES30.nglDeleteSamplers(count, bufferAddress(buffer));
+        }
+    }
+
+    @BridgeOverride
+    public void glGenTransformFeedbacks(int n, int[] ids, int offset) {
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            IntBuffer buffer = stack.mallocInt(n);
+            buffer.position(0);
+            GLES30.nglGenTransformFeedbacks(n, bufferAddress(buffer));
+            buffer.get(ids, offset, n);
+        }
+    }
+
+    @BridgeOverride
+    public void glDeleteTransformFeedbacks(int n, int[] ids, int offset) {
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            IntBuffer buffer = stack.mallocInt(n);
+            buffer.put(ids, offset, n);
+            buffer.position(0);
+            GLES30.nglDeleteTransformFeedbacks(n, bufferAddress(buffer));
+        }
+    }
 }

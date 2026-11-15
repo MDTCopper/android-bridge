@@ -34,8 +34,8 @@ public class Main {
         // turning the process's stdout and stderr into logcat and the log file. The flag moved inside the range.
         configureLog();
 
-        BridgeApplication application = new BridgeApplication();
-        application.addListener(new BridgeLauncher());
+        BridgeApplication application = BridgeApplications.create();
+        application.addListener(BridgeLaunchers.create());
         installNetProviders();
 
         // only a thread that dies of its own exception consults the default handler, and this throw happens on the

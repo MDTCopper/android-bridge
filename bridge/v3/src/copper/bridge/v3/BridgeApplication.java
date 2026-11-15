@@ -39,9 +39,17 @@ public class BridgeApplication implements Application {
 
     public BridgeApplication() {
         this.graphics = new BridgeGraphics();
-        this.input = new BridgeInput();
+        this.input = createInput();
         this.files = new BridgeFiles();
         this.events = new BridgeEvents(graphics, input, listeners);
+    }
+
+    protected BridgeInput createInput() {
+        return new BridgeInput();
+    }
+
+    protected Net createNet() {
+        return new NoNet();
     }
 
     /** Runs the game until it exits, blocking the calling thread, which must be the JVM main thread. LWJGL has to be
@@ -53,7 +61,7 @@ public class BridgeApplication implements Application {
         Core.files = files;
         Core.settings = new Settings();
         initAudio();
-        Core.net = new NoNet();
+        Core.net = createNet();
 
         graphics.configure();
 

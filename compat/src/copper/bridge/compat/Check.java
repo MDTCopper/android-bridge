@@ -189,10 +189,19 @@ public final class Check {
         for (String path : bridgePaths)
             paths.add(Paths.get(path));
         List<JarIndex> games = new ArrayList<>();
-        games.add(jars.jar(epoch.trim()));
-        // A class compiled against the floor can name a type the epoch removed; it is still the game's, and its own
-        // @CompatRange limits the comparison to the floor.
-        if (floor != null && !floor.trim().isEmpty() && !floor.trim().equals(epoch.trim()))
+        Set<String> seen = new HashSet<>();
+        String epochRef = epoch.trim();
+        games.add(jars.jar(epochRef));
+        seen.add(epochRef);
+        // A class compiled for an interior ref (a @CompatRange legacy class) is still the game's even when no endpoint
+        // jar carries it; stage it as a game layer so the reference is not reported as dangling.
+        for (String spec : repeated(args, "jar")) {
+            int split = spec.indexOf('=');
+            String ref = spec.substring(0, split);
+            if (seen.add(ref))
+                games.add(jars.jar(ref));
+        }
+        if (floor != null && !floor.trim().isEmpty() && seen.add(floor.trim()))
             games.add(jars.jar(floor.trim()));
         return new ClassOrigins(branchClasses, paths, games);
     }

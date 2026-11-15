@@ -16,7 +16,7 @@ def propertiesPath = rootProject.file('gradle.properties').absolutePath
 
 // v1/v8/v9 have a second source set compiled against their floor; pack reads it by its conventional output path
 // because a cross-project sourceSets lookup at pack's configuration time races that project's configuration.
-def legacyBranches = ['v1', 'v5', 'v8', 'v9']
+def legacyBranches = ['v1', 'v3', 'v5', 'v8', 'v9']
 
 def classDirs = declaredBranches.collectEntries { String branch ->
     def dirs = [project(":bridge:${branch}").sourceSets.main.output.classesDirs.singleFile]

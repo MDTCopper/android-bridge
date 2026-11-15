@@ -36,6 +36,10 @@ public class BridgeLauncher extends ClientLauncher implements Platform {
         });
 
         // break force landscape set by some launchers
+        installEvents();
+    }
+
+    protected void installEvents() {
         Events.on(EventType.ClientLoadEvent.class, e -> {
             if (!Core.settings.getBool("landscape"))
                 endForceLandscape();
@@ -45,11 +49,15 @@ public class BridgeLauncher extends ClientLauncher implements Platform {
     /** Writes the crash report through the game's own sender; {@code send} is the only entry in this range. */
     private void handleCrash(Throwable cause) {
         try {
-            CrashSender.send(cause, file -> {
-            });
+            sendCrash(cause);
         } catch (Throwable ignored) {
             io.anuke.arc.util.Log.err(cause);
         }
+    }
+
+    protected void sendCrash(Throwable cause) {
+        CrashSender.send(cause, file -> {
+        });
     }
 
     @BridgeOverride

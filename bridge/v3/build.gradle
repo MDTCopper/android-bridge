@@ -12,10 +12,14 @@
 def branch = name.startsWith('bridge-') ? name.substring('bridge-'.length()) : name
 def epochClasspath = rootProject.ext.epochClasspath(branch)
 def epoch = rootProject.ext.epochInfo(branch)
+def floorJar = rootProject.ext.fetchEpoch('5695')
 
 sourceSets {
     main {
         java.srcDirs = ["src"]
+    }
+    legacy {
+        java.srcDirs = ["legacy"]
     }
 }
 
@@ -51,4 +55,22 @@ tasks.named('compileJava') {
                     "Run :prepareEpoch${branch.capitalize()}, or drop -PskipEpochPrepare.")
         }
     }
+}
+
+dependencies {
+    legacyImplementation project(':core')
+    legacyCompileOnly files(sourceSets.main.output.classesDirs.singleFile)
+    legacyCompileOnly files(floorJar)
+    legacyCompileOnly platform("org.lwjgl:lwjgl-bom:${property('lwjglVersion')}")
+    legacyCompileOnly "org.lwjgl:lwjgl"
+    legacyCompileOnly "org.lwjgl:lwjgl-egl"
+    legacyCompileOnly "org.lwjgl:lwjgl-opengles"
+}
+
+tasks.named('classes') {
+    dependsOn 'compileLegacyJava'
+}
+
+tasks.named('compileLegacyJava') {
+    dependsOn 'compileJava'
 }

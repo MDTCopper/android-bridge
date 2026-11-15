@@ -173,10 +173,8 @@ public final class TypeHistoryAudit {
         if (clone.equals(game))
             return new Resolved(gameFrom, gameTo);
 
-        String arcFrom = revision(clone, from) ? from
-                : arcCommit(game, clone, gameFrom);
-        String arcTo = revision(clone, to) ? to
-                : arcCommit(game, clone, gameTo);
+        String arcFrom = revision(clone, from) ? from : before(clone, gameTime(game, gameFrom));
+        String arcTo = revision(clone, to) ? to : before(clone, gameTime(game, gameTo));
         return arcFrom == null || arcTo == null ? null : new Resolved(arcFrom, arcTo);
     }
 
@@ -244,6 +242,53 @@ public final class TypeHistoryAudit {
      * Rebuilds every owner's presence from the tree at {@code from} and one name-status log. Matches suffix once per
      * changed path, not once per owner per commit.
      */
+    /** Samples arc at the revision each game commit recorded, not at every internal arc commit. */
+    private static History arcHistory(Path game, Path arc, Path jars, Path properties, String from, String to,
+                                      List<String> owners, List<String> issues)
+            throws IOException, InterruptedException {
+        String gameFrom = gameRevision(game, jars, properties, from, issues);
+        String gameTo = gameRevision(game, jars, properties, to, issues);
+        if (gameFrom == null || gameTo == null)
+            return new History(Collections.emptyMap(), 0);
+        List<String> commits = output(game, "rev-list", "--reverse", gameFrom + ".." + gameTo);
+        Map<String, Set<String>> trees = new HashMap<>();
+        List<String> suffixes = new ArrayList<>();
+        for (String owner : owners) {
+            String base = owner.contains("$") ? owner.substring(0, owner.indexOf('$')) : owner;
+            suffixes.add("/" + base + ".java");
+        }
+        StringBuilder[] sequences = new StringBuilder[owners.size()];
+        for (int i = 0; i < owners.size(); i++)
+            sequences[i] = new StringBuilder();
+        for (String commit : commits) {
+            String arcRef = archash(game, commit);
+            if (arcRef == null || !revision(arc, arcRef))
+                arcRef = before(arc, gameTime(game, commit));
+            Set<String> paths = arcRef == null ? Collections.emptySet()
+                    : trees.computeIfAbsent(arcRef, key -> {
+                        try {
+                            return new HashSet<>(output(arc, "ls-tree", "-r", "--name-only", key));
+                        } catch (Exception e) {
+                            return Collections.emptySet();
+                        }
+                    });
+            for (int i = 0; i < owners.size(); i++) {
+                boolean present = false;
+                for (String path : paths) {
+                    if (path.endsWith(suffixes.get(i))) {
+                        present = true;
+                        break;
+                    }
+                }
+                sequences[i].append(present ? '1' : '0');
+            }
+        }
+        Map<String, String> result = new LinkedHashMap<>();
+        for (int i = 0; i < owners.size(); i++)
+            result.put(owners.get(i), sequences[i].toString());
+        return new History(result, commits.size());
+    }
+
     private static History history(Path clone, String from, String to, List<String> owners)
             throws IOException, InterruptedException {
         Set<String> paths = new HashSet<>(output(clone, "ls-tree", "-r", "--name-only", from));
@@ -274,7 +319,7 @@ public final class TypeHistoryAudit {
             sequences[i].append(counts[i] > 0 ? '1' : '0');
         }
 
-        List<String> lines = output(clone, "log", "--reverse", "--format=@@%H",
+        List<String> lines = output(clone, "log", "--reverse", "--first-parent", "--format=@@%H",
                 "--name-status", "--diff-filter=ADR", from + ".." + to);
         boolean started = false;
         List<String[]> changes = new ArrayList<>();

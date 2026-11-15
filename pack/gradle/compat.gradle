@@ -133,3 +133,30 @@ tasks.register('auditWindowSources') {
     description = "Audits every release-window branch against the game and arc source clones."
     dependsOn auditBranches.collect { "auditWindow${it.capitalize()}" }
 }
+
+auditBranches.each { String branch ->
+    tasks.register("auditMembers${branch.capitalize()}", JavaExec) {
+        group = 'pack'
+        description = "Audits ${branch}'s methods, fields and nested classes across its commits."
+        dependsOn 'enhanceBranches'
+        classpath = project(':compat').sourceSets.main.runtimeClasspath
+        mainClass = 'copper.bridge.compat.audit.MemberAudit'
+        args '--branch', branch, '--classes', new File(enhancedRoot, branch).absolutePath,
+                '--mindustry', mindustryClone.absolutePath, '--arc', arcClone.absolutePath,
+                '--from', releaseTag(findProperty("${branch}.minVersionNumber").toString())
+        def to = findProperty("${branch}.maxVersionNumber")
+        if (to)
+            args '--to', releaseTag(to.toString())
+        doFirst {
+            if (!new File(mindustryClone, '.git').isDirectory() || !new File(arcClone, '.git').isDirectory())
+                throw new GradleException("member audit needs the game and arc clones; pass -PmindustryClone and"
+                        + " -ParcClone (looked for ${mindustryClone} and ${arcClone})")
+        }
+    }
+}
+
+tasks.register('auditMemberSources') {
+    group = 'pack'
+    description = "Audits every release-window branch's members across its commits."
+    dependsOn auditBranches.collect { "auditMembers${it.capitalize()}" }
+}

@@ -108,7 +108,7 @@ public final class WindowAudit {
                 + " transient type(s) across " + commits + " commit(s)");
     }
 
-    private static final class Resolved {
+    static final class Resolved {
         final String from;
         final String to;
 
@@ -122,7 +122,7 @@ public final class WindowAudit {
      * Resolves both revisions. Arc has no tags before v93, so its window is anchored to the game tag commit time and
      * the nearest earlier Arc commit, reported so the approximation is never silent.
      */
-    private static Resolved resolve(Path clone, Path game, String from, String to)
+    static Resolved resolve(Path clone, Path game, String from, String to)
             throws IOException, InterruptedException {
         if (refs(clone, from, to))
             return new Resolved(from, to);

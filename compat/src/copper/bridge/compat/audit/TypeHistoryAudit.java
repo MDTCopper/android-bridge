@@ -123,8 +123,9 @@ public final class TypeHistoryAudit {
                     changes++;
             }
             if (changes > 1)
-                findings.add((reflected.contains(owner) ? "reflection " : direct.contains(owner) ? "direct " : "type ")
-                        + owner + " " + sequence);
+                findings.add(owner.replace('/', '.') + " ("
+                        + (reflected.contains(owner) ? "reflection" : direct.contains(owner) ? "direct" : "type")
+                        + ") changes presence inside the window (1 = present, 0 = absent): " + sequence);
         }
 
         for (String finding : findings)

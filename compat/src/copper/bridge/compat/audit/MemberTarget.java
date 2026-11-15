@@ -44,8 +44,7 @@ final class MemberTarget {
         return new MemberTarget(owner, Kind.CLASS, owner, -1, rangeKey);
     }
 
-    String key() {
-        switch (kind) {
+    String key() {        switch (kind) {
             case CLASS:
                 return "C:" + owner;
             case METHOD:
@@ -54,6 +53,14 @@ final class MemberTarget {
             default:
                 return "F:" + owner + "." + name;
         }
+    }
+
+    /** Human-readable name for audit output. */
+    String display() {
+        String readable = owner.replace('/', '.');
+        if (kind == Kind.CLASS)
+            return readable;
+        return readable + "." + ("<init>".equals(name) ? "constructor" : name);
     }
 
     /** Prefix of the source signature key recorded by the parser, or null when arity is unknown. */

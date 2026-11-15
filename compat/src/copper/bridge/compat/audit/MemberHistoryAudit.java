@@ -48,7 +48,7 @@ public final class MemberHistoryAudit {
         Map<String, MemberTarget> targets = deps.stream()
                 .collect(Collectors.toMap(MemberTarget::toString, dep -> dep, (first, second) -> first));
         Map<String, String> sequences = new HashMap<>();
-        Set<String> signatureChanges = new LinkedHashSet<>();
+        Map<String, Set<String>> signatureChanges = new LinkedHashMap<>();
         Map<String, List<MemberTarget>> groups = new LinkedHashMap<>();
         for (MemberTarget dep : deps) {
             String range = dep.rangeKey == null ? "" : dep.rangeKey;
@@ -99,15 +99,22 @@ public final class MemberHistoryAudit {
                     changes++;
             }
             if (changes > 1)
-                findings.add(entry.getKey() + " " + sequence);
+                findings.add((target == null ? entry.getKey() : target.display())
+                        + " changes presence inside the window (1 = present, 0 = absent): " + sequence);
         }
         for (String finding : findings)
-            System.out.println(branch + ": member " + finding);
-        for (String change : signatureChanges) {
-            MemberTarget target = targets.get(change);
+            System.out.println(branch + ": " + finding);
+        for (Map.Entry<String, Set<String>> entry : signatureChanges.entrySet()) {
+            MemberTarget target = targets.get(entry.getKey());
             if (target != null && handled.handles(target.owner, target.name, HandledRefs.Kind.SIGNATURE))
                 continue;
-            System.out.println(branch + ": signature " + change);
+            if (target == null)
+                continue;
+            List<String> shapes = new ArrayList<>(entry.getValue());
+            if (shapes.size() > 4)
+                shapes = shapes.subList(0, 4);
+            System.out.println(branch + ": " + target.display() + " has " + entry.getValue().size()
+                    + " source signatures: " + String.join(" | ", shapes));
         }
         for (String issue : issues)
             System.out.println(branch + ": " + issue);
@@ -118,7 +125,8 @@ public final class MemberHistoryAudit {
     }
 
     private static Map<String, String> history(Path clone, String from, String to, List<MemberTarget> deps,
-                                               List<String> issues, Set<String> signatureChanges) throws Exception {
+                                               List<String> issues,
+                                               Map<String, Set<String>> signatureChanges) throws Exception {
         Map<String, List<MemberTarget>> byOuter = new LinkedHashMap<>();
         for (MemberTarget dep : deps)
             byOuter.computeIfAbsent(dep.outer, key -> new ArrayList<>()).add(dep);
@@ -175,8 +183,10 @@ public final class MemberHistoryAudit {
                 }
             }
             for (Map.Entry<String, Set<String>> entry2 : signatures.entrySet()) {
-                if (entry2.getValue().size() > 1)
-                    signatureChanges.add(entry2.getKey());
+                if (entry2.getValue().size() > 1) {
+                    signatureChanges.computeIfAbsent(entry2.getKey(), ignored -> new LinkedHashSet<>())
+                            .addAll(entry2.getValue());
+                }
             }
             for (int i = 0; i < entry.getValue().size(); i++) {
                 StringBuilder value = new StringBuilder();
@@ -441,9 +451,14 @@ public final class MemberHistoryAudit {
 
         private static String signature(MethodTree method) {
             StringBuilder value = new StringBuilder();
-            value.append(method.getTypeParameters()).append('(');
-            for (VariableTree parameter : method.getParameters())
-                value.append(normalize(parameter.getType())).append(',');
+            if (!method.getTypeParameters().isEmpty())
+                value.append('<').append(method.getTypeParameters()).append('>');
+            value.append('(');
+            for (int i = 0; i < method.getParameters().size(); i++) {
+                if (i > 0)
+                    value.append(',');
+                value.append(normalize(method.getParameters().get(i).getType()));
+            }
             value.append("):").append(normalize(method.getReturnType()));
             return value.toString().replaceAll("\\s+", "");
         }
@@ -452,7 +467,8 @@ public final class MemberHistoryAudit {
             return tree == null ? "" : tree.toString().replaceAll("\\s+", "");
         }
 
-        private static void collect(Tree tree, String owner, Set<String> keys) {            if (!(tree instanceof ClassTree))
+        private static void collect(Tree tree, String owner, Set<String> keys) {
+            if (!(tree instanceof ClassTree))
                 return;
             ClassTree type = (ClassTree)tree;
             String simple = type.getSimpleName().toString();

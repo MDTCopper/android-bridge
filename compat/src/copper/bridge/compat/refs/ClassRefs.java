@@ -6,11 +6,14 @@ import java.util.*;
 import java.util.stream.*;
 
 /**
- * Collects the branch's references into arc and mindustry from its compiled classes.
+ * Collects the references a branch makes from its compiled classes.
  *
  * <p>Only {@code Methodref}, {@code InterfaceMethodref} and {@code Fieldref} entries are read: string constants
  * such as a probed class name are not references and must not be checked. A class-level {@code @CompatRange}
  * applies to the whole source file, so every reference from a class declared in that file carries it.
+ *
+ * <p>Everything is kept here; which layer a reference belongs to is decided by {@code ClassOrigins}, in the
+ * order the runtime classpath has.
  */
 public final class ClassRefs {
     private static final String COMPAT_RANGE = "Lcopper/bridge/annotation/CompatRange;";
@@ -43,8 +46,6 @@ public final class ClassRefs {
         for (ClassFile file : files) {
             String override = overrides.get(file.sourceFile);
             for (ClassRef ref : file.refs) {
-                if (!ref.isGameOrArc())
-                    continue;
                 ClassRef resolved = override == null ? ref
                         : new ClassRef(ref.sourceClass, ref.owner, ref.name, ref.descriptor, override);
                 refs.put(resolved.key(), resolved);

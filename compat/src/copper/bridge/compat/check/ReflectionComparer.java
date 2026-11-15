@@ -21,11 +21,11 @@ public final class ReflectionComparer {
     }
 
     public static List<String> compareJar(List<ReflectionRef> refs, Range branch, Map<String, Range> overrides,
-                                          RefJars jars) {
+                                          RefJars jars, ClassOrigins origins) {
         List<String> issues = new ArrayList<>();
         for (ReflectionRef ref : refs) {
-            if (ref.owner.startsWith("copper/bridge/"))
-                continue; // bridge-internal: loaded by name so an old epoch never links its newer game types
+            if (outsideGame(ref, origins))
+                continue;
             Range range = ref.overrideKey == null ? branch : overrides.get(ref.overrideKey);
             if (range == null) {
                 issues.add("no range for @CompatRange " + ref.overrideKey + " on " + ref.sourceClass);
@@ -40,11 +40,11 @@ public final class ReflectionComparer {
     }
 
     public static List<String> compareCode(List<ReflectionRef> refs, Range branch, Map<String, Range> overrides,
-                                           Path gameDir, Path arcDir) {
+                                           Path gameDir, Path arcDir, ClassOrigins origins) {
         List<String> issues = new ArrayList<>();
         Map<String, SourceTree> trees = new HashMap<>();
         for (ReflectionRef ref : refs) {
-            if (ref.owner.startsWith("copper/bridge/"))
+            if (outsideGame(ref, origins))
                 continue;
             Range range = ref.overrideKey == null ? branch : overrides.get(ref.overrideKey);
             if (range == null) {
@@ -65,6 +65,16 @@ public final class ReflectionComparer {
                 issues.add(message(ref, floorPresent));
         }
         return issues;
+    }
+
+    /**
+     * Whether the target is not the game's: the bridge and the JDK are always present, so their presence does not
+     * change across the range. Without the layered classpath the old bridge-internal rule stands.
+     */
+    private static boolean outsideGame(ReflectionRef ref, ClassOrigins origins) {
+        if (origins != null)
+            return origins.of(ref.owner) != ClassOrigins.Layer.GAME;
+        return ref.owner.startsWith("copper/bridge/");
     }
 
     private static String message(ReflectionRef ref, boolean present) {

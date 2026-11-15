@@ -13,9 +13,11 @@ import java.util.*;
  * Build-time API check: the branch compiles against one epoch but runs on every version of its range, so a
  * member whose declaration changed inside the range still compiles and only fails on the older device.
  *
- * <p>Reads the compiled branch classes, keeps the references into arc and mindustry, and compares their
- * declarations at the two ends of the branch's range. Additions are allowed; a changed or removed declaration
- * fails the build. A class annotated with {@code @CompatRange} gets that ref as its file's ends.
+ * <p>Reads the compiled branch classes and attributes every reference to the layer the runtime classpath resolves
+ * it in, in that order: the JDK, the branch's own classes, the bridge (its shared classes and lwjgl), then the
+ * game jar. Only the game's references are compared at the two ends of the range; a reference no layer provides
+ * is dangling and fails the check. Additions are allowed; a changed or removed declaration fails the build. A
+ * class annotated with {@code @CompatRange} gets that ref as its file's ends.
  *
  * <p>Two modes read the ends: {@code jar} (the default) reads the staged desktop jars handed in as
  * {@code --jar <ref>=<path>}; {@code code} reads the game and arc sources at the named revisions in the clones
@@ -43,7 +45,7 @@ public final class Check {
             throw new IllegalArgumentException("unknown --mode " + mode + " (jar or code)");
         }
 
-        System.out.println(branch + " (" + mode + "): " + refs.size() + " direct reference(s), "
+        System.out.println(branch + " (" + mode + "): " + refs.stream().filter(ClassRef::isGameOrArc).count() + " direct reference(s), "
                 + reflections.size() + " direct reflection target(s), " + interfaces.stream().filter(r -> r.annotated).count()
                 + " bridge override method(s), " + reflect.size() + " arc Reflect target(s)");
         for (String issue : issues)
@@ -61,7 +63,7 @@ public final class Check {
                                          List<BridgeOverrideRef> interfaces, List<ArcReflectRef> reflect) {
         CheckConfig config = CheckConfig.load(Paths.get(required(options, "properties")), branch);
         List<String> issues = new ArrayList<>();
-        System.out.println("  total   " + refs.size() + " referenced member(s), "
+        System.out.println("  total   " + refs.size() + " reference(s), "
                 + reflections.size() + " reflection target(s), " + interfaces.stream().filter(r -> r.annotated).count()
                 + " bridge override method(s), " + reflect.size() + " arc Reflect target(s)");
 
@@ -92,8 +94,13 @@ public final class Check {
 
             System.out.println("  floor   " + config.floor);
             System.out.println("  ceiling " + config.ceiling);
-            issues.addAll(ApiComparer.compare(refs, branchRange, overrides, jars));
-            issues.addAll(ReflectionComparer.compareJar(reflections, branchRange, overrides, jars));
+
+            ClassOrigins origins = origins(args, options, bridge, jars);
+            List<ClassRef> gameRefs = gameRefs(refs, origins, issues);
+            System.out.println("  game    " + gameRefs.size() + " reference(s)");
+
+            issues.addAll(ApiComparer.compare(gameRefs, branchRange, overrides, jars));
+            issues.addAll(ReflectionComparer.compareJar(reflections, branchRange, overrides, jars, origins));
             issues.addAll(BridgeOverrideComparer.compareJar(interfaces, branchRange, jars, bridge));
             issues.addAll(ArcReflectComparer.compareJar(reflect, branchRange, jars));
             return issues;
@@ -143,11 +150,65 @@ public final class Check {
 
         System.out.println("  game    " + shortCommit(gameFloor) + " .. " + shortCommit(gameCeiling));
         System.out.println("  arc     " + shortCommit(arcFloor) + " .. " + shortCommit(arcCeiling));
-        List<String> issues = new ArrayList<>(SourceComparer.compare(refs, branchRange, overrides, gameDir, arcDir));
-        issues.addAll(ReflectionComparer.compareCode(reflections, branchRange, overrides, gameDir, arcDir));
+        List<String> issues = new ArrayList<>();
+        List<ClassRef> gameRefs = gameRefs(refs, null, issues);
+        System.out.println("  game    " + gameRefs.size() + " reference(s)");
+        issues.addAll(SourceComparer.compare(gameRefs, branchRange, overrides, gameDir, arcDir));
+        issues.addAll(ReflectionComparer.compareCode(reflections, branchRange, overrides, gameDir, arcDir, null));
         issues.addAll(BridgeOverrideComparer.compareCode(interfaces, branchRange, gameDir, arcDir, bridge));
         issues.addAll(ArcReflectComparer.compareCode(reflect, branchRange, gameDir, arcDir));
         return issues;
+    }
+
+    /**
+     * The layered classpath, or null for a hand run that did not stage the epoch jar and the bridge's classes; the
+     * old package-prefix rule then decides what is the game's.
+     */
+    private static ClassOrigins origins(String[] args, Map<String, String> options, Path branchClasses, RefJars jars) {
+        String epoch = options.get("epoch");
+        List<String> bridgePaths = repeatedValues(args, "bridge-classpath");
+        if (epoch == null || epoch.trim().isEmpty() || bridgePaths.isEmpty())
+            return null;
+
+        List<Path> paths = new ArrayList<>();
+        for (String path : bridgePaths)
+            paths.add(Paths.get(path));
+        return new ClassOrigins(branchClasses, paths, jars.jar(epoch.trim()));
+    }
+
+    /** Keeps the references that are the game's; a reference on no runtime layer at all is reported and dropped. */
+    private static List<ClassRef> gameRefs(List<ClassRef> refs, ClassOrigins origins, List<String> issues) {
+        List<ClassRef> game = new ArrayList<>();
+        if (origins == null) {
+            for (ClassRef ref : refs) {
+                if (ref.isGameOrArc())
+                    game.add(ref);
+            }
+            return game;
+        }
+
+        Set<String> dangling = new TreeSet<>();
+        for (ClassRef ref : refs) {
+            ClassOrigins.Layer layer = origins.of(ref.owner);
+            if (layer == ClassOrigins.Layer.GAME) {
+                game.add(ref);
+            } else if (layer == ClassOrigins.Layer.DANGLING) {
+                dangling.add(ref.owner + " (from " + ref.sourceClass + ")");
+            }
+        }
+        for (String owner : dangling)
+            issues.add("dangling reference, on no runtime classpath layer: " + owner);
+        return game;
+    }
+
+    /** Every value of a key that can appear more than once, taken as-is. */
+    private static List<String> repeatedValues(String[] args, String key) {
+        List<String> values = new ArrayList<>();
+        for (int i = 0; i < args.length - 1; i++) {
+            if (args[i].equals("--" + key))
+                values.add(args[i + 1]);
+        }
+        return values;
     }
 
     private static String commit(Git git, String revision) {

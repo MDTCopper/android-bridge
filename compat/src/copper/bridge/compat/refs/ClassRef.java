@@ -22,7 +22,7 @@ public final class ClassRef {
         return owner.startsWith("arc/") || owner.startsWith("io/anuke/arc/");
     }
 
-    /** A reference this check owns: arc or the game, in either package spelling. */
+    /** The fallback rule when the check was not given a layered classpath: arc or the game, in either spelling. */
     public boolean isGameOrArc() {
         return isArc() || owner.startsWith("mindustry/") || owner.startsWith("io/anuke/mindustry/");
     }

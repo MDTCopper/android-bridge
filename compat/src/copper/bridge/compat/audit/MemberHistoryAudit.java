@@ -3,6 +3,7 @@ package copper.bridge.compat.audit;
 import com.sun.source.tree.*;
 import com.sun.source.util.JavacTask;
 
+import copper.bridge.compat.api.*;
 import copper.bridge.compat.refs.*;
 import javax.tools.*;
 import java.io.*;
@@ -30,40 +31,67 @@ public final class MemberHistoryAudit {
         Path arc = Paths.get(required(options, "arc"));
         Path jars = options.containsKey("jars") ? Paths.get(options.get("jars")) : null;
         Path properties = options.containsKey("properties") ? Paths.get(options.get("properties")) : null;
+        Path epochPath = options.containsKey("epoch") ? Paths.get(options.get("epoch")) : null;
         String from = required(options, "from");
         String to = options.getOrDefault("to", "").trim();
         if (to.isEmpty())
             to = "HEAD";
 
-        List<MemberTarget> deps = deps(classes);
-        HandledRefs handled = HandledRefs.read(classes);
-        deps.removeIf(dep -> handled.handles(dep.owner));
         List<String> issues = new ArrayList<>();
+        JarIndex epoch = null;
+        if (epochPath != null)
+            epoch = new JarIndex(epochPath);
+        else
+            issues.add("no --epoch jar; override targets cannot be resolved");
+        List<MemberTarget> deps = deps(classes, epoch, issues);
+        HandledRefs handled = HandledRefs.read(classes);
+        Map<String, MemberTarget> targets = deps.stream()
+                .collect(Collectors.toMap(MemberTarget::toString, dep -> dep, (first, second) -> first));
         Map<String, String> sequences = new HashMap<>();
+        Set<String> signatureChanges = new LinkedHashSet<>();
+        Map<String, List<MemberTarget>> groups = new LinkedHashMap<>();
+        for (MemberTarget dep : deps) {
+            String range = dep.rangeKey == null ? "" : dep.rangeKey;
+            groups.computeIfAbsent(range, key -> new ArrayList<>()).add(dep);
+        }
         int commits = 0;
         for (Path clone : new Path[]{mindustry, arc}) {
-            List<MemberTarget> repoDeps = deps.stream()
-                    .filter(dep -> (isArc(dep.owner) ? arc : mindustry).equals(clone))
-                    .collect(Collectors.toList());
-            if (repoDeps.isEmpty())
-                continue;
-            TypeHistoryAudit.Resolved resolved = TypeHistoryAudit.resolve(clone, mindustry, jars, properties, from,
-                    to, issues);
-            if (resolved == null) {
-                issues.add("no " + (clone.equals(arc) ? "arc" : "game") + " source for " + from + ".." + to);
-                continue;
+            for (Map.Entry<String, List<MemberTarget>> group : groups.entrySet()) {
+                List<MemberTarget> repoDeps = group.getValue().stream()
+                        .filter(dep -> (isArc(dep.owner) ? arc : mindustry).equals(clone))
+                        .collect(Collectors.toList());
+                if (repoDeps.isEmpty())
+                    continue;
+                String groupFrom = from, groupTo = to;
+                if (!group.getKey().isEmpty()) {
+                    String[] ends = group.getKey().split("\\|", -1);
+                    groupFrom = "default".equals(ends[0]) ? from : ends[0];
+                    groupTo = ends.length < 2 || "default".equals(ends[1]) ? to : ends[1];
+                }
+                TypeHistoryAudit.Resolved resolved = TypeHistoryAudit.resolve(clone, mindustry, jars, properties,
+                        groupFrom, groupTo, issues);
+                if (resolved == null) {
+                    issues.add("no " + (clone.equals(arc) ? "arc" : "game") + " source for " + groupFrom + ".."
+                            + groupTo);
+                    continue;
+                }
+                if (!resolved.from.equals(groupFrom) || !resolved.to.equals(groupTo))
+                    System.out.println(branch + ": " + (clone.equals(arc) ? "arc" : "game") + " " + groupFrom + ".."
+                            + groupTo + " -> " + resolved.from.substring(0, Math.min(10, resolved.from.length()))
+                            + ".." + resolved.to.substring(0, Math.min(10, resolved.to.length()))
+                            + " by version metadata");
+                Map<String, String> result = history(clone, resolved.from, resolved.to, repoDeps, issues,
+                        signatureChanges);
+                sequences.putAll(result);
+                commits = Math.max(commits, count(clone, resolved.from, resolved.to));
             }
-            if (!resolved.from.equals(from) || !resolved.to.equals(to))
-                System.out.println(branch + ": " + (clone.equals(arc) ? "arc" : "game") + " " + from + ".." + to
-                        + " -> " + resolved.from.substring(0, Math.min(10, resolved.from.length())) + ".."
-                        + resolved.to.substring(0, Math.min(10, resolved.to.length())) + " by version metadata");
-            Map<String, String> result = history(clone, resolved.from, resolved.to, repoDeps, issues);
-            sequences.putAll(result);
-            commits = Math.max(commits, count(clone, resolved.from, resolved.to));
         }
 
         List<String> findings = new ArrayList<>();
         for (Map.Entry<String, String> entry : sequences.entrySet()) {
+            MemberTarget target = targets.get(entry.getKey());
+            if (target != null && handled.handles(target.owner, target.name, HandledRefs.Kind.MEMBER))
+                continue;
             String sequence = entry.getValue();
             int changes = 0;
             for (int i = 1; i < sequence.length(); i++) {
@@ -75,6 +103,12 @@ public final class MemberHistoryAudit {
         }
         for (String finding : findings)
             System.out.println(branch + ": member " + finding);
+        for (String change : signatureChanges) {
+            MemberTarget target = targets.get(change);
+            if (target != null && handled.handles(target.owner, target.name, HandledRefs.Kind.SIGNATURE))
+                continue;
+            System.out.println(branch + ": signature " + change);
+        }
         for (String issue : issues)
             System.out.println(branch + ": " + issue);
         System.out.println(branch + ": " + deps.size() + " member target(s), " + findings.size()
@@ -84,7 +118,7 @@ public final class MemberHistoryAudit {
     }
 
     private static Map<String, String> history(Path clone, String from, String to, List<MemberTarget> deps,
-                                               List<String> issues) throws Exception {
+                                               List<String> issues, Set<String> signatureChanges) throws Exception {
         Map<String, List<MemberTarget>> byOuter = new LinkedHashMap<>();
         for (MemberTarget dep : deps)
             byOuter.computeIfAbsent(dep.outer, key -> new ArrayList<>()).add(dep);
@@ -112,6 +146,7 @@ public final class MemberHistoryAudit {
                 queries.add(commit + ":" + path);
             contents = contents(clone, queries);
             Set<String> keys = new HashSet<>();
+            Map<String, Set<String>> signatures = new HashMap<>();
             List<String> sequence = new ArrayList<>();
             for (int i = 0; i < commits.size(); i++) {
                 String content = contents.get(queries.get(i));
@@ -127,7 +162,21 @@ public final class MemberHistoryAudit {
                         }
                     }
                     sequence.add(present ? "1" : "0");
+                    String prefix = dep.signaturePrefix();
+                    if (prefix != null) {
+                        for (String key : keys) {
+                            if (key.startsWith(prefix)) {
+                                signatures.computeIfAbsent(dep.toString(), ignored -> new HashSet<>())
+                                        .add(key.substring(prefix.length()));
+                                break;
+                            }
+                        }
+                    }
                 }
+            }
+            for (Map.Entry<String, Set<String>> entry2 : signatures.entrySet()) {
+                if (entry2.getValue().size() > 1)
+                    signatureChanges.add(entry2.getKey());
             }
             for (int i = 0; i < entry.getValue().size(); i++) {
                 StringBuilder value = new StringBuilder();
@@ -202,24 +251,27 @@ public final class MemberHistoryAudit {
         return Integer.parseInt(output(clone, "rev-list", "--count", from + ".." + to).get(0).trim());
     }
 
-    private static List<MemberTarget> deps(Path classes) {
+    private static List<MemberTarget> deps(Path classes, JarIndex epoch, List<String> issues) {
+        Map<String, ClassInfo> branch = classInfos(classes);
         Map<String, MemberTarget> deps = new LinkedHashMap<>();
         for (ClassRef ref : ClassRefs.read(classes)) {
             if (!game(ref.owner))
                 continue;
-            MemberTarget dep = ref.descriptor.startsWith("(") ? MemberTarget.method(ref.owner, ref.name, ref.descriptor)
-                    : MemberTarget.field(ref.owner, ref.name);
+            MemberTarget dep = ref.descriptor.startsWith("(")
+                    ? MemberTarget.method(ref.owner, ref.name, ref.descriptor, ref.overrideKey)
+                    : MemberTarget.field(ref.owner, ref.name, ref.overrideKey);
             deps.putIfAbsent(dep.key(), dep);
             if (ref.owner.contains("$"))
-                addNested(deps, ref.owner);
+                addNested(deps, ref.owner, ref.overrideKey);
         }
         for (BridgeOverrideRef ref : BridgeOverrideRefs.read(classes)) {
-            if (!game(ref.owner))
+            String owner = game(ref.owner) ? ref.owner : gameOwner(ref.owner, ref.name, ref.descriptor, branch, epoch);
+            if (owner == null)
                 continue;
-            MemberTarget dep = MemberTarget.method(ref.owner, ref.name, ref.descriptor);
+            MemberTarget dep = MemberTarget.method(owner, ref.name, ref.descriptor, ref.overrideKey);
             deps.putIfAbsent(dep.key(), dep);
-            if (ref.owner.contains("$"))
-                addNested(deps, ref.owner);
+            if (owner.contains("$"))
+                addNested(deps, owner, ref.overrideKey);
         }
         ReflectionRefs.Result reflection = ReflectionRefs.read(classes);
         for (ReflectionRef ref : reflection.refs) {
@@ -229,30 +281,80 @@ public final class MemberHistoryAudit {
             if (ref.kind == ReflectionRef.Kind.TYPE) {
                 if (!ref.owner.contains("$"))
                     continue;
-                dep = MemberTarget.type(ref.owner);
+                dep = MemberTarget.type(ref.owner, ref.overrideKey);
             } else if (ref.kind == ReflectionRef.Kind.FIELD) {
-                dep = MemberTarget.field(ref.owner, ref.member);
+                dep = MemberTarget.field(ref.owner, ref.member, ref.overrideKey);
             } else {
                 dep = new MemberTarget(ref.owner, ref.kind == ReflectionRef.Kind.CONSTRUCTOR
-                        ? MemberTarget.Kind.CONSTRUCTOR : MemberTarget.Kind.METHOD, ref.member, -1);
+                        ? MemberTarget.Kind.CONSTRUCTOR : MemberTarget.Kind.METHOD, ref.member, -1,
+                        ref.overrideKey);
             }
             deps.putIfAbsent(dep.key(), dep);
             if (ref.owner.contains("$"))
-                addNested(deps, ref.owner);
+                addNested(deps, ref.owner, ref.overrideKey);
         }
         for (TypeDep dep : TypeDeps.read(classes)) {
             if (game(dep.owner) && dep.owner.contains("$"))
-                addNested(deps, dep.owner);
+                addNested(deps, dep.owner, dep.overrideKey);
         }
         return new ArrayList<>(deps.values());
     }
 
-    private static void addNested(Map<String, MemberTarget> deps, String owner) {
+    private static void addNested(Map<String, MemberTarget> deps, String owner, String rangeKey) {
         String current = owner;
         while (current.contains("$")) {
-            MemberTarget dep = MemberTarget.type(current);
+            MemberTarget dep = MemberTarget.type(current, rangeKey);
             deps.putIfAbsent(dep.key(), dep);
             current = current.substring(0, current.indexOf('$'));
+        }
+    }
+
+    private static Map<String, ClassInfo> classInfos(Path classes) {
+        Map<String, ClassInfo> infos = new HashMap<>();
+        try (Stream<Path> stream = Files.walk(classes)) {
+            for (Path path : stream.filter(p -> p.toString().endsWith(".class")).collect(Collectors.toList())) {
+                String name = classes.relativize(path).toString().replace('\\', '/');
+                name = name.substring(0, name.length() - ".class".length());
+                try {
+                    infos.put(name, ClassInfo.parse(Files.readAllBytes(path)));
+                } catch (Throwable ignored) {
+                }
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        return infos;
+    }
+
+    /** Finds the game supertype that declares the method the branch class overrides. */
+    private static String gameOwner(String owner, String name, String descriptor, Map<String, ClassInfo> branch,
+                                    JarIndex epoch) {
+        if (epoch == null)
+            return null;
+        Deque<String> queue = new ArrayDeque<>();
+        Set<String> seen = new HashSet<>();
+        ClassInfo start = branch.get(owner);
+        if (start == null)
+            return null;
+        enqueue(start, queue, seen);
+        while (!queue.isEmpty()) {
+            String current = queue.removeFirst();
+            ClassInfo info = branch.getOrDefault(current, epoch.classInfo(current));
+            if (info == null)
+                continue;
+            if (game(current) && info.member(name, descriptor) != null)
+                return current;
+            enqueue(info, queue, seen);
+        }
+        return null;
+    }
+
+    private static void enqueue(ClassInfo info, Deque<String> queue, Set<String> seen) {
+        if (info.superName != null && seen.add(info.superName))
+            queue.addLast(info.superName);
+        for (String itf : info.interfaces) {
+            if (seen.add(itf))
+                queue.addLast(itf);
         }
     }
 
@@ -337,8 +439,20 @@ public final class MemberHistoryAudit {
             return keys;
         }
 
-        private static void collect(Tree tree, String owner, Set<String> keys) {
-            if (!(tree instanceof ClassTree))
+        private static String signature(MethodTree method) {
+            StringBuilder value = new StringBuilder();
+            value.append(method.getTypeParameters()).append('(');
+            for (VariableTree parameter : method.getParameters())
+                value.append(normalize(parameter.getType())).append(',');
+            value.append("):").append(normalize(method.getReturnType()));
+            return value.toString().replaceAll("\\s+", "");
+        }
+
+        private static String normalize(Tree tree) {
+            return tree == null ? "" : tree.toString().replaceAll("\\s+", "");
+        }
+
+        private static void collect(Tree tree, String owner, Set<String> keys) {            if (!(tree instanceof ClassTree))
                 return;
             ClassTree type = (ClassTree)tree;
             String simple = type.getSimpleName().toString();
@@ -352,10 +466,15 @@ public final class MemberHistoryAudit {
                 } else if (member instanceof MethodTree) {
                     MethodTree method = (MethodTree)member;
                     boolean constructor = method.getReturnType() == null;
+                    int arity = method.getParameters().size();
                     keys.add("M:" + name + "#" + (constructor ? "<init>" : method.getName())
-                            + "/" + method.getParameters().size());
+                            + "/" + arity);
+                    keys.add("S:" + name + "#" + (constructor ? "<init>" : method.getName()) + "/" + arity
+                            + "=" + signature(method));
                 } else if (member instanceof VariableTree) {
-                    keys.add("F:" + name + "." + ((VariableTree)member).getName());
+                    VariableTree field = (VariableTree)member;
+                    keys.add("F:" + name + "." + field.getName());
+                    keys.add("S:" + name + "." + field.getName() + "=" + normalize(field.getType()));
                 }
             }
         }

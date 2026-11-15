@@ -51,7 +51,7 @@ def branchArchive = tasks.register('branchArchive') {
     }
 }
 
-tasks.register('bridgeJar', Jar) {
+tasks.register('bridgeJarArtifact', Jar) {
     dependsOn ':core:jar'
     dependsOn branchArchive
     dependsOn 'checkBridgeApi'
@@ -96,4 +96,16 @@ tasks.register('bridgeJar', Jar) {
     }
 
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.register('bridgeJar') {
+    group = 'pack'
+    description = 'Builds the bridge jar and runs the full source-history audit.'
+    dependsOn 'bridgeJarArtifact', 'auditSourceHistory'
+}
+
+tasks.register('bridgeJarFast') {
+    group = 'pack'
+    description = 'Builds the bridge jar without the source-history audit.'
+    dependsOn 'bridgeJarArtifact'
 }

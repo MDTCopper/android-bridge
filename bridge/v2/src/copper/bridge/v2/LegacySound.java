@@ -1,5 +1,6 @@
 package copper.bridge.v2;
 
+import copper.bridge.annotation.BridgeHandled;
 import copper.bridge.annotation.BridgeRename;
 import copper.bridge.annotation.BridgeOverride;
 
@@ -17,6 +18,9 @@ import copper.bridge.gen.*;
  * the class then has both JVM overloads and matches whichever interface the running game declares. The handle-typed
  * stop/pause/set methods are ordinary overloads and need no rename.
  */
+@BridgeHandled(value = "io/anuke/arc/audio/Sound",
+        kinds = {BridgeHandled.Kind.MEMBER, BridgeHandled.Kind.SIGNATURE},
+        reason = "84/85 use a long handle, 86+ an int; both overloads are declared here")
 final class LegacySound implements Sound {
     private final int sound;
 

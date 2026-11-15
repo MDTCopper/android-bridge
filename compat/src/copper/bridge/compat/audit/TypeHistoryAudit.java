@@ -36,20 +36,30 @@ public final class TypeHistoryAudit {
             to = "HEAD";
 
         Set<String> direct = new TreeSet<>();
+        Map<String, String> rangeOf = new HashMap<>();
         for (ClassRef ref : ClassRefs.read(classes)) {
-            if (isGameOrArc(ref.owner))
+            if (isGameOrArc(ref.owner)) {
                 direct.add(ref.owner);
+                if (ref.overrideKey != null)
+                    rangeOf.putIfAbsent(ref.owner, ref.overrideKey);
+            }
         }
         ReflectionRefs.Result reflection = ReflectionRefs.read(classes);
         Set<String> reflected = new TreeSet<>();
         for (ReflectionRef ref : reflection.refs) {
-            if (isGameOrArc(ref.owner))
+            if (isGameOrArc(ref.owner)) {
                 reflected.add(ref.owner);
+                if (ref.overrideKey != null)
+                    rangeOf.putIfAbsent(ref.owner, ref.overrideKey);
+            }
         }
         Set<String> typed = new TreeSet<>();
         for (TypeDep dep : TypeDeps.read(classes)) {
-            if (isGameOrArc(dep.owner))
+            if (isGameOrArc(dep.owner)) {
                 typed.add(dep.owner);
+                if (dep.overrideKey != null)
+                    rangeOf.putIfAbsent(dep.owner, dep.overrideKey);
+            }
         }
         if (!reflection.issues.isEmpty()) {
             for (String issue : reflection.issues)
@@ -58,38 +68,51 @@ public final class TypeHistoryAudit {
         }
 
         Set<String> all = union(union(direct, reflected), typed);
+        Map<String, List<String>> groups = new LinkedHashMap<>();
+        for (String owner : all) {
+            String range = rangeOf.get(owner);
+            groups.computeIfAbsent(range == null ? "" : range, key -> new ArrayList<>()).add(owner);
+        }
         Set<String> unaudited = new TreeSet<>();
         List<String> issues = new ArrayList<>();
         List<String> fallbacks = new ArrayList<>();
         Map<String, String> sequences = new HashMap<>();
         int commits = 0;
         for (Path clone : new Path[]{mindustry, arc}) {
-            List<String> owners = new ArrayList<>();
-            for (String owner : all) {
-                if ((isArc(owner) ? arc : mindustry).equals(clone))
-                    owners.add(owner);
+            for (Map.Entry<String, List<String>> group : groups.entrySet()) {
+                List<String> owners = new ArrayList<>();
+                for (String owner : group.getValue()) {
+                    if ((isArc(owner) ? arc : mindustry).equals(clone))
+                        owners.add(owner);
+                }
+                if (owners.isEmpty())
+                    continue;
+                String groupFrom = from, groupTo = to;
+                if (!group.getKey().isEmpty()) {
+                    String[] ends = group.getKey().split("\\|", -1);
+                    groupFrom = "default".equals(ends[0]) ? from : ends[0];
+                    groupTo = ends.length < 2 || "default".equals(ends[1]) ? to : ends[1];
+                }
+                Resolved resolved = resolve(clone, mindustry, jars, properties, groupFrom, groupTo, issues);
+                if (resolved == null) {
+                    unaudited.add(clone.equals(arc) ? "arc" : "game");
+                    continue;
+                }
+                if (!resolved.from.equals(groupFrom) || !resolved.to.equals(groupTo))
+                    fallbacks.add((clone.equals(arc) ? "arc" : "game") + " " + groupFrom + ".." + groupTo + " -> "
+                            + resolved.from.substring(0, Math.min(10, resolved.from.length())) + ".."
+                            + resolved.to.substring(0, Math.min(10, resolved.to.length()))
+                            + " by version metadata");
+                History history = history(clone, resolved.from, resolved.to, owners);
+                sequences.putAll(history.sequences);
+                commits = Math.max(commits, history.commits);
             }
-            if (owners.isEmpty())
-                continue;
-            Resolved resolved = resolve(clone, mindustry, jars, properties, from, to, issues);
-            if (resolved == null) {
-                unaudited.add(clone.equals(arc) ? "arc" : "game");
-                continue;
-            }
-            if (!resolved.from.equals(from) || !resolved.to.equals(to))
-                fallbacks.add((clone.equals(arc) ? "arc" : "game") + " " + from + ".." + to + " -> "
-                        + resolved.from.substring(0, Math.min(10, resolved.from.length())) + ".."
-                        + resolved.to.substring(0, Math.min(10, resolved.to.length()))
-                        + " by version metadata");
-            History history = history(clone, resolved.from, resolved.to, owners);
-            sequences.putAll(history.sequences);
-            commits = Math.max(commits, history.commits);
         }
 
         List<String> findings = new ArrayList<>();
         HandledRefs handled = HandledRefs.read(classes);
         for (String owner : all) {
-            if (handled.handles(owner))
+            if (handled.handles(owner, HandledRefs.Kind.TYPE))
                 continue;
             String sequence = sequences.get(owner);
             if (sequence == null)

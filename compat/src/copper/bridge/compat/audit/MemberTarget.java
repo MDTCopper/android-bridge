@@ -14,27 +14,34 @@ final class MemberTarget {
     final String name;
     /** Parameter count; -1 when reflection did not carry a descriptor. */
     final int arity;
+    /** The source class's {@code @CompatRange} key, or null when it has none. */
+    final String rangeKey;
 
     MemberTarget(String owner, Kind kind, String name, int arity) {
+        this(owner, kind, name, arity, null);
+    }
+
+    MemberTarget(String owner, Kind kind, String name, int arity, String rangeKey) {
         this.owner = owner;
         this.outer = owner.contains("$") ? owner.substring(0, owner.indexOf('$')) : owner;
         this.kind = kind;
         this.name = name;
         this.arity = arity;
+        this.rangeKey = rangeKey;
     }
 
-    static MemberTarget method(String owner, String name, String descriptor) {
+    static MemberTarget method(String owner, String name, String descriptor, String rangeKey) {
         Type method = Type.getMethodType(descriptor);
         return new MemberTarget(owner, "<init>".equals(name) ? Kind.CONSTRUCTOR : Kind.METHOD, name,
-                method.getArgumentTypes().length);
+                method.getArgumentTypes().length, rangeKey);
     }
 
-    static MemberTarget field(String owner, String name) {
-        return new MemberTarget(owner, Kind.FIELD, name, -1);
+    static MemberTarget field(String owner, String name, String rangeKey) {
+        return new MemberTarget(owner, Kind.FIELD, name, -1, rangeKey);
     }
 
-    static MemberTarget type(String owner) {
-        return new MemberTarget(owner, Kind.CLASS, owner, -1);
+    static MemberTarget type(String owner, String rangeKey) {
+        return new MemberTarget(owner, Kind.CLASS, owner, -1, rangeKey);
     }
 
     String key() {
@@ -47,6 +54,13 @@ final class MemberTarget {
             default:
                 return "F:" + owner + "." + name;
         }
+    }
+
+    /** Prefix of the source signature key recorded by the parser, or null when arity is unknown. */
+    String signaturePrefix() {
+        if (kind == Kind.METHOD || kind == Kind.CONSTRUCTOR)
+            return arity < 0 ? null : "S:" + owner + "#" + name + "/" + arity + "=";
+        return kind == Kind.FIELD ? "S:" + owner + "." + name + "=" : null;
     }
 
     boolean matches(String key) {

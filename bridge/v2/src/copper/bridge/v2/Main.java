@@ -87,6 +87,7 @@ public class Main {
 
     @BridgeHandled(value = {"io/anuke/mindustry/net/ArcNetClient", "io/anuke/mindustry/net/ArcNetServer",
             "io/anuke/mindustry/net/MClient", "io/anuke/mindustry/net/MServer"},
+            kinds = {BridgeHandled.Kind.TYPE, BridgeHandled.Kind.MEMBER, BridgeHandled.Kind.REFLECTION},
             reason = "the 90 build replaced the net providers with MClient/MServer, then 91 restored ArcNet")
     private static void installNetProviders() {
         try {

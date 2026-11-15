@@ -38,9 +38,9 @@ jobs:
       # which is why it is a checkout by commit rather than a plain clone of a branch.
       - name: Checkout Arc, Mindustry and the bridge
         run: |
-          git clone --filter=blob:none https://github.com/Anuken/Arc.git Arc
-          git clone --filter=blob:none https://github.com/Anuken/Mindustry.git Mindustry
-          git clone --filter=blob:none https://github.com/${{ github.repository }}.git Bridge
+          git clone https://github.com/Anuken/Arc.git Arc
+          git clone https://github.com/Anuken/Mindustry.git Mindustry
+          git clone https://github.com/${{ github.repository }}.git Bridge
           git -C Bridge checkout --detach ${{ github.sha }}
 
       - name: Grant execute permission for gradlew

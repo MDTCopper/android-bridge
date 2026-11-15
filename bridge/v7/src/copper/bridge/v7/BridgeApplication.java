@@ -173,6 +173,7 @@ public class BridgeApplication implements Application {
      * failure it stands for.
      */
     @BridgeHandled(value = "arc/audio/SoloudAudio",
+            kinds = {BridgeHandled.Kind.TYPE, BridgeHandled.Kind.MEMBER, BridgeHandled.Kind.REFLECTION},
             reason = "11234 has SoloudAudio; older builds fall back to LegacyAudio")
     private static void initAudio() {
         arc.Audio audio;

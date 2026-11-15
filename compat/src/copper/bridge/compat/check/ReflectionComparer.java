@@ -34,7 +34,8 @@ public final class ReflectionComparer {
             if (ref.kind == ReflectionRef.Kind.TYPE)
                 continue;
             if (outsideGame(ref, origins)) {
-                if (gameName(ref.owner) && (handled == null || !handled.handles(ref.owner)))
+                if (gameName(ref.owner) && (handled == null
+                        || !handled.handles(ref.owner, ref.member, HandledRefs.Kind.REFLECTION)))
                     System.out.println("  warning: reflection target is not on either endpoint classpath: " + ref);
                 continue;
             }

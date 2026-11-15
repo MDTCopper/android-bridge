@@ -118,6 +118,11 @@ def effectiveTo = { String branch ->
     def version = findProperty("${branch}.maxVersionNumber")
     return version ? releaseTag(version.toString()) : 'HEAD'
 }
+def epochJarFor = { String branch ->
+    rootProject.ext.epochClasspath(branch).files.find {
+        it.name.endsWith('.jar') && !it.name.endsWith('-sources.jar')
+    }
+}
 
 auditBranches.each { String branch ->
     tasks.register("auditTypeHistory${branch.capitalize()}", JavaExec) {
@@ -131,6 +136,9 @@ auditBranches.each { String branch ->
                 '--jars', new File(rootProject.projectDir, '.mindustry').absolutePath,
                 '--properties', rootProject.file('gradle.properties').absolutePath,
                 '--from', effectiveFrom(branch), '--to', effectiveTo(branch)
+        def epoch = epochJarFor(branch)
+        if (epoch)
+            args '--epoch', epoch.absolutePath
         doFirst {
             if (!new File(mindustryClone, '.git').isDirectory() || !new File(arcClone, '.git').isDirectory())
                 throw new GradleException("source audit needs the game and arc clones; pass -PmindustryClone and"
@@ -148,6 +156,9 @@ auditBranches.each { String branch ->
                 '--jars', new File(rootProject.projectDir, '.mindustry').absolutePath,
                 '--properties', rootProject.file('gradle.properties').absolutePath,
                 '--from', effectiveFrom(branch), '--to', effectiveTo(branch)
+        def epoch = epochJarFor(branch)
+        if (epoch)
+            args '--epoch', epoch.absolutePath
         doFirst {
             if (!new File(mindustryClone, '.git').isDirectory() || !new File(arcClone, '.git').isDirectory())
                 throw new GradleException("member audit needs the game and arc clones; pass -PmindustryClone and"

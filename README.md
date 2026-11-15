@@ -67,17 +67,22 @@
 
 ```bash
 git clone https://github.com/MDTCopper/android-bridge.git
+git clone https://github.com/Anuken/Mindustry.git
+git clone https://github.com/Anuken/Arc.git
 cd android-bridge
 ./gradlew :pack:bridgeJar
 ```
 
-On Windows use `gradlew.bat`.
-
-The jar lands in `pack/build/libs/bridge-snapshot.jar`:
+Full clones, not shallow or partial ones: the compatibility audit reads every commit of both histories.
+For a build without the audit:
 
 ```bash
-./gradlew :pack:bridgeJar
+./gradlew :pack:bridgeJarFast
 ```
+
+On Windows use `gradlew.bat`.
+
+The jar lands in `pack/build/libs/bridge-snapshot.jar`.
 
 ### Detailed build
 
@@ -101,6 +106,9 @@ cmakeVersion=3.22.1
 ```bash
 ./gradlew :pack:bridgeJar
 ```
+
+`:pack:bridgeJar` runs the source-history audit and requires the full `../Mindustry` and `../Arc` clones. Use
+`:pack:bridgeJarFast` only when you deliberately skip that audit.
 
 Just to see the task list:
 
@@ -128,6 +136,9 @@ Run the full build after a change:
 ```bash
 ./gradlew :pack:bridgeJar
 ```
+
+It runs the source-history audit against full `../Mindustry` and `../Arc` clones. `:pack:bridgeJarFast` skips the
+audit; do not use it for a change that affects version compatibility.
 
 After touching `bridge-vX` sources, **run the game on the oldest versions of the range with a real jar** —compiling is not running.
 

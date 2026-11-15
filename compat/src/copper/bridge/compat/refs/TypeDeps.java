@@ -1,6 +1,7 @@
 package copper.bridge.compat.refs;
 
 import org.objectweb.asm.*;
+import org.objectweb.asm.signature.*;
 import org.objectweb.asm.tree.*;
 
 import java.io.*;
@@ -51,15 +52,25 @@ public final class TypeDeps {
 
             for (FieldNode field : node.fields) {
                 addType(deps, sourceClass, Type.getType(field.desc), override);
+                signature(deps, sourceClass, field.signature, override, false);
                 annotations(deps, sourceClass, field.visibleAnnotations, override);
                 annotations(deps, sourceClass, field.invisibleAnnotations, override);
+                typeAnnotations(deps, sourceClass, field.visibleTypeAnnotations, override);
+                typeAnnotations(deps, sourceClass, field.invisibleTypeAnnotations, override);
             }
             for (MethodNode method : node.methods) {
                 addMethod(deps, sourceClass, method.desc, override);
+                signature(deps, sourceClass, method.signature, override, false);
                 for (String exception : method.exceptions)
                     add(deps, sourceClass, exception, override);
                 annotations(deps, sourceClass, method.visibleAnnotations, override);
                 annotations(deps, sourceClass, method.invisibleAnnotations, override);
+                typeAnnotations(deps, sourceClass, method.visibleTypeAnnotations, override);
+                typeAnnotations(deps, sourceClass, method.invisibleTypeAnnotations, override);
+                parameterAnnotations(deps, sourceClass, method.visibleParameterAnnotations, override);
+                parameterAnnotations(deps, sourceClass, method.invisibleParameterAnnotations, override);
+                localAnnotations(deps, sourceClass, method.visibleLocalVariableAnnotations, override);
+                localAnnotations(deps, sourceClass, method.invisibleLocalVariableAnnotations, override);
                 for (AbstractInsnNode insn : method.instructions)
                     instruction(deps, sourceClass, insn, override);
                 for (TryCatchBlockNode block : method.tryCatchBlocks) {
@@ -69,6 +80,9 @@ public final class TypeDeps {
             }
             annotations(deps, sourceClass, node.visibleAnnotations, override);
             annotations(deps, sourceClass, node.invisibleAnnotations, override);
+            typeAnnotations(deps, sourceClass, node.visibleTypeAnnotations, override);
+            typeAnnotations(deps, sourceClass, node.invisibleTypeAnnotations, override);
+            signature(deps, sourceClass, node.signature, override, true);
         } catch (Throwable ignored) {
         }
     }
@@ -165,6 +179,62 @@ public final class TypeDeps {
             for (int i = 1; i < annotation.values.size(); i += 2)
                 annotationValue(deps, sourceClass, annotation.values.get(i), override);
         }
+    }
+
+    private static void signature(Map<String, TypeDep> deps, String sourceClass, String signature,
+                                  String override, boolean classLevel) {
+        if (signature == null || signature.isEmpty())
+            return;
+        SignatureVisitor visitor = new SignatureVisitor(Opcodes.ASM9) {
+            private String current;
+
+            @Override
+            public void visitClassType(String name) {
+                current = name;
+                add(deps, sourceClass, name, override);
+            }
+
+            @Override
+            public void visitInnerClassType(String name) {
+                current = (current == null ? "" : current + "$") + name;
+                add(deps, sourceClass, current, override);
+            }
+        };
+        try {
+            if (classLevel)
+                new SignatureReader(signature).accept(visitor);
+            else
+                new SignatureReader(signature).acceptType(visitor);
+        } catch (RuntimeException ignored) {
+        }
+    }
+
+    private static void typeAnnotations(Map<String, TypeDep> deps, String sourceClass,
+                                        List<? extends TypeAnnotationNode> annotations, String override) {
+        if (annotations == null)
+            return;
+        for (TypeAnnotationNode annotation : annotations) {
+            addType(deps, sourceClass, Type.getType(annotation.desc), override);
+            if (annotation.values == null)
+                continue;
+            for (int i = 1; i < annotation.values.size(); i += 2)
+                annotationValue(deps, sourceClass, annotation.values.get(i), override);
+        }
+    }
+
+    private static void parameterAnnotations(Map<String, TypeDep> deps, String sourceClass,
+                                             List<AnnotationNode>[] annotations, String override) {
+        if (annotations == null)
+            return;
+        for (List<AnnotationNode> parameter : annotations) {
+            if (parameter != null)
+                annotations(deps, sourceClass, parameter, override);
+        }
+    }
+
+    private static void localAnnotations(Map<String, TypeDep> deps, String sourceClass,
+                                         List<LocalVariableAnnotationNode> annotations, String override) {
+        typeAnnotations(deps, sourceClass, annotations, override);
     }
 
     private static void annotationValue(Map<String, TypeDep> deps, String sourceClass, Object value,

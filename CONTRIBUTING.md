@@ -74,9 +74,13 @@ Run the full build before committing:
 ./gradlew :pack:bridgeJar
 ```
 
-That task pulls in the Java compile, the native build, the dex, and every branch. Without an NDK or the
-Android SDK it cannot run; compile the Java modules directly and say in the pull request which steps you did
-not run.
+That task requires full clones of Mindustry and Arc beside this repository (`../Mindustry`, `../Arc`); the
+source-history audit walks every commit in the declared windows and is part of `bridgeJar`. It also pulls in
+the Java compile, the native build, the dex, and every branch. Without an NDK or the Android SDK it cannot run;
+compile the Java modules directly and say in the pull request which steps you did not run.
+
+`:pack:bridgeJarFast` skips the source-history audit. Use it only for a build that does not need the
+compatibility check; it is not a substitute for the full build before a compatibility change.
 
 Commit messages are one sentence, start with a verb, and do one thing:
 

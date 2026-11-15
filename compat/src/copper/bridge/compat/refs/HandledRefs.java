@@ -95,20 +95,34 @@ public final class HandledRefs {
     }
 
     private void add(AnnotationNode annotation) {
-        String type = null, member = "", kind = null;
+        List<String> targets = new ArrayList<>();
+        String kind = null;
         if (annotation.values != null) {
             for (int i = 0; i < annotation.values.size(); i += 2) {
                 String name = (String)annotation.values.get(i);
                 Object value = annotation.values.get(i + 1);
-                if ("type".equals(name))
-                    type = (String)value;
-                else if ("member".equals(name))
-                    member = (String)value;
-                else if ("kind".equals(name) && value instanceof String[])
+                if ("targets".equals(name)) {
+                    if (value instanceof List) {
+                        for (Object element : (List<?>)value) {
+                            if (element instanceof String)
+                                targets.add((String)element);
+                        }
+                    } else if (value instanceof String) {
+                        targets.add((String)value);
+                    }
+                } else if ("kind".equals(name) && value instanceof String[]) {
                     kind = ((String[])value)[1];
+                }
             }
         }
-        if (type != null && kind != null)
-            entries.add(new Entry(type, member, Kind.valueOf(kind)));
+        if (kind == null)
+            return;
+        Kind parsed = Kind.valueOf(kind);
+        for (String target : targets) {
+            int split = target.indexOf(':');
+            String type = split < 0 ? target : target.substring(0, split);
+            String member = split < 0 ? "" : target.substring(split + 1);
+            entries.add(new Entry(type, member, parsed));
+        }
     }
 }

@@ -12,10 +12,8 @@ import org.lwjgl.system.*;
  * JVM-side implementation of arc's OpenGL ES 2.0 interface. The engine runs in a JVM hosted by ART, so {@code
  * android.opengl} is unreachable and LWJGL's OpenGL ES bindings are the only route to GL.
  */
-@BridgeHandled(type = "io/anuke/arc/graphics/GL20", member = "glGetActiveAttrib",
-        kind = BridgeHandled.Kind.SIGNATURE,
-        reason = "65 takes Buffer, 83 takes IntBuffer; both overloads are declared here")
-@BridgeHandled(type = "io/anuke/arc/graphics/GL20", member = "glGetActiveUniform",
+@BridgeHandled(targets = {"io/anuke/arc/graphics/GL20:glGetActiveAttrib",
+        "io/anuke/arc/graphics/GL20:glGetActiveUniform"},
         kind = BridgeHandled.Kind.SIGNATURE,
         reason = "65 takes Buffer, 83 takes IntBuffer; both overloads are declared here")
 public class BridgeGL20 implements GL20 {

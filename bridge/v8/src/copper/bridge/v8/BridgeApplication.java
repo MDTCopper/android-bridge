@@ -170,11 +170,11 @@ public class BridgeApplication implements Application {
     }
 
     /** Installs arc's Net for the 127 line's Core.net; the class left arc-core later, so it is created by name. */
-    @BridgeHandled(type = "arc/Net", kind = BridgeHandled.Kind.TYPE,
+    @BridgeHandled(targets = "arc/Net", kind = BridgeHandled.Kind.TYPE,
             reason = "arc.Net exists only in the middle of the range; absence is caught")
-    @BridgeHandled(type = "arc/Net", member = "<init>", kind = BridgeHandled.Kind.MEMBER,
+    @BridgeHandled(targets = "arc/Net:<init>", kind = BridgeHandled.Kind.MEMBER,
             reason = "constructor exists only where the class exists")
-    @BridgeHandled(type = "arc/Net", member = "<init>", kind = BridgeHandled.Kind.REFLECTION,
+    @BridgeHandled(targets = "arc/Net:<init>", kind = BridgeHandled.Kind.REFLECTION,
             reason = "looked up only where the class exists")
     private static void initNet() {
         try {

@@ -88,6 +88,7 @@ public final class MemberHistoryAudit {
         }
 
         List<String> findings = new ArrayList<>();
+        boolean failed = false;
         for (Map.Entry<String, String> entry : sequences.entrySet()) {
             MemberTarget target = targets.get(entry.getKey());
             if (target != null && handled.handles(target.owner, target.name, HandledRefs.Kind.MEMBER))
@@ -98,9 +99,11 @@ public final class MemberHistoryAudit {
                 if (sequence.charAt(i) != sequence.charAt(i - 1))
                     changes++;
             }
-            if (changes > 1)
+            if (changes > 1) {
+                failed = true;
                 findings.add((target == null ? entry.getKey() : target.display())
                         + " changes presence inside the window (1 = present, 0 = absent): " + sequence);
+            }
         }
         for (String finding : findings)
             System.out.println(branch + ": " + finding);
@@ -110,6 +113,7 @@ public final class MemberHistoryAudit {
                 continue;
             if (target == null)
                 continue;
+            failed = true;
             List<String> shapes = new ArrayList<>(entry.getValue());
             if (shapes.size() > 4)
                 shapes = shapes.subList(0, 4);
@@ -120,7 +124,7 @@ public final class MemberHistoryAudit {
             System.out.println(branch + ": " + issue);
         System.out.println(branch + ": " + deps.size() + " member target(s), " + findings.size()
                 + " transient member(s) across " + commits + " commit(s)");
-        if (!issues.isEmpty())
+        if (!issues.isEmpty() || failed)
             System.exit(1);
     }
 

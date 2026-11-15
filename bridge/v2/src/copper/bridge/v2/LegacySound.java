@@ -18,9 +18,24 @@ import copper.bridge.gen.*;
  * the class then has both JVM overloads and matches whichever interface the running game declares. The handle-typed
  * stop/pause/set methods are ordinary overloads and need no rename.
  */
-@BridgeHandled(value = "io/anuke/arc/audio/Sound",
-        kinds = {BridgeHandled.Kind.MEMBER, BridgeHandled.Kind.SIGNATURE},
+@BridgeHandled(type = "io/anuke/arc/audio/Sound", member = "play", kind = BridgeHandled.Kind.SIGNATURE,
         reason = "84/85 use a long handle, 86+ an int; both overloads are declared here")
+@BridgeHandled(type = "io/anuke/arc/audio/Sound", member = "loop", kind = BridgeHandled.Kind.SIGNATURE,
+        reason = "84/85 use a long handle, 86+ an int; both overloads are declared here")
+@BridgeHandled(type = "io/anuke/arc/audio/Sound", member = "stop", kind = BridgeHandled.Kind.SIGNATURE,
+        reason = "the handle type changes between 85 and 86")
+@BridgeHandled(type = "io/anuke/arc/audio/Sound", member = "pause", kind = BridgeHandled.Kind.SIGNATURE,
+        reason = "the handle type changes between 85 and 86")
+@BridgeHandled(type = "io/anuke/arc/audio/Sound", member = "resume", kind = BridgeHandled.Kind.SIGNATURE,
+        reason = "the handle type changes between 85 and 86")
+@BridgeHandled(type = "io/anuke/arc/audio/Sound", member = "setLooping", kind = BridgeHandled.Kind.SIGNATURE,
+        reason = "the handle type changes between 85 and 86")
+@BridgeHandled(type = "io/anuke/arc/audio/Sound", member = "setPitch", kind = BridgeHandled.Kind.SIGNATURE,
+        reason = "the handle type changes between 85 and 86")
+@BridgeHandled(type = "io/anuke/arc/audio/Sound", member = "setVolume", kind = BridgeHandled.Kind.SIGNATURE,
+        reason = "the handle type changes between 85 and 86")
+@BridgeHandled(type = "io/anuke/arc/audio/Sound", member = "setPan", kind = BridgeHandled.Kind.SIGNATURE,
+        reason = "the handle type changes between 85 and 86")
 final class LegacySound implements Sound {
     private final int sound;
 

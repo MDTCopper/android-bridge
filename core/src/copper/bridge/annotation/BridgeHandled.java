@@ -3,23 +3,30 @@ package copper.bridge.annotation;
 import java.lang.annotation.*;
 
 /**
- * Marks the code that deliberately handles a compatibility target whose presence changes inside the branch window.
- * Only the listed check kinds are suppressed, so a new type, member, signature or reflection problem still shows.
+ * Declares one exact compatibility finding as handled. The type, member and check kind must all match; an
+ * unhandled finding fails the audit.
  */
 @Retention(RetentionPolicy.CLASS)
 @Target({ElementType.TYPE, ElementType.METHOD, ElementType.FIELD})
+@Repeatable(BridgeHandled.List.class)
 public @interface BridgeHandled {
-    /** Owner prefixes whose findings are handled at this site. */
-    String[] value();
+    /** Internal name of the game or arc type, such as {@code arc/Net}. */
+    String type();
 
-    Kind[] kinds();
+    /** Member name, or empty only when {@link #kind} is {@link Kind#TYPE}. */
+    String member() default "";
 
-    /** Member names to narrow the suppression; empty means every member of the owner. */
-    String[] members() default {};
+    Kind kind();
 
     String reason();
 
     enum Kind {
         TYPE, MEMBER, SIGNATURE, REFLECTION
+    }
+
+    @Retention(RetentionPolicy.CLASS)
+    @Target({ElementType.TYPE, ElementType.METHOD, ElementType.FIELD})
+    @interface List {
+        BridgeHandled[] value();
     }
 }

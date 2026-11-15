@@ -85,10 +85,26 @@ public class Main {
         }
     }
 
-    @BridgeHandled(value = {"io/anuke/mindustry/net/ArcNetClient", "io/anuke/mindustry/net/ArcNetServer",
-            "io/anuke/mindustry/net/MClient", "io/anuke/mindustry/net/MServer"},
-            kinds = {BridgeHandled.Kind.TYPE, BridgeHandled.Kind.MEMBER, BridgeHandled.Kind.REFLECTION},
+    @BridgeHandled(type = "io/anuke/mindustry/net/ArcNetClient", kind = BridgeHandled.Kind.TYPE,
             reason = "the 90 build replaced the net providers with MClient/MServer, then 91 restored ArcNet")
+    @BridgeHandled(type = "io/anuke/mindustry/net/ArcNetServer", kind = BridgeHandled.Kind.TYPE,
+            reason = "the 90 build replaced the net providers with MClient/MServer, then 91 restored ArcNet")
+    @BridgeHandled(type = "io/anuke/mindustry/net/MClient", kind = BridgeHandled.Kind.TYPE,
+            reason = "present only around the 90 build")
+    @BridgeHandled(type = "io/anuke/mindustry/net/MServer", kind = BridgeHandled.Kind.TYPE,
+            reason = "present only around the 90 build")
+    @BridgeHandled(type = "io/anuke/mindustry/net/ArcNetClient", member = "<init>", kind = BridgeHandled.Kind.MEMBER,
+            reason = "constructor disappears with its class")
+    @BridgeHandled(type = "io/anuke/mindustry/net/ArcNetServer", member = "<init>", kind = BridgeHandled.Kind.MEMBER,
+            reason = "constructor disappears with its class")
+    @BridgeHandled(type = "io/anuke/mindustry/net/MClient", member = "<init>", kind = BridgeHandled.Kind.MEMBER,
+            reason = "constructor disappears with its class")
+    @BridgeHandled(type = "io/anuke/mindustry/net/MServer", member = "<init>", kind = BridgeHandled.Kind.MEMBER,
+            reason = "constructor disappears with its class")
+    @BridgeHandled(type = "io/anuke/mindustry/net/MClient", member = "<init>", kind = BridgeHandled.Kind.REFLECTION,
+            reason = "looked up only when ArcNet is absent")
+    @BridgeHandled(type = "io/anuke/mindustry/net/MServer", member = "<init>", kind = BridgeHandled.Kind.REFLECTION,
+            reason = "looked up only when ArcNet is absent")
     private static void installNetProviders() {
         try {
             Net.setClientProvider(new ArcNetClient());

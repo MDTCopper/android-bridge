@@ -112,7 +112,7 @@ public final class TypeHistoryAudit {
         List<String> findings = new ArrayList<>();
         HandledRefs handled = HandledRefs.read(classes);
         for (String owner : all) {
-            if (handled.handles(owner, HandledRefs.Kind.TYPE))
+            if (handled.handles(owner, null, HandledRefs.Kind.TYPE))
                 continue;
             String sequence = sequences.get(owner);
             if (sequence == null)
@@ -139,7 +139,7 @@ public final class TypeHistoryAudit {
                     + "; its types were not audited");
         System.out.println(branch + ": " + all.size() + " referenced type(s), " + findings.size()
                 + " transient type(s) across " + commits + " commit(s)");
-        if (!issues.isEmpty())
+        if (!issues.isEmpty() || !findings.isEmpty())
             System.exit(1);
     }
 

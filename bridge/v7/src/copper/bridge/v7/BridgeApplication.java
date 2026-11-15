@@ -172,9 +172,12 @@ public class BridgeApplication implements Application {
      * against, or the SoloudAudio the 11234 build has under its SoLoud name. No mock - a silent game would hide the
      * failure it stands for.
      */
-    @BridgeHandled(value = "arc/audio/SoloudAudio",
-            kinds = {BridgeHandled.Kind.TYPE, BridgeHandled.Kind.MEMBER, BridgeHandled.Kind.REFLECTION},
+    @BridgeHandled(type = "arc/audio/SoloudAudio", kind = BridgeHandled.Kind.TYPE,
             reason = "11234 has SoloudAudio; older builds fall back to LegacyAudio")
+    @BridgeHandled(type = "arc/audio/SoloudAudio", member = "<init>", kind = BridgeHandled.Kind.MEMBER,
+            reason = "constructor exists only where the class exists")
+    @BridgeHandled(type = "arc/audio/SoloudAudio", member = "<init>", kind = BridgeHandled.Kind.REFLECTION,
+            reason = "looked up only where the class exists")
     private static void initAudio() {
         arc.Audio audio;
         try {

@@ -36,7 +36,7 @@ public final class ReflectionComparer {
             if (outsideGame(ref, origins)) {
                 if (gameName(ref.owner) && (handled == null
                         || !handled.handles(ref.owner, ref.member, HandledRefs.Kind.REFLECTION)))
-                    System.out.println("  warning: reflection target is not on either endpoint classpath: " + ref);
+                    issues.add("reflection target is not on either endpoint classpath: " + ref);
                 continue;
             }
             Range range = ref.overrideKey == null ? branch : overrides.get(ref.overrideKey);

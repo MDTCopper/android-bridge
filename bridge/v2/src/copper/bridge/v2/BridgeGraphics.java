@@ -18,6 +18,7 @@ import org.lwjgl.system.*;
 
 import java.io.*;
 import java.nio.*;
+import java.util.function.Function;
 
 /**
  * arc's graphics for the JVM side of the bridge. {@code android.opengl} is unreachable in this JVM, so LWJGL's EGL
@@ -107,7 +108,7 @@ public class BridgeGraphics extends Graphics {
             }
         }
 
-        setConfig("DISABLE_HASH_CHECKS", true);
+        Configuration.DISABLE_HASH_CHECKS.set(true);
         Configuration.EGL_LIBRARY_NAME.set(egl);
         Configuration.OPENGLES_LIBRARY_NAME.set(gles);
         Configuration.OPENGLES_EXPLICIT_INIT.set(true);
@@ -127,7 +128,16 @@ public class BridgeGraphics extends Graphics {
         File lwjgl = LwjglNatives.extract();
         if (lwjgl == null)
             return;
-        Configuration.LIBRARY_PATH.set(lwjgl.getAbsolutePath());
+
+        String libPath = lwjgl.getAbsolutePath();
+        Configuration.LIBRARY_PATH.set(libPath);
+        System.setProperty("java.library.path", libPath + File.pathSeparator + System.getProperty("java.library.path", ""));
+
+        // The game jar can carry its own desktop liblwjgl.so at the classpath root; the mapper sends LWJGL's bundled
+        // lookup to the bridge jar's per-ABI copy instead, and it must be set before Platform initializes. Extraction
+        // is pointed at the folder already unpacked, where the bytes match its hash check, so nothing is written.
+        Configuration.BUNDLED_LIBRARY_PATH_MAPPER.set((Function<String, String>) LwjglNatives::mapPath);
+        Configuration.SHARED_LIBRARY_EXTRACT_PATH.set(libPath);
     }
 
     /** Finds the device's own ANGLE pair: the system's library directories in turn, the first holding both winning. */
@@ -274,15 +284,6 @@ public class BridgeGraphics extends Graphics {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             IntBuffer value = stack.mallocInt(1);
             return EGL10.eglGetConfigAttrib(eglDisplay, config, attribute, value) ? value.get(0) : 0;
-        }
-    }
-
-    /** The option exists in LWJGL 3.4 but not in the 3.2 tree the old game jar bundles, so it is set by name. */
-    private static void setConfig(String name, Object value) {
-        try {
-            Object option = Configuration.class.getField(name).get(null);
-            option.getClass().getMethod("set", Object.class).invoke(option, value);
-        } catch (Throwable ignored) {
         }
     }
 

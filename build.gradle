@@ -21,6 +21,16 @@ configure(subprojects - project(':native') - project(':bridge')) {
         options.compilerArgs += ['-Xlint:deprecation']
     }
 
+    // The bridge jar comes first on the runtime classpath, so the classes it carries win over a game jar's
+    // copy of the same class. A branch's compile classpath has to resolve the same way: Gradle puts the epoch
+    // file dependency first, so the bridge's copy of a namespace it ships (org.lwjgl) is moved in front here.
+    if (parent?.path == ':bridge') {
+        tasks.named('compileJava') {
+            classpath = files(configurations.compileClasspath.filter { it.name.startsWith('lwjgl-') },
+                    configurations.compileClasspath)
+        }
+    }
+
     tasks.withType(Javadoc).configureEach {
         options.encoding = 'UTF-8'
         options.locale = 'en_US'

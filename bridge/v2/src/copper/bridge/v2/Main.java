@@ -87,6 +87,19 @@ public class Main {
         try {
             Net.setClientProvider(new ArcNetClient());
             Net.setServerProvider(new ArcNetServer());
+            return;
+        } catch (Throwable ignored) {
+            // 90's release replaced the providers with MClient/MServer, then 91 restored ArcNet.
+        }
+        installLegacyNetProviders();
+    }
+
+    private static void installLegacyNetProviders() {
+        try {
+            Net.setClientProvider((Net.ClientProvider)Class.forName("io.anuke.mindustry.net.MClient")
+                    .getConstructor().newInstance());
+            Net.setServerProvider((Net.ServerProvider)Class.forName("io.anuke.mindustry.net.MServer")
+                    .getConstructor().newInstance());
         } catch (Throwable ignored) {
         }
     }

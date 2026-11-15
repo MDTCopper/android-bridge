@@ -60,11 +60,11 @@ JVM 一侧负责游戏循环与 EGL/GL。宿主 App 由使用方自行提供或�
 提交前运行完整构建：
 
 ```bash
-./gradlew :processor:compileJava :core:compileJava :bridge-v1:compileJava :bridge-v2:compileJava \
-          :native:assemble :pack:bridgeJar
+./gradlew :pack:bridgeJar
 ```
 
-没有 NDK 或 Android SDK 时，至少完成 Java 编译，并在 PR 中说明未执行的步骤。
+该任务会带上 Java 编译、native 构建、dex 与全部分支。没有 NDK 或 Android SDK 时无法执行；此时直接
+编译 Java 模块，并在 PR 中说明未执行的步骤。
 
 提交信息使用一句话、动词开头，一次提交只做一件事：
 

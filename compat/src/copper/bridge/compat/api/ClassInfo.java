@@ -28,6 +28,11 @@ public final class ClassInfo {
         return members.get(name + descriptor);
     }
 
+    /** Every field and method this class declares. */
+    public Collection<MemberInfo> members() {
+        return members.values();
+    }
+
     /** Whether any declaration has this name; reflection names a member without its descriptor. */
     public boolean hasMemberNamed(String name) {
         for (MemberInfo member : members.values()) {

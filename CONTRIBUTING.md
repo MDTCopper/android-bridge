@@ -71,12 +71,12 @@ or a version range, also run it on the oldest version in range. Compiling is not
 Run the full build before committing:
 
 ```bash
-./gradlew :processor:compileJava :core:compileJava :bridge-v1:compileJava :bridge-v2:compileJava \
-          :native:assemble :pack:bridgeJar
+./gradlew :pack:bridgeJar
 ```
 
-Without an NDK or the Android SDK, at least finish the Java compile, and say in the pull request which
-steps you did not run.
+That task pulls in the Java compile, the native build, the dex, and every branch. Without an NDK or the
+Android SDK it cannot run; compile the Java modules directly and say in the pull request which steps you did
+not run.
 
 Commit messages are one sentence, start with a verb, and do one thing:
 

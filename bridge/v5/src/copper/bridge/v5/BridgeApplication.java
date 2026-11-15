@@ -196,6 +196,11 @@ public class BridgeApplication implements Application {
     }
 
     @BridgeOverride
+    public long getJavaHeap() {
+        return Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+    }
+
+    @BridgeOverride
     public String getClipboardText() {
         return JvmCall.getClipboardText();
     }

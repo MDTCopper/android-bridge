@@ -42,8 +42,8 @@ include 'native'
 // the deployable jar: dex, the lwjgl classes and natives, the .so, the version table.
 include 'pack'
 
-// the build-time API guard: reads the bridge's compiled references and compares the arc/mindustry
-// declarations at the two ends of the branch's range. No game or arc build is involved.
+// The build-time compatibility tool: it renames the methods a branch declared under a build name and checks the
+// classes the jar actually carries against the two ends of the branch's range. No game or arc build is involved.
 include 'compat'
 
 // No includeBuild for the game: an epoch is the desktop jar the game itself ships, which already

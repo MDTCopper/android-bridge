@@ -22,14 +22,19 @@ public final class BridgeOverrideComparer {
     private BridgeOverrideComparer() {
     }
 
-    public static List<String> compareJar(List<BridgeOverrideRef> refs, Range range, RefJars jars,
-                                          Path bridgeClasses) {
+    public static List<String> compareJar(List<BridgeOverrideRef> refs, Range range, Map<String, Range> overrides,
+                                          RefJars jars, Path bridgeClasses, ClassOrigins origins) {
         BridgeOverrideComparer comparer = new BridgeOverrideComparer();
         comparer.indexBranch(bridgeClasses);
         List<String> issues = new ArrayList<>();
         for (BridgeOverrideRef ref : refs) {
-            boolean floor = comparer.gameMatch(ref, jars.jar(range.floor));
-            boolean ceiling = comparer.gameMatch(ref, jars.jar(range.ceiling));
+            Range refRange = ref.overrideKey == null ? range : overrides.get(ref.overrideKey);
+            if (refRange == null) {
+                issues.add("no range for @CompatRange " + ref.overrideKey + " on " + ref.sourceClass);
+                continue;
+            }
+            boolean floor = comparer.gameMatch(ref, jars.jar(refRange.floor), origins);
+            boolean ceiling = comparer.gameMatch(ref, jars.jar(refRange.ceiling), origins);
             if (ref.annotated && !floor && !ceiling) {
                 issues.add("bridge method annotation is wrong: " + ref.owner + "." + ref.name + ref.descriptor
                         + " mirrors no game supertype at either end");
@@ -41,14 +46,23 @@ public final class BridgeOverrideComparer {
         return issues;
     }
 
-    public static List<String> compareCode(List<BridgeOverrideRef> refs, Range range,
+    public static List<String> compareCode(List<BridgeOverrideRef> refs, Range range, Map<String, Range> overrides,
                                            Path gameDir, Path arcDir, Path bridgeClasses) {
-        SourceHierarchy floor = new SourceHierarchy(gameDir, range.floor, arcDir,
-                range.arcFloor == null ? range.floor : range.arcFloor, bridgeClasses);
-        SourceHierarchy ceiling = new SourceHierarchy(gameDir, range.ceiling, arcDir,
-                range.arcCeiling == null ? range.ceiling : range.arcCeiling, bridgeClasses);
+        BridgeOverrideComparer comparer = new BridgeOverrideComparer();
         List<String> issues = new ArrayList<>();
+        Map<String, SourceHierarchy> hierarchies = new HashMap<>();
         for (BridgeOverrideRef ref : refs) {
+            Range refRange = ref.overrideKey == null ? range : overrides.get(ref.overrideKey);
+            if (refRange == null) {
+                issues.add("no range for @CompatRange " + ref.overrideKey + " on " + ref.sourceClass);
+                continue;
+            }
+            SourceHierarchy floor = hierarchies.computeIfAbsent(refRange.floor + "|" + refRange.arcFloor,
+                    key -> new SourceHierarchy(gameDir, refRange.floor, arcDir,
+                            refRange.arcFloor == null ? refRange.floor : refRange.arcFloor, bridgeClasses));
+            SourceHierarchy ceiling = hierarchies.computeIfAbsent(refRange.ceiling + "|" + refRange.arcCeiling,
+                    key -> new SourceHierarchy(gameDir, refRange.ceiling, arcDir,
+                            refRange.arcCeiling == null ? refRange.ceiling : refRange.arcCeiling, bridgeClasses));
             boolean floorMatch = floor.gameMatch(ref.owner, ref.name);
             boolean ceilingMatch = ceiling.gameMatch(ref.owner, ref.name);
             if (ref.annotated && !floorMatch && !ceilingMatch) {
@@ -78,7 +92,7 @@ public final class BridgeOverrideComparer {
         }
     }
 
-    private boolean gameMatch(BridgeOverrideRef ref, JarIndex jar) {
+    private boolean gameMatch(BridgeOverrideRef ref, JarIndex jar, ClassOrigins origins) {
         jarClasses.clear();
         Deque<String> queue = new ArrayDeque<>();
         Set<String> seen = new HashSet<>();
@@ -92,7 +106,7 @@ public final class BridgeOverrideComparer {
             ClassInfo info = info(name, jar);
             if (info == null)
                 continue;
-            if (info.member(ref.name, ref.descriptor) != null && isGame(name))
+            if (info.member(ref.name, ref.descriptor) != null && isGame(name, origins))
                 return true;
             enqueue(info, queue, seen);
         }
@@ -121,8 +135,10 @@ public final class BridgeOverrideComparer {
         return fromJar;
     }
 
-    private static boolean isGame(String name) {
-        return name.startsWith("arc/") || name.startsWith("io/anuke/arc/")
-                || name.startsWith("mindustry/") || name.startsWith("io/anuke/mindustry/");
+    /** The layer the runtime classpath resolves the type in; only the game layer's presence changes across a range. */
+    private boolean isGame(String name, ClassOrigins origins) {
+        if (origins != null)
+            return origins.of(name) == ClassOrigins.Layer.GAME;
+        return !branchClasses.containsKey(name);
     }
 }

@@ -30,6 +30,28 @@ final class LegacySound implements Sound {
         return sound <= 0 ? -1 : JvmCall.playSound(sound, volume, pitch, pan, true);
     }
 
+    // The four convenience overloads are abstract at the range's floor and default methods at its ceiling: the class
+    // has to declare them, or the older versions throw AbstractMethodError on the game's own play()/loop() calls.
+    @BridgeOverride
+    public long play() {
+        return play(1f);
+    }
+
+    @BridgeOverride
+    public long play(float volume) {
+        return play(volume, 1f, 0f);
+    }
+
+    @BridgeOverride
+    public long loop() {
+        return loop(1f);
+    }
+
+    @BridgeOverride
+    public long loop(float volume) {
+        return loop(1f, 1f, 0f);
+    }
+
     @BridgeOverride
     public void stop() {
         if (sound > 0)

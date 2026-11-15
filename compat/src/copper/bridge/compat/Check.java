@@ -31,6 +31,7 @@ public final class Check {
         String branch = required(options, "branch");
         Path bridge = Paths.get(required(options, "bridge"));
         List<ClassRef> refs = ClassRefs.read(bridge);
+        Map<String, String> classRanges = ClassRanges.read(bridge);
         List<ReflectionRef> reflections = ReflectionRefs.read(bridge);
         List<BridgeOverrideRef> interfaces = BridgeOverrideRefs.read(bridge);
         List<ArcReflectRef> reflect = ArcReflectRefs.read(bridge);
@@ -40,12 +41,12 @@ public final class Check {
         if ("code".equals(mode)) {
             issues = checkCode(options, bridge, refs, reflections, interfaces, reflect);
         } else if ("jar".equals(mode)) {
-            issues = checkJar(args, options, branch, bridge, refs, reflections, interfaces, reflect);
+            issues = checkJar(args, options, branch, bridge, refs, reflections, interfaces, reflect, classRanges);
         } else {
             throw new IllegalArgumentException("unknown --mode " + mode + " (jar or code)");
         }
 
-        System.out.println(branch + " (" + mode + "): " + refs.stream().filter(ClassRef::isGameOrArc).count() + " direct reference(s), "
+        System.out.println(branch + " (" + mode + "): " + refs.size() + " reference(s), "
                 + reflections.size() + " direct reflection target(s), " + interfaces.stream().filter(r -> r.annotated).count()
                 + " bridge override method(s), " + reflect.size() + " arc Reflect target(s)");
         for (String issue : issues)
@@ -60,7 +61,8 @@ public final class Check {
 
     private static List<String> checkJar(String[] args, Map<String, String> options, String branch,
                                          Path bridge, List<ClassRef> refs, List<ReflectionRef> reflections,
-                                         List<BridgeOverrideRef> interfaces, List<ArcReflectRef> reflect) {
+                                         List<BridgeOverrideRef> interfaces, List<ArcReflectRef> reflect,
+                                         Map<String, String> classRanges) {
         CheckConfig config = CheckConfig.load(Paths.get(required(options, "properties")), branch);
         List<String> issues = new ArrayList<>();
         System.out.println("  total   " + refs.size() + " reference(s), "
@@ -69,21 +71,13 @@ public final class Check {
 
         Range branchRange = new Range(config.floor, config.ceiling);
         Map<String, Range> overrides = new HashMap<>();
-        for (ClassRef ref : refs) {
-            if (ref.overrideKey != null && !overrides.containsKey(ref.overrideKey)) {
-                String[] ends = ref.overrideKey.split("\\|", -1);
-                overrides.put(ref.overrideKey, new Range(
-                        "default".equals(ends[0]) ? config.floor : ends[0],
-                        "default".equals(ends[1]) ? config.ceiling : ends[1]));
-            }
-        }
-        for (ReflectionRef ref : reflections) {
-            if (ref.overrideKey != null && !overrides.containsKey(ref.overrideKey)) {
-                String[] ends = ref.overrideKey.split("\\|", -1);
-                overrides.put(ref.overrideKey, new Range(
-                        "default".equals(ends[0]) ? config.floor : ends[0],
-                        "default".equals(ends[1]) ? config.ceiling : ends[1]));
-            }
+        Set<String> keys = overrideKeys(refs, reflections, interfaces);
+        keys.addAll(classRanges.values());
+        for (String key : keys) {
+            String[] ends = key.split("\\|", -1);
+            overrides.put(key, new Range(
+                    "default".equals(ends[0]) ? config.floor : ends[0],
+                    "default".equals(ends[1]) ? config.ceiling : ends[1]));
         }
 
         try (RefJars jars = new RefJars()) {
@@ -96,12 +90,16 @@ public final class Check {
             System.out.println("  ceiling " + config.ceiling);
 
             ClassOrigins origins = origins(args, options, bridge, jars);
+            if (origins == null)
+                throw new IllegalArgumentException("jar mode needs --epoch and --bridge-classpath: a reference is "
+                        + "only the game's when the runtime classpath resolves it there");
             List<ClassRef> gameRefs = gameRefs(refs, origins, issues);
             System.out.println("  game    " + gameRefs.size() + " reference(s)");
 
             issues.addAll(ApiComparer.compare(gameRefs, branchRange, overrides, jars));
             issues.addAll(ReflectionComparer.compareJar(reflections, branchRange, overrides, jars, origins));
-            issues.addAll(BridgeOverrideComparer.compareJar(interfaces, branchRange, jars, bridge));
+            issues.addAll(BridgeOverrideComparer.compareJar(interfaces, branchRange, overrides, jars, bridge, origins));
+            issues.addAll(ImplementationComparer.compareJar(branchRange, overrides, jars, bridge, classRanges));
             issues.addAll(ArcReflectComparer.compareJar(reflect, branchRange, jars));
             return issues;
         }
@@ -127,25 +125,13 @@ public final class Check {
         Range branchRange = new Range(gameFloor, gameCeiling, arcFloor, arcCeiling);
 
         Map<String, Range> overrides = new HashMap<>();
-        for (ClassRef ref : refs) {
-            if (ref.overrideKey != null && !overrides.containsKey(ref.overrideKey)) {
-                String[] ends = ref.overrideKey.split("\\|", -1);
-                String floor = "default".equals(ends[0]) ? gameFloor : commit(game, ends[0]);
-                String ceiling = "default".equals(ends[1]) ? gameCeiling : commit(game, ends[1]);
-                overrides.put(ref.overrideKey, new Range(floor, ceiling,
-                        "default".equals(ends[0]) ? arcFloor : arcAt(game, arcDir, merged, floor),
-                        "default".equals(ends[1]) ? arcCeiling : arcAt(game, arcDir, merged, ceiling)));
-            }
-        }
-        for (ReflectionRef ref : reflections) {
-            if (ref.overrideKey != null && !overrides.containsKey(ref.overrideKey)) {
-                String[] ends = ref.overrideKey.split("\\|", -1);
-                String floor = "default".equals(ends[0]) ? gameFloor : commit(game, ends[0]);
-                String ceiling = "default".equals(ends[1]) ? gameCeiling : commit(game, ends[1]);
-                overrides.put(ref.overrideKey, new Range(floor, ceiling,
-                        "default".equals(ends[0]) ? arcFloor : arcAt(game, arcDir, merged, floor),
-                        "default".equals(ends[1]) ? arcCeiling : arcAt(game, arcDir, merged, ceiling)));
-            }
+        for (String key : overrideKeys(refs, reflections, interfaces)) {
+            String[] ends = key.split("\\|", -1);
+            String floor = "default".equals(ends[0]) ? gameFloor : commit(game, ends[0]);
+            String ceiling = "default".equals(ends[1]) ? gameCeiling : commit(game, ends[1]);
+            overrides.put(key, new Range(floor, ceiling,
+                    "default".equals(ends[0]) ? arcFloor : arcAt(game, arcDir, merged, floor),
+                    "default".equals(ends[1]) ? arcCeiling : arcAt(game, arcDir, merged, ceiling)));
         }
 
         System.out.println("  game    " + shortCommit(gameFloor) + " .. " + shortCommit(gameCeiling));
@@ -155,9 +141,29 @@ public final class Check {
         System.out.println("  game    " + gameRefs.size() + " reference(s)");
         issues.addAll(SourceComparer.compare(gameRefs, branchRange, overrides, gameDir, arcDir));
         issues.addAll(ReflectionComparer.compareCode(reflections, branchRange, overrides, gameDir, arcDir, null));
-        issues.addAll(BridgeOverrideComparer.compareCode(interfaces, branchRange, gameDir, arcDir, bridge));
+        issues.addAll(BridgeOverrideComparer.compareCode(interfaces, branchRange, overrides, gameDir, arcDir,
+                bridge));
         issues.addAll(ArcReflectComparer.compareCode(reflect, branchRange, gameDir, arcDir));
         return issues;
+    }
+
+    /** Every {@code @CompatRange} key the branch's references and overrides declare. */
+    private static Set<String> overrideKeys(List<ClassRef> refs, List<ReflectionRef> reflections,
+                                            List<BridgeOverrideRef> interfaces) {
+        Set<String> keys = new LinkedHashSet<>();
+        for (ClassRef ref : refs) {
+            if (ref.overrideKey != null)
+                keys.add(ref.overrideKey);
+        }
+        for (ReflectionRef ref : reflections) {
+            if (ref.overrideKey != null)
+                keys.add(ref.overrideKey);
+        }
+        for (BridgeOverrideRef ref : interfaces) {
+            if (ref.overrideKey != null)
+                keys.add(ref.overrideKey);
+        }
+        return keys;
     }
 
     /**
@@ -176,7 +182,10 @@ public final class Check {
         return new ClassOrigins(branchClasses, paths, jars.jar(epoch.trim()));
     }
 
-    /** Keeps the references that are the game's; a reference on no runtime layer at all is reported and dropped. */
+    /**
+     * Keeps the references that are the game's; a reference on no runtime layer at all is reported and dropped.
+     * The null-origins path is code mode's package rule, which has no runtime classpath to resolve against.
+     */
     private static List<ClassRef> gameRefs(List<ClassRef> refs, ClassOrigins origins, List<String> issues) {
         List<ClassRef> game = new ArrayList<>();
         if (origins == null) {

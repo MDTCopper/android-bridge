@@ -1,18 +1,37 @@
-// --- API check ---------------------------------------------------------------
+// --- enhance and API check ---------------------------------------------------
 //
-// The bridge is compiled against one epoch but runs on every version of the branch's range, so a symbol
-// whose declaration changed inside the range still compiles here and only fails on the older device. This
-// task reads the compiled branch classes and compares their arc/mindustry references at the two ends of the
-// branch's range. Both ends are official desktop jars staged by the epoch machinery, which is the only
-// place that fetches them; the check is handed the staged files. A class can narrow its ends with
-// @CompatRange, and a ref such a class names beyond the ones below is listed in <branch>.compatRefs.
+// A branch is compiled against one epoch but runs on every version of its range. Two things stand between the
+// compiled classes and the jar: methods a branch had to declare under a build name are renamed to the game's name,
+// and every arc/mindustry reference is compared at the two ends of the branch's range. Both ends are official desktop
+// jars staged by the epoch machinery, which is the only place that fetches them; the check is handed the staged
+// files. A class can narrow its ends with @CompatRange, and a ref such a class names beyond the ones below is listed
+// in <branch>.compatRefs.
 
 def compatClasses = project(':compat').sourceSets.main.output
 def coreClasses = project(':core').sourceSets.main.output.classesDirs.singleFile
-def checkedBranches = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9'].findAll {
-    rootProject.ext.branchHasSources(it) && findProperty("${it}.compatFloor")
-}
+def declaredBranches = project.ext.branchNames
+def enhancedRoot = layout.buildDirectory.dir('enhanced').get().asFile
+def checkedBranches = declaredBranches.findAll { findProperty("${it}.compatFloor") }
 def propertiesPath = rootProject.file('gradle.properties').absolutePath
+
+def classDirs = declaredBranches.collectEntries { String branch ->
+    [(branch): project(":bridge:${branch}").sourceSets.main.output.classesDirs.singleFile]
+}
+
+// The branch classes after the build-name renames. The check and the jar only ever see this directory.
+tasks.register('enhanceBranches', JavaExec) {
+    group = 'pack'
+    description = "Renames the methods a branch declared under a build name to their game names."
+    dependsOn ':compat:classes'
+    declaredBranches.each { dependsOn ":bridge:${it}:compileJava" }
+    classpath = project(':compat').sourceSets.main.runtimeClasspath
+    mainClass = 'copper.bridge.compat.enhance.Enhancer'
+    args '--out', enhancedRoot.absolutePath
+    classDirs.each { String branch, File dir -> args '--classes', branch + '=' + dir.absolutePath }
+    inputs.files(compatClasses)
+    inputs.files(classDirs.values())
+    outputs.dir(enhancedRoot)
+}
 
 // Both ends of the range, the epoch the branch compiles against - which is where a class that only has
 // the newer shape starts - and whatever @CompatRange names beyond those.
@@ -24,12 +43,12 @@ def compatRefs = { String branch ->
 }
 
 checkedBranches.each { String branch ->
-    def bridgeClasses = project(":bridge:${branch}").sourceSets.main.output.classesDirs.singleFile
+    def bridgeClasses = new File(enhancedRoot, branch)
     def refs = compatRefs(branch)
     tasks.register("checkBridgeApi${branch.capitalize()}", JavaExec) {
         group = 'pack'
         description = "Checks ${branch}'s arc/mindustry references against its API range."
-        dependsOn ":bridge:${branch}:compileJava", ':compat:classes'
+        dependsOn 'enhanceBranches'
         classpath = project(':compat').sourceSets.main.runtimeClasspath
         mainClass = 'copper.bridge.compat.Check'
         args = [

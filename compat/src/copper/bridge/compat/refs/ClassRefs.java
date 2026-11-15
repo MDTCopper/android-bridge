@@ -135,7 +135,6 @@ public final class ClassRefs {
         return file;
     }
 
-    /** A reference the check owns: arc or the game, in either package spelling. */
     /** Every reference from one class file, with the source file's {@code @CompatRange} applied. */
     public static List<ClassRef> readClass(Path path, String sourceClass) {
         ClassFile file = of(path, sourceClass);
@@ -147,11 +146,6 @@ public final class ClassRefs {
                     : new ClassRef(ref.sourceClass, ref.owner, ref.name, ref.descriptor, file.overrideKey));
         }
         return refs;
-    }
-
-    private static boolean isGameOrArc(String owner) {
-        return owner.startsWith("arc/") || owner.startsWith("mindustry/")
-                || owner.startsWith("io/anuke/arc/") || owner.startsWith("io/anuke/mindustry/");
     }
 
     /** Reads the source file name and the class-level {@code @CompatRange}; the class structure is skipped. */

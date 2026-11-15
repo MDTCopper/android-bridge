@@ -415,6 +415,12 @@ public class BridgeGraphics extends Graphics {
         }
     }
 
+    /** Abstract on the older end of the range, concrete on the newer one; the same answer either way. */
+    @BridgeOverride
+    public boolean isGL30Available() {
+        return gl30 != null;
+    }
+
     @BridgeOverride
     public GL30 getGL30() {
         return gl30;

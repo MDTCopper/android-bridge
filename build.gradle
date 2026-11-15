@@ -1,4 +1,4 @@
-// Build logic lives in gradle/: the version stamp, the epoch machinery, and the API check that pack applies.
+// Build logic lives in gradle/: the version stamp, the epoch machinery, and the enhance/check steps pack applies.
 // This file only applies them and holds the settings shared by every Java subproject.
 
 apply from: "$rootDir/gradle/version.gradle"

@@ -1,5 +1,6 @@
 package copper.bridge.v8;
 
+import copper.bridge.annotation.BridgeHandled;
 import copper.bridge.annotation.BridgeOverride;
 
 import arc.*;
@@ -25,6 +26,8 @@ import java.util.function.Function;
  * and OpenGL ES bindings are the only route to GL, and ART hands the window over as an opaque native pointer. A
  * pause destroys only the window surface, so GL objects survive a resume.
  */
+@BridgeHandled(targets = "arc/Graphics:newCursor", kind = BridgeHandled.Kind.SIGNATURE,
+        reason = "the 3-int overload is abstract and implemented; the Color overload is a default that calls it")
 public abstract class BridgeGraphics extends Graphics {
     /** Coverage sampling attribute; not in LWJGL's core EGL headers. */
     private static final int EGL_COVERAGE_SAMPLES_NV = 0x30E1;

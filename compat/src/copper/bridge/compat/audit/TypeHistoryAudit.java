@@ -170,9 +170,34 @@ public final class TypeHistoryAudit {
         if (clone.equals(game))
             return new Resolved(gameFrom, gameTo);
 
-        String arcFrom = revision(clone, from) ? from : before(clone, gameTime(game, gameFrom));
-        String arcTo = revision(clone, to) ? to : before(clone, gameTime(game, gameTo));
+        String arcFrom = revision(clone, from) ? from
+                : arcCommit(game, clone, gameFrom);
+        String arcTo = revision(clone, to) ? to
+                : arcCommit(game, clone, gameTo);
         return arcFrom == null || arcTo == null ? null : new Resolved(arcFrom, arcTo);
+    }
+
+    /** The arc commit the game recorded for this build, or the nearest earlier arc commit when it has none. */
+    private static String arcCommit(Path game, Path arc, String gameRef)
+            throws IOException, InterruptedException {
+        String hash = archash(game, gameRef);
+        if (hash != null && revision(arc, hash))
+            return hash;
+        return before(arc, gameTime(game, gameRef));
+    }
+
+    private static String archash(Path game, String ref) throws IOException, InterruptedException {
+        List<String> lines;
+        try {
+            lines = output(game, "show", ref + ":gradle.properties");
+        } catch (IOException e) {
+            return null;
+        }
+        for (String line : lines) {
+            if (line.startsWith("archash="))
+                return line.substring("archash=".length()).trim();
+        }
+        return null;
     }
 
     private static String gameRevision(Path game, Path jars, Path properties, String ref, List<String> issues)

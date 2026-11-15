@@ -1,5 +1,6 @@
 package copper.bridge.v5;
 
+import copper.bridge.annotation.BridgeHandled;
 import copper.bridge.annotation.BridgeOverride;
 
 import io.anuke.arc.*;
@@ -13,6 +14,7 @@ import copper.bridge.gen.*;
 import copper.bridge.util.*;
 
 import java.util.*;
+import java.lang.reflect.Proxy;
 
 /**
  * arc's application object for the JVM side of the bridge. On Android arc is driven by ART - the activity owns the
@@ -53,7 +55,7 @@ public class BridgeApplication implements Application {
         Core.files = files;
         Core.settings = new Settings();
         initAudio();
-        Core.net = new Net();
+        Core.net = createNet();
 
         graphics.configure();
 
@@ -163,6 +165,35 @@ public class BridgeApplication implements Application {
         try {
             Thread.sleep(millis);
         } catch (InterruptedException ignored) {
+        }
+    }
+
+    /**
+     * The Net shape changes inside this branch: 6316 is an interface, 6320 an abstract class, 6415 concrete. Prefer
+     * the concrete instance; otherwise use the legacy subclass for the abstract class, or a proxy for the interface.
+     */
+    @BridgeHandled(targets = "io/anuke/arc/Net:<init>",
+            warning = BridgeHandled.Warning.REFLECTED_MEMBER_PRESENT_AT_BOTH_ENDS,
+            reason = "the constructor exists only if Net is a class; the interface era cannot use it")
+    private static Net createNet() {
+        try {
+            return (Net)Net.class.getConstructor().newInstance();
+        } catch (Throwable ignored) {
+        }
+        try {
+            return (Net)Class.forName("copper.bridge.v5.NoNetLegacy").getConstructor().newInstance();
+        } catch (Throwable ignored) {
+        }
+        try {
+            return (Net)Proxy.newProxyInstance(Net.class.getClassLoader(), new Class<?>[] {Net.class},
+                    (proxy, method, args) -> {
+                        if ("openURI".equals(method.getName()))
+                            return JvmCall.openUri((String)args[0]);
+                        return method.getReturnType() == boolean.class ? Boolean.FALSE : null;
+                    });
+        } catch (Throwable e) {
+            Log.warn("could not create a Net for this build: " + e);
+            return null;
         }
     }
 

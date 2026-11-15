@@ -52,13 +52,18 @@ public final class ReflectionComparer {
             boolean floorPresent = present(floorJar, ref);
             boolean ceilingPresent = present(ceilingJar, ref);
             if (!floorPresent && !ceilingPresent) {
-                issues.add("reflection target is absent at both ends: " + ref + " (dead probe)");
+                HandledRefs.Warning warning = HandledRefs.Warning.REFLECTED_MEMBER_MISSING_FROM_ENDPOINTS;
+                if (handled == null || !handled.handles(ref.owner, ref.member, warning))
+                    issues.add("[" + warning + "] " + ref + " is absent at both ends");
                 continue;
             }
             // Accessibility matters as much as presence: a private field at the floor justifies reflection even when
             // the same field is public at the ceiling.
-            if (directly(floorJar, ref) && directly(ceilingJar, ref))
-                issues.add("reflection target is public at both ends: " + ref + " (use it directly)");
+            if (directly(floorJar, ref) && directly(ceilingJar, ref)) {
+                HandledRefs.Warning warning = HandledRefs.Warning.REFLECTED_MEMBER_PRESENT_AT_BOTH_ENDS;
+                if (handled == null || !handled.handles(ref.owner, ref.member, warning))
+                    issues.add("[" + warning + "] " + ref + " is public at both ends");
+            }
         }
         return issues;
     }

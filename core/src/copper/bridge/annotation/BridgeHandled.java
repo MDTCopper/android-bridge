@@ -33,7 +33,11 @@ public @interface BridgeHandled {
         /** A reflected class is absent from both endpoint classpaths. */
         REFLECTED_TYPE_MISSING_FROM_ENDPOINTS,
         /** A reflected method, field or constructor is absent from both endpoint classpaths. */
-        REFLECTED_MEMBER_MISSING_FROM_ENDPOINTS
+        REFLECTED_MEMBER_MISSING_FROM_ENDPOINTS,
+        /** A reflected class is public at both endpoints, so reflection is not needed for access. */
+        REFLECTED_TYPE_PRESENT_AT_BOTH_ENDS,
+        /** A reflected member is public at both endpoints, so reflection is not needed for access. */
+        REFLECTED_MEMBER_PRESENT_AT_BOTH_ENDS
     }
 
     @Retention(RetentionPolicy.CLASS)

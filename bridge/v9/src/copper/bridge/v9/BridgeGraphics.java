@@ -3,8 +3,6 @@ package copper.bridge.v9;
 import copper.bridge.annotation.BridgeOverride;
 
 import arc.*;
-import arc.graphics.Cursor;
-import arc.graphics.Cursor.SystemCursor;
 import arc.graphics.*;
 import arc.graphics.gl.*;
 
@@ -26,7 +24,7 @@ import java.util.function.Function;
  * and OpenGL ES bindings are the only route to GL, and ART hands the window over as an opaque native pointer. A
  * pause destroys only the window surface, so GL objects survive a resume.
  */
-public class BridgeGraphics extends Graphics {
+public abstract class BridgeGraphics extends Graphics {
     /** Coverage sampling attribute; not in LWJGL's core EGL headers. */
     private static final int EGL_COVERAGE_SAMPLES_NV = 0x30E1;
 
@@ -68,6 +66,34 @@ public class BridgeGraphics extends Graphics {
     private BufferFormat bufferFormat = new BufferFormat(8, 8, 8, 0, 16, 0, 0, false);
 
     public BridgeGraphics() {
+    }
+
+    /** The implementation matching the running game's cursor API. The choice is probed, not versioned. */
+    public static BridgeGraphics create() {
+        if (hasLegacyCursor())
+            return legacy();
+        return new BridgeGraphicsCurrent();
+    }
+
+    static boolean hasLegacyCursor() {
+        try {
+            Class.forName("arc.Graphics$Cursor");
+            return true;
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    /** By name: this class is loaded on the ceiling too, which has no arc.Graphics.Cursor for the legacy descriptors. */
+    private static BridgeGraphics legacy() {
+        try {
+            return (BridgeGraphics)Class.forName("copper.bridge.v9.BridgeGraphicsLegacy")
+                    .getConstructor()
+                    .newInstance();
+        } catch (Throwable e) {
+            throw new RuntimeException("the game declares arc.Graphics$Cursor but the legacy graphics could not"
+                    + " be created", e);
+        }
     }
 
     /**
@@ -497,18 +523,5 @@ public class BridgeGraphics extends Graphics {
     @BridgeOverride
     public boolean isFullscreen() {
         return true;
-    }
-
-    @BridgeOverride
-    public Cursor newCursor(Pixmap pixmap, int xHotspot, int yHotspot) {
-        return null;
-    }
-
-    @BridgeOverride
-    protected void setCursor(Cursor cursor) {
-    }
-
-    @BridgeOverride
-    protected void setSystemCursor(SystemCursor systemCursor) {
     }
 }

@@ -14,9 +14,9 @@ def enhancedRoot = layout.buildDirectory.dir('enhanced').get().asFile
 def checkedBranches = declaredBranches.findAll { findProperty("${it}.compatFloor") }
 def propertiesPath = rootProject.file('gradle.properties').absolutePath
 
-// v1 has a second source set compiled against its floor; pack reads it by its conventional output path because a
-// cross-project sourceSets lookup at pack's configuration time races that project's configuration.
-def legacyBranches = ['v1']
+// v1/v8/v9 have a second source set compiled against their floor; pack reads it by its conventional output path
+// because a cross-project sourceSets lookup at pack's configuration time races that project's configuration.
+def legacyBranches = ['v1', 'v8', 'v9']
 
 def classDirs = declaredBranches.collectEntries { String branch ->
     def dirs = [project(":bridge:${branch}").sourceSets.main.output.classesDirs.singleFile]
@@ -94,4 +94,3 @@ tasks.register('checkBridgeApi') {
     description = "Runs every branch's API check."
     dependsOn checkedBranches.collect { "checkBridgeApi${it.capitalize()}" }
 }
-

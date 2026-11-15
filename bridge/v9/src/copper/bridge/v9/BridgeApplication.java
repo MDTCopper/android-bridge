@@ -35,7 +35,7 @@ public class BridgeApplication implements Application {
     private boolean firstFrameMarked;
 
     public BridgeApplication() {
-        this.graphics = new BridgeGraphics();
+        this.graphics = BridgeGraphics.create();
         this.input = new BridgeInput();
         this.files = new BridgeFiles();
         this.events = new BridgeEvents(graphics, input, listeners);

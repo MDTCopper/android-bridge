@@ -25,7 +25,7 @@ import java.util.function.Function;
  * and OpenGL ES bindings are the only route to GL, and ART hands the window over as an opaque native pointer. A
  * pause destroys only the window surface, so GL objects survive a resume.
  */
-public class BridgeGraphics extends Graphics {
+public abstract class BridgeGraphics extends Graphics {
     /** Coverage sampling attribute; not in LWJGL's core EGL headers. */
     private static final int EGL_COVERAGE_SAMPLES_NV = 0x30E1;
 
@@ -68,6 +68,34 @@ public class BridgeGraphics extends Graphics {
     private BufferFormat bufferFormat = new BufferFormat(8, 8, 8, 0, 16, 0, 0, false);
 
     public BridgeGraphics() {
+    }
+
+    /** The implementation matching the running game's display API. The choice is probed, not versioned. */
+    public static BridgeGraphics create() {
+        if (hasMonitors())
+            return legacy();
+        return new BridgeGraphicsCurrent();
+    }
+
+    static boolean hasMonitors() {
+        try {
+            Class.forName("arc.Graphics$Monitor");
+            return true;
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    /** By name: this class is loaded on every epoch, and v159 has no Monitor type for the legacy class's descriptors. */
+    private static BridgeGraphics legacy() {
+        try {
+            return (BridgeGraphics)Class.forName("copper.bridge.v8.BridgeGraphicsLegacy")
+                    .getConstructor()
+                    .newInstance();
+        } catch (Throwable e) {
+            throw new RuntimeException("the game declares arc.Graphics$Monitor but the legacy graphics could not"
+                    + " be created", e);
+        }
     }
 
     /**

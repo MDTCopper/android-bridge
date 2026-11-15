@@ -91,7 +91,16 @@ public final class MemberHistoryAudit {
         boolean failed = false;
         for (Map.Entry<String, String> entry : sequences.entrySet()) {
             MemberTarget target = targets.get(entry.getKey());
-            if (target != null && handled.handles(target.owner, target.name, HandledRefs.Kind.MEMBER))
+            if (target == null)
+                continue;
+            HandledRefs.Warning warning = target.kind == MemberTarget.Kind.CLASS
+                    ? (target.owner.contains("$")
+                    ? HandledRefs.Warning.NESTED_TYPE_PRESENCE_CHANGED_WITHIN_WINDOW
+                    : HandledRefs.Warning.TYPE_PRESENCE_CHANGED_WITHIN_WINDOW)
+                    : target.kind == MemberTarget.Kind.FIELD
+                    ? HandledRefs.Warning.FIELD_PRESENCE_CHANGED_WITHIN_WINDOW
+                    : HandledRefs.Warning.METHOD_PRESENCE_CHANGED_WITHIN_WINDOW;
+            if (handled.handles(target.owner, target.name, warning))
                 continue;
             String sequence = entry.getValue();
             int changes = 0;
@@ -101,24 +110,27 @@ public final class MemberHistoryAudit {
             }
             if (changes > 1) {
                 failed = true;
-                findings.add((target == null ? entry.getKey() : target.display())
-                        + " changes presence inside the window (1 = present, 0 = absent): " + sequence);
+                findings.add("[" + warning + "] " + target.display()
+                        + " is absent in part of the window (1 = present, 0 = absent): " + sequence);
             }
         }
         for (String finding : findings)
             System.out.println(branch + ": " + finding);
         for (Map.Entry<String, Set<String>> entry : signatureChanges.entrySet()) {
             MemberTarget target = targets.get(entry.getKey());
-            if (target != null && handled.handles(target.owner, target.name, HandledRefs.Kind.SIGNATURE))
-                continue;
             if (target == null)
+                continue;
+            HandledRefs.Warning warning = target.kind == MemberTarget.Kind.FIELD
+                    ? HandledRefs.Warning.FIELD_TYPE_CHANGED_WITHIN_WINDOW
+                    : HandledRefs.Warning.METHOD_SIGNATURE_CHANGED_WITHIN_WINDOW;
+            if (handled.handles(target.owner, target.name, warning))
                 continue;
             failed = true;
             List<String> shapes = new ArrayList<>(entry.getValue());
             if (shapes.size() > 4)
                 shapes = shapes.subList(0, 4);
-            System.out.println(branch + ": " + target.display() + " has " + entry.getValue().size()
-                    + " source signatures: " + String.join(" | ", shapes));
+            System.out.println(branch + ": [" + warning + "] " + target.display()
+                    + " has " + entry.getValue().size() + " source shapes: " + String.join(" | ", shapes));
         }
         for (String issue : issues)
             System.out.println(branch + ": " + issue);

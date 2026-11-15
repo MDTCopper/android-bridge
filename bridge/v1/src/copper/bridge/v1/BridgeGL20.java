@@ -14,7 +14,7 @@ import org.lwjgl.system.*;
  */
 @BridgeHandled(targets = {"io/anuke/arc/graphics/GL20:glGetActiveAttrib",
         "io/anuke/arc/graphics/GL20:glGetActiveUniform"},
-        kind = BridgeHandled.Kind.SIGNATURE,
+        warning = BridgeHandled.Warning.METHOD_SIGNATURE_CHANGED_WITHIN_WINDOW,
         reason = "65 takes Buffer, 83 takes IntBuffer; both overloads are declared here")
 public class BridgeGL20 implements GL20 {
 

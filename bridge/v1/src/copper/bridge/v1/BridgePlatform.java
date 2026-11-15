@@ -17,7 +17,7 @@ import copper.bridge.util.*;
  * {@link Platform} whose {@code instance} this constructor installs.
  */
 @BridgeHandled(targets = "io/anuke/mindustry/core/Platform:showFileChooser",
-        kind = BridgeHandled.Kind.SIGNATURE,
+        warning = BridgeHandled.Warning.METHOD_SIGNATURE_CHANGED_WITHIN_WINDOW,
         reason = "65 takes a String filter, 83 a Predicate; both overloads are declared here")
 public class BridgePlatform extends Platform {
 

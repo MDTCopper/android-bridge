@@ -8,24 +8,31 @@ import java.nio.file.*;
 import java.util.*;
 import java.util.stream.*;
 
-/** Collects the exact type, member and check kind declared handled by {@code @BridgeHandled}. */
+/** Collects the exact type, member and warning declared handled by {@code @BridgeHandled}. */
 public final class HandledRefs {
     private static final String BRIDGE_HANDLED = "Lcopper/bridge/annotation/BridgeHandled;";
     private static final String BRIDGE_HANDLED_LIST = "Lcopper/bridge/annotation/BridgeHandled$List;";
 
-    public enum Kind {
-        TYPE, MEMBER, SIGNATURE, REFLECTION
+    public enum Warning {
+        TYPE_PRESENCE_CHANGED_WITHIN_WINDOW,
+        METHOD_PRESENCE_CHANGED_WITHIN_WINDOW,
+        FIELD_PRESENCE_CHANGED_WITHIN_WINDOW,
+        NESTED_TYPE_PRESENCE_CHANGED_WITHIN_WINDOW,
+        METHOD_SIGNATURE_CHANGED_WITHIN_WINDOW,
+        FIELD_TYPE_CHANGED_WITHIN_WINDOW,
+        REFLECTED_TYPE_MISSING_FROM_ENDPOINTS,
+        REFLECTED_MEMBER_MISSING_FROM_ENDPOINTS
     }
 
     private static final class Entry {
         final String type;
         final String member;
-        final Kind kind;
+        final Warning warning;
 
-        Entry(String type, String member, Kind kind) {
+        Entry(String type, String member, Warning warning) {
             this.type = type;
             this.member = member;
-            this.kind = kind;
+            this.warning = warning;
         }
     }
 
@@ -60,11 +67,12 @@ public final class HandledRefs {
         return handled;
     }
 
-    public boolean handles(String type, String member, Kind kind) {
+    public boolean handles(String type, String member, Warning warning) {
         for (Entry entry : entries) {
-            if (!entry.type.equals(type) || entry.kind != kind)
+            if (!entry.type.equals(type) || entry.warning != warning)
                 continue;
-            if (kind == Kind.TYPE)
+            if (warning == Warning.TYPE_PRESENCE_CHANGED_WITHIN_WINDOW
+                    || warning == Warning.NESTED_TYPE_PRESENCE_CHANGED_WITHIN_WINDOW)
                 return true;
             if (entry.member.equals(member))
                 return true;
@@ -96,7 +104,7 @@ public final class HandledRefs {
 
     private void add(AnnotationNode annotation) {
         List<String> targets = new ArrayList<>();
-        String kind = null;
+        String warning = null;
         if (annotation.values != null) {
             for (int i = 0; i < annotation.values.size(); i += 2) {
                 String name = (String)annotation.values.get(i);
@@ -110,14 +118,14 @@ public final class HandledRefs {
                     } else if (value instanceof String) {
                         targets.add((String)value);
                     }
-                } else if ("kind".equals(name) && value instanceof String[]) {
-                    kind = ((String[])value)[1];
+                } else if ("warning".equals(name) && value instanceof String[]) {
+                    warning = ((String[])value)[1];
                 }
             }
         }
-        if (kind == null)
+        if (warning == null)
             return;
-        Kind parsed = Kind.valueOf(kind);
+        Warning parsed = Warning.valueOf(warning);
         for (String target : targets) {
             int split = target.indexOf(':');
             String type = split < 0 ? target : target.substring(0, split);

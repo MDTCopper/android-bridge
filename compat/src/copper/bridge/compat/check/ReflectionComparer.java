@@ -34,9 +34,12 @@ public final class ReflectionComparer {
             if (ref.kind == ReflectionRef.Kind.TYPE)
                 continue;
             if (outsideGame(ref, origins)) {
+                HandledRefs.Warning warning = ref.kind == ReflectionRef.Kind.TYPE
+                        ? HandledRefs.Warning.REFLECTED_TYPE_MISSING_FROM_ENDPOINTS
+                        : HandledRefs.Warning.REFLECTED_MEMBER_MISSING_FROM_ENDPOINTS;
                 if (gameName(ref.owner) && (handled == null
-                        || !handled.handles(ref.owner, ref.member, HandledRefs.Kind.REFLECTION)))
-                    issues.add("reflection target is not on either endpoint classpath: " + ref);
+                        || !handled.handles(ref.owner, ref.member, warning)))
+                    issues.add("[" + warning + "] " + ref + " is not on either endpoint classpath");
                 continue;
             }
             Range range = ref.overrideKey == null ? branch : overrides.get(ref.overrideKey);

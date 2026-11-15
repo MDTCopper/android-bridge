@@ -26,7 +26,7 @@ import java.util.function.Function;
  * and OpenGL ES bindings are the only route to GL, and ART hands the window over as an opaque native pointer. A
  * pause destroys only the window surface, so GL objects survive a resume.
  */
-@BridgeHandled(targets = "arc/Graphics:newCursor", kind = BridgeHandled.Kind.SIGNATURE,
+@BridgeHandled(targets = "arc/Graphics:newCursor", warning = BridgeHandled.Warning.METHOD_SIGNATURE_CHANGED_WITHIN_WINDOW,
         reason = "the 3-int overload is abstract and implemented; the Color overload is a default that calls it")
 public abstract class BridgeGraphics extends Graphics {
     /** Coverage sampling attribute; not in LWJGL's core EGL headers. */

@@ -112,7 +112,10 @@ public final class TypeHistoryAudit {
         List<String> findings = new ArrayList<>();
         HandledRefs handled = HandledRefs.read(classes);
         for (String owner : all) {
-            if (handled.handles(owner, null, HandledRefs.Kind.TYPE))
+            HandledRefs.Warning warning = owner.contains("$")
+                    ? HandledRefs.Warning.NESTED_TYPE_PRESENCE_CHANGED_WITHIN_WINDOW
+                    : HandledRefs.Warning.TYPE_PRESENCE_CHANGED_WITHIN_WINDOW;
+            if (handled.handles(owner, null, warning))
                 continue;
             String sequence = sequences.get(owner);
             if (sequence == null)
@@ -123,9 +126,8 @@ public final class TypeHistoryAudit {
                     changes++;
             }
             if (changes > 1)
-                findings.add(owner.replace('/', '.') + " ("
-                        + (reflected.contains(owner) ? "reflection" : direct.contains(owner) ? "direct" : "type")
-                        + ") changes presence inside the window (1 = present, 0 = absent): " + sequence);
+                findings.add("[" + warning + "] " + owner.replace('/', '.') + " is absent in part of the window"
+                        + " (1 = present, 0 = absent): " + sequence);
         }
 
         for (String finding : findings)

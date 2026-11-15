@@ -23,7 +23,7 @@ import copper.bridge.gen.*;
         "io/anuke/arc/audio/Sound:resume", "io/anuke/arc/audio/Sound:setLooping",
         "io/anuke/arc/audio/Sound:setPitch", "io/anuke/arc/audio/Sound:setVolume",
         "io/anuke/arc/audio/Sound:setPan"},
-        kind = BridgeHandled.Kind.SIGNATURE,
+        warning = BridgeHandled.Warning.METHOD_SIGNATURE_CHANGED_WITHIN_WINDOW,
         reason = "84/85 use a long handle, 86+ an int; both overloads are declared here")
 final class LegacySound implements Sound {
     private final int sound;

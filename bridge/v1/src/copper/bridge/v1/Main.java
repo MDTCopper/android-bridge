@@ -93,6 +93,15 @@ public class Main {
             Object server = Class.forName("io.anuke.mindustry.net.ArcNetServer").getConstructor().newInstance();
             Net.setClientProvider((Net.ClientProvider)client);
             Net.setServerProvider((Net.ServerProvider)server);
+            return;
+        } catch (Throwable ignored) {
+        }
+        // 65..82 keep the providers in io.anuke.net; 83 moved them into mindustry.net with new names.
+        try {
+            Object client = Class.forName("io.anuke.net.KryoClient").getConstructor().newInstance();
+            Object server = Class.forName("io.anuke.net.KryoServer").getConstructor().newInstance();
+            Net.setClientProvider((Net.ClientProvider)client);
+            Net.setServerProvider((Net.ServerProvider)server);
         } catch (Throwable ignored) {
         }
     }

@@ -4,6 +4,8 @@ import copper.bridge.compat.refs.ClassRef;
 import copper.bridge.compat.refs.ClassRefs;
 import copper.bridge.compat.refs.ReflectionRef;
 import copper.bridge.compat.refs.ReflectionRefs;
+import copper.bridge.compat.refs.TypeDep;
+import copper.bridge.compat.refs.TypeDeps;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -41,14 +43,20 @@ public final class WindowAudit {
             if (isGameOrArc(ref.owner))
                 reflected.add(ref.owner);
         }
+        Set<String> typed = new TreeSet<>();
+        for (TypeDep dep : TypeDeps.read(classes)) {
+            if (isGameOrArc(dep.owner))
+                typed.add(dep.owner);
+        }
         if (!reflection.issues.isEmpty()) {
             for (String issue : reflection.issues)
                 System.out.println(branch + ": " + issue);
             System.exit(1);
         }
 
-        Set<String> all = union(direct, reflected);
+        Set<String> all = union(union(direct, reflected), typed);
         Set<String> unaudited = new TreeSet<>();
+        List<String> fallbacks = new ArrayList<>();
         Map<String, String> sequences = new HashMap<>();
         int commits = 0;
         for (Path clone : new Path[]{mindustry, arc}) {
@@ -59,11 +67,17 @@ public final class WindowAudit {
             }
             if (owners.isEmpty())
                 continue;
-            if (!refs(clone, from, to)) {
+            Resolved resolved = resolve(clone, mindustry, from, to);
+            if (resolved == null) {
                 unaudited.add(clone.equals(arc) ? "arc" : "game");
                 continue;
             }
-            History history = history(clone, from, to, owners);
+            if (!resolved.from.equals(from) || !resolved.to.equals(to))
+                fallbacks.add((clone.equals(arc) ? "arc" : "game") + " " + from + ".." + to + " -> "
+                        + resolved.from.substring(0, Math.min(10, resolved.from.length())) + ".."
+                        + resolved.to.substring(0, Math.min(10, resolved.to.length()))
+                        + " by game tag time");
+            History history = history(clone, resolved.from, resolved.to, owners);
             sequences.putAll(history.sequences);
             commits = Math.max(commits, history.commits);
         }
@@ -79,16 +93,59 @@ public final class WindowAudit {
                     changes++;
             }
             if (changes > 1)
-                findings.add((reflected.contains(owner) ? "reflection " : "direct ") + owner + " " + sequence);
+                findings.add((reflected.contains(owner) ? "reflection " : direct.contains(owner) ? "direct " : "type ")
+                        + owner + " " + sequence);
         }
 
         for (String finding : findings)
             System.out.println(branch + ": " + finding);
+        for (String fallback : fallbacks)
+            System.out.println(branch + ": " + fallback);
         for (String repo : unaudited)
             System.out.println(branch + ": no " + repo + " source for " + from + ".." + to
                     + "; its types were not audited");
         System.out.println(branch + ": " + all.size() + " referenced type(s), " + findings.size()
                 + " transient type(s) across " + commits + " commit(s)");
+    }
+
+    private static final class Resolved {
+        final String from;
+        final String to;
+
+        Resolved(String from, String to) {
+            this.from = from;
+            this.to = to;
+        }
+    }
+
+    /**
+     * Resolves both revisions. Arc has no tags before v93, so its window is anchored to the game tag commit time and
+     * the nearest earlier Arc commit, reported so the approximation is never silent.
+     */
+    private static Resolved resolve(Path clone, Path game, String from, String to)
+            throws IOException, InterruptedException {
+        if (refs(clone, from, to))
+            return new Resolved(from, to);
+        if (clone.equals(game))
+            return null;
+
+        String arcFrom = revision(clone, from) ? from : before(clone, gameTime(game, from));
+        String arcTo = revision(clone, to) ? to : before(clone, gameTime(game, to));
+        return arcFrom == null || arcTo == null ? null : new Resolved(arcFrom, arcTo);
+    }
+
+    private static boolean revision(Path clone, String ref) throws IOException, InterruptedException {
+        return outputStatus(clone, "rev-parse", "--verify", "--quiet", ref) == 0;
+    }
+
+    private static long gameTime(Path game, String ref) throws IOException, InterruptedException {
+        String value = output(game, "show", "-s", "--format=%ct", ref).get(0).trim();
+        return Long.parseLong(value);
+    }
+
+    private static String before(Path clone, long epoch) throws IOException, InterruptedException {
+        List<String> revisions = output(clone, "rev-list", "-1", "--before=" + (epoch - 1), "HEAD");
+        return revisions.isEmpty() ? null : revisions.get(0).trim();
     }
 
     private static final class History {

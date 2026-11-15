@@ -32,6 +32,7 @@ public final class Check {
         String branch = required(options, "branch");
         Path bridge = Paths.get(required(options, "bridge"));
         List<ClassRef> refs = ClassRefs.read(bridge);
+        List<TypeDep> typeDeps = TypeDeps.read(bridge);
         Map<String, String> classRanges = ClassRanges.read(bridge);
         ReflectionRefs.Result reflection = ReflectionRefs.read(bridge);
         List<ReflectionRef> reflections = reflection.refs;
@@ -43,7 +44,8 @@ public final class Check {
         if ("code".equals(mode)) {
             issues = checkCode(options, bridge, refs, reflections, interfaces, reflect);
         } else if ("jar".equals(mode)) {
-            issues = checkJar(args, options, branch, bridge, refs, reflections, interfaces, reflect, classRanges);
+            issues = checkJar(args, options, branch, bridge, refs, typeDeps, reflections, interfaces, reflect,
+                    classRanges);
         } else {
             throw new IllegalArgumentException("unknown --mode " + mode + " (jar or code)");
         }
@@ -63,7 +65,8 @@ public final class Check {
     }
 
     private static List<String> checkJar(String[] args, Map<String, String> options, String branch,
-                                         Path bridge, List<ClassRef> refs, List<ReflectionRef> reflections,
+                                         Path bridge, List<ClassRef> refs, List<TypeDep> typeDeps,
+                                         List<ReflectionRef> reflections,
                                          List<BridgeOverrideRef> interfaces, List<ArcReflectRef> reflect,
                                          Map<String, String> classRanges) {
         CheckConfig config = CheckConfig.load(Paths.get(required(options, "properties")), branch);
@@ -100,6 +103,7 @@ public final class Check {
             System.out.println("  game    " + gameRefs.size() + " reference(s)");
 
             issues.addAll(ApiComparer.compare(gameRefs, branchRange, overrides, jars));
+            issues.addAll(TypeComparer.compareJar(typeDeps, branchRange, overrides, jars));
             issues.addAll(ReflectionComparer.compareJar(reflections, branchRange, overrides, jars, origins));
             issues.addAll(BridgeOverrideComparer.compareJar(interfaces, branchRange, overrides, jars, bridge, origins));
             issues.addAll(ImplementationComparer.compareJar(branchRange, overrides, jars, bridge, classRanges));

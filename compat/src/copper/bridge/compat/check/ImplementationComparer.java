@@ -55,7 +55,7 @@ public final class ImplementationComparer {
                 // a method still abstract at the ceiling is enforced by compiling the branch against it
                 if (Boolean.TRUE.equals(ceiling.get(entry.getKey())))
                     continue;
-                if (comparer.implemented(type, entry.getKey()))
+                if (comparer.implemented(type, entry.getKey(), jars.jar(range.floor)))
                     continue;
                 // The branch compiles against the ceiling: a type that is gone there cannot appear in a source
                 // declaration, so the floor method cannot be added without a compile-time placeholder.
@@ -182,17 +182,22 @@ public final class ImplementationComparer {
         return false; // absent, or a default provides it
     }
 
-    /** Whether this class or a branch superclass declares the method concrete. */
-    private boolean implemented(ClassInfo type, String key) {
+    /** Whether this class, a branch superclass or a game superclass declares the method concrete at the floor. */
+    private boolean implemented(ClassInfo type, String key, JarIndex floorJar) {
         String method = key.substring(0, key.indexOf('('));
         String descriptor = key.substring(method.length());
-        ClassInfo current = type;
+        String name = type.name;
         Set<String> seen = new HashSet<>();
-        while (current != null && seen.add(current.name)) {
-            MemberInfo member = current.member(method, descriptor);
+        while (name != null && seen.add(name)) {
+            ClassInfo info = branch.get(name);
+            if (info == null)
+                info = floorJar.classInfo(name);
+            if (info == null)
+                return false;
+            MemberInfo member = info.member(method, descriptor);
             if (member != null && (member.access & Opcodes.ACC_ABSTRACT) == 0)
                 return true;
-            current = branch.get(current.superName);
+            name = info.superName;
         }
         return false;
     }

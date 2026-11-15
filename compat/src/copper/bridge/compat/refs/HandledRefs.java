@@ -14,10 +14,10 @@ public final class HandledRefs {
     private static final String BRIDGE_HANDLED_LIST = "Lcopper/bridge/annotation/BridgeHandled$List;";
 
     public enum Warning {
-        TYPE_PRESENCE_CHANGED_WITHIN_WINDOW,
-        METHOD_PRESENCE_CHANGED_WITHIN_WINDOW,
-        FIELD_PRESENCE_CHANGED_WITHIN_WINDOW,
-        NESTED_TYPE_PRESENCE_CHANGED_WITHIN_WINDOW,
+        TYPE_PRESENCE_NON_MONOTONIC_WITHIN_WINDOW,
+        METHOD_PRESENCE_NON_MONOTONIC_WITHIN_WINDOW,
+        FIELD_PRESENCE_NON_MONOTONIC_WITHIN_WINDOW,
+        NESTED_TYPE_PRESENCE_NON_MONOTONIC_WITHIN_WINDOW,
         METHOD_SIGNATURE_CHANGED_WITHIN_WINDOW,
         FIELD_TYPE_CHANGED_WITHIN_WINDOW,
         REFLECTED_TYPE_MISSING_FROM_ENDPOINTS,
@@ -71,8 +71,8 @@ public final class HandledRefs {
         for (Entry entry : entries) {
             if (!entry.type.equals(type) || entry.warning != warning)
                 continue;
-            if (warning == Warning.TYPE_PRESENCE_CHANGED_WITHIN_WINDOW
-                    || warning == Warning.NESTED_TYPE_PRESENCE_CHANGED_WITHIN_WINDOW)
+            if (warning == Warning.TYPE_PRESENCE_NON_MONOTONIC_WITHIN_WINDOW
+                    || warning == Warning.NESTED_TYPE_PRESENCE_NON_MONOTONIC_WITHIN_WINDOW)
                 return true;
             if (entry.member.equals(member))
                 return true;

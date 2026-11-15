@@ -18,14 +18,14 @@ public @interface BridgeHandled {
     String reason();
 
     enum Warning {
-        /** A top-level game or arc class is absent in the middle of the window. */
-        TYPE_PRESENCE_CHANGED_WITHIN_WINDOW,
-        /** A method or constructor is absent in the middle of the window. */
-        METHOD_PRESENCE_CHANGED_WITHIN_WINDOW,
-        /** A field is absent in the middle of the window. */
-        FIELD_PRESENCE_CHANGED_WITHIN_WINDOW,
-        /** An inner class is absent in the middle of the window. */
-        NESTED_TYPE_PRESENCE_CHANGED_WITHIN_WINDOW,
+        /** A top-level class's presence oscillates: present, absent, present again (or the reverse). */
+        TYPE_PRESENCE_NON_MONOTONIC_WITHIN_WINDOW,
+        /** A method or constructor's presence oscillates inside the window. */
+        METHOD_PRESENCE_NON_MONOTONIC_WITHIN_WINDOW,
+        /** A field's presence oscillates inside the window. */
+        FIELD_PRESENCE_NON_MONOTONIC_WITHIN_WINDOW,
+        /** An inner class's presence oscillates inside the window. */
+        NESTED_TYPE_PRESENCE_NON_MONOTONIC_WITHIN_WINDOW,
         /** A method's parameter or return types differ between source revisions. */
         METHOD_SIGNATURE_CHANGED_WITHIN_WINDOW,
         /** A field's declared type differs between source revisions. */

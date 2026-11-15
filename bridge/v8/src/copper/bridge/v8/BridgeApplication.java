@@ -170,9 +170,9 @@ public class BridgeApplication implements Application {
     }
 
     /** Installs arc's Net for the 127 line's Core.net; the class left arc-core later, so it is created by name. */
-    @BridgeHandled(targets = "arc/Net", warning = BridgeHandled.Warning.TYPE_PRESENCE_CHANGED_WITHIN_WINDOW,
+    @BridgeHandled(targets = "arc/Net", warning = BridgeHandled.Warning.TYPE_PRESENCE_NON_MONOTONIC_WITHIN_WINDOW,
             reason = "arc.Net exists only in the middle of the range; absence is caught")
-    @BridgeHandled(targets = "arc/Net:<init>", warning = BridgeHandled.Warning.METHOD_PRESENCE_CHANGED_WITHIN_WINDOW,
+    @BridgeHandled(targets = "arc/Net:<init>", warning = BridgeHandled.Warning.METHOD_PRESENCE_NON_MONOTONIC_WITHIN_WINDOW,
             reason = "constructor exists only where the class exists")
     @BridgeHandled(targets = "arc/Net:<init>", warning = BridgeHandled.Warning.REFLECTED_MEMBER_MISSING_FROM_ENDPOINTS,
             reason = "looked up only where the class exists")

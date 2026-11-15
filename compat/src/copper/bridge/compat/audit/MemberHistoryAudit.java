@@ -95,11 +95,11 @@ public final class MemberHistoryAudit {
                 continue;
             HandledRefs.Warning warning = target.kind == MemberTarget.Kind.CLASS
                     ? (target.owner.contains("$")
-                    ? HandledRefs.Warning.NESTED_TYPE_PRESENCE_CHANGED_WITHIN_WINDOW
-                    : HandledRefs.Warning.TYPE_PRESENCE_CHANGED_WITHIN_WINDOW)
+                    ? HandledRefs.Warning.NESTED_TYPE_PRESENCE_NON_MONOTONIC_WITHIN_WINDOW
+                    : HandledRefs.Warning.TYPE_PRESENCE_NON_MONOTONIC_WITHIN_WINDOW)
                     : target.kind == MemberTarget.Kind.FIELD
-                    ? HandledRefs.Warning.FIELD_PRESENCE_CHANGED_WITHIN_WINDOW
-                    : HandledRefs.Warning.METHOD_PRESENCE_CHANGED_WITHIN_WINDOW;
+                    ? HandledRefs.Warning.FIELD_PRESENCE_NON_MONOTONIC_WITHIN_WINDOW
+                    : HandledRefs.Warning.METHOD_PRESENCE_NON_MONOTONIC_WITHIN_WINDOW;
             if (handled.handles(target.owner, target.name, warning))
                 continue;
             String sequence = entry.getValue();
@@ -111,7 +111,8 @@ public final class MemberHistoryAudit {
             if (changes > 1) {
                 failed = true;
                 findings.add("[" + warning + "] " + target.display()
-                        + " is absent in part of the window (1 = present, 0 = absent): " + sequence);
+                        + " presence is non-monotonic inside the window"
+                        + " (1 = present, 0 = absent): " + sequence);
             }
         }
         for (String finding : findings)

@@ -87,11 +87,11 @@ public class Main {
 
     @BridgeHandled(targets = {"io/anuke/mindustry/net/ArcNetClient", "io/anuke/mindustry/net/ArcNetServer",
             "io/anuke/mindustry/net/MClient", "io/anuke/mindustry/net/MServer"},
-            warning = BridgeHandled.Warning.TYPE_PRESENCE_CHANGED_WITHIN_WINDOW,
+            warning = BridgeHandled.Warning.TYPE_PRESENCE_NON_MONOTONIC_WITHIN_WINDOW,
             reason = "the 90 build replaced the net providers with MClient/MServer, then 91 restored ArcNet")
     @BridgeHandled(targets = {"io/anuke/mindustry/net/ArcNetClient:<init>", "io/anuke/mindustry/net/ArcNetServer:<init>",
             "io/anuke/mindustry/net/MClient:<init>", "io/anuke/mindustry/net/MServer:<init>"},
-            warning = BridgeHandled.Warning.METHOD_PRESENCE_CHANGED_WITHIN_WINDOW,
+            warning = BridgeHandled.Warning.METHOD_PRESENCE_NON_MONOTONIC_WITHIN_WINDOW,
             reason = "constructors disappear with their classes")
     @BridgeHandled(targets = {"io/anuke/mindustry/net/MClient:<init>", "io/anuke/mindustry/net/MServer:<init>"},
             warning = BridgeHandled.Warning.REFLECTED_MEMBER_MISSING_FROM_ENDPOINTS,

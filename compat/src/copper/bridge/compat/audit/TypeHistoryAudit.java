@@ -113,8 +113,8 @@ public final class TypeHistoryAudit {
         HandledRefs handled = HandledRefs.read(classes);
         for (String owner : all) {
             HandledRefs.Warning warning = owner.contains("$")
-                    ? HandledRefs.Warning.NESTED_TYPE_PRESENCE_CHANGED_WITHIN_WINDOW
-                    : HandledRefs.Warning.TYPE_PRESENCE_CHANGED_WITHIN_WINDOW;
+                    ? HandledRefs.Warning.NESTED_TYPE_PRESENCE_NON_MONOTONIC_WITHIN_WINDOW
+                    : HandledRefs.Warning.TYPE_PRESENCE_NON_MONOTONIC_WITHIN_WINDOW;
             if (handled.handles(owner, null, warning))
                 continue;
             String sequence = sequences.get(owner);
@@ -126,7 +126,8 @@ public final class TypeHistoryAudit {
                     changes++;
             }
             if (changes > 1)
-                findings.add("[" + warning + "] " + owner.replace('/', '.') + " is absent in part of the window"
+                findings.add("[" + warning + "] " + owner.replace('/', '.')
+                        + " presence is non-monotonic inside the window"
                         + " (1 = present, 0 = absent): " + sequence);
         }
 

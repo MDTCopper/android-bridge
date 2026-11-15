@@ -2,7 +2,7 @@ package copper.bridge.v3;
 
 /** Picks the application whose function interfaces match the running build. */
 public final class BridgeApplications {
-    private static final String CONSUMER = "io/anuke/arc/function/Cons";
+    private static final String CONSUMER = "io/anuke/arc/func/Cons";
     private static final String LEGACY = "copper.bridge.v3.BridgeApplicationLegacy";
 
     private BridgeApplications() {

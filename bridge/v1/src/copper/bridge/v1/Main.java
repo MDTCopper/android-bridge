@@ -110,7 +110,34 @@ public class Main {
         }
 
         Log.info("loading arc natives");
+        configureArcLoader();
         ArcNativesLoader.load();
+    }
+
+    /**
+     * Arc before 84 detects Android from its own static flags, which it reads from {@code java.runtime.name} when
+     * the class loads. This JVM is a desktop one, so the flags still say Linux, and the loader extracts the game
+     * jar's 32-bit desktop libgdx instead of the staged Android one. Newer arc reads {@code OS.isAndroid} and has
+     * no such fields; the no-op path covers it.
+     */
+    private static void configureArcLoader() {
+        setIfPresent(SharedLibraryLoader.class, "isAndroid", true);
+        setIfPresent(SharedLibraryLoader.class, "isWindows", false);
+        setIfPresent(SharedLibraryLoader.class, "isLinux", false);
+        setIfPresent(SharedLibraryLoader.class, "isMac", false);
+        setIfPresent(SharedLibraryLoader.class, "is64Bit", false);
+    }
+
+    private static void setIfPresent(Class<?> owner, String name, Object value) {
+        try {
+            java.lang.reflect.Field field = owner.getDeclaredField(name);
+            field.setAccessible(true);
+            field.set(null, value);
+        } catch (NoSuchFieldException ignored) {
+            // newer arc keeps the flags on OS, which setOsType already set
+        } catch (Throwable e) {
+            Log.warn("could not set " + owner.getName() + "." + name + ": " + e);
+        }
     }
 
     private static void prepareGameFolders() {

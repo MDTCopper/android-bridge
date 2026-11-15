@@ -8,9 +8,10 @@ import copper.bridge.util.Log;
 import io.anuke.mindustry.*;
 
 import java.io.*;
+import java.lang.reflect.*;
 
 /**
- * The v1 branch entry point, reached reflectively by the JVM side once the branch is chosen; both classpath rules
+ * The v3 branch entry point, reached reflectively by the JVM side once the branch is chosen; both classpath rules
  * arrive at {@link #main(String[])}, so nothing here has to know which one applied.
  */
 public class Main {
@@ -35,6 +36,7 @@ public class Main {
 
         BridgeApplication application = new BridgeApplication();
         application.addListener(new BridgeLauncher());
+        installNetProviders();
 
         // only a thread that dies of its own exception consults the default handler, and this throw happens on the
         // calling thread. With none installed, the bridge reports it itself and rethrows.
@@ -76,6 +78,36 @@ public class Main {
         data.mkdirs();
         System.setProperty("mindustry.data.dir", data.getAbsolutePath());
         Log.info("game data: " + data);
+    }
+
+    /**
+     * Installs the game's network implementation on the versions whose {@code Net} keeps the providers in static fields:
+     * the desktop and Android launchers set both before start-up, and without them the HUD's ping label dereferences a
+     * null provider on its first update. From the version that builds {@code Net} from {@code Platform#getNet()} the
+     * setters are gone, and that path needs nothing here.
+     */
+    private static void installNetProviders() {
+        Method setClient;
+        Method setServer;
+        try {
+            Class<?> net = Class.forName("io.anuke.mindustry.net.Net");
+            setClient = net.getMethod("setClientProvider", Class.forName("io.anuke.mindustry.net.Net$ClientProvider"));
+            setServer = net.getMethod("setServerProvider", Class.forName("io.anuke.mindustry.net.Net$ServerProvider"));
+        } catch (ClassNotFoundException | NoSuchMethodException absent) {
+            return;
+        }
+
+        try {
+            setClient.invoke(null, Class.forName("io.anuke.mindustry.net.ArcNetClient").getConstructor().newInstance());
+        } catch (Throwable failed) {
+            Log.error("net client provider", failed);
+        }
+
+        try {
+            setServer.invoke(null, Class.forName("io.anuke.mindustry.net.ArcNetServer").getConstructor().newInstance());
+        } catch (Throwable failed) {
+            Log.error("net server provider", failed);
+        }
     }
 
     /**

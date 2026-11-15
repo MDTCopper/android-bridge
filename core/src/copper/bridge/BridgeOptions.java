@@ -19,6 +19,7 @@ public class BridgeOptions {
     public final List<File> gameJars = new ArrayList<>();
     public final List<File> loaderJars = new ArrayList<>();
 
+    /** The game's final data directory: saves, settings, mods and last_log.txt sit here, never in a child folder. */
     public File gameDataFolder;
     public File cacheFolder;
 

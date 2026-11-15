@@ -94,3 +94,41 @@ tasks.register('checkBridgeApi') {
     description = "Runs every branch's API check."
     dependsOn checkedBranches.collect { "checkBridgeApi${it.capitalize()}" }
 }
+
+// --- source window audit -----------------------------------------------------
+//
+// The endpoint check cannot see a type that disappears and reappears inside a range. This audit reads the game and
+// arc source clones at every release tag in a branch's window, so it needs no additional jars. A build-id window has
+// no tag to read, so it is not covered here; the jars already staged for compiling remain the evidence there.
+
+def mindustryClone = findProperty('mindustryClone') ? file(findProperty('mindustryClone'))
+        : rootProject.file('../Mindustry')
+def arcClone = findProperty('arcClone') ? file(findProperty('arcClone')) : rootProject.file('../Arc')
+def auditBranches = declaredBranches.findAll { findProperty("${it}.minVersionNumber") }
+
+auditBranches.each { String branch ->
+    tasks.register("auditWindow${branch.capitalize()}", JavaExec) {
+        group = 'pack'
+        description = "Audits ${branch}'s referenced types across its release tags."
+        dependsOn 'enhanceBranches'
+        classpath = project(':compat').sourceSets.main.runtimeClasspath
+        mainClass = 'copper.bridge.compat.audit.WindowAudit'
+        args '--branch', branch, '--classes', new File(enhancedRoot, branch).absolutePath,
+                '--mindustry', mindustryClone.absolutePath, '--arc', arcClone.absolutePath,
+                '--from', findProperty("${branch}.minVersionNumber")
+        def to = findProperty("${branch}.maxVersionNumber")
+        if (to)
+            args '--to', to
+        doFirst {
+            if (!new File(mindustryClone, '.git').isDirectory() || !new File(arcClone, '.git').isDirectory())
+                throw new GradleException("source audit needs the game and arc clones; pass -PmindustryClone and"
+                        + " -ParcClone (looked for ${mindustryClone} and ${arcClone})")
+        }
+    }
+}
+
+tasks.register('auditWindowSources') {
+    group = 'pack'
+    description = "Audits every release-window branch against the game and arc source clones."
+    dependsOn auditBranches.collect { "auditWindow${it.capitalize()}" }
+}

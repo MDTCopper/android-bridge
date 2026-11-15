@@ -1,5 +1,7 @@
 package copper.bridge.v2;
 
+import copper.bridge.annotation.BridgeHandled;
+
 import io.anuke.arc.util.*;
 import copper.bridge.*;
 import copper.bridge.jvm.Launch;
@@ -83,6 +85,9 @@ public class Main {
         }
     }
 
+    @BridgeHandled(value = {"io/anuke/mindustry/net/ArcNetClient", "io/anuke/mindustry/net/ArcNetServer",
+            "io/anuke/mindustry/net/MClient", "io/anuke/mindustry/net/MServer"},
+            reason = "the 90 build replaced the net providers with MClient/MServer, then 91 restored ArcNet")
     private static void installNetProviders() {
         try {
             Net.setClientProvider(new ArcNetClient());

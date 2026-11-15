@@ -98,14 +98,26 @@ tasks.register('checkBridgeApi') {
 // --- source history audit ----------------------------------------------------
 //
 // The endpoint check cannot see a type or member that disappears and reappears inside a range. These audits read the
-// game and arc source clones at every commit in a branch window, so they need no additional jars. A build-id window
-// has no commit to read, so it is not covered here; the jars already staged for compiling remain the evidence there.
+// game and arc source clones at every commit. A branch with a BE range uses its BE endpoints: the release interval
+// must lie inside it, checked by checkWindowContainment, so a release-only endpoint cannot hide a change. The build-id
+// commits come from gradle.properties; the audits never download a jar.
 
 def mindustryClone = findProperty('mindustryClone') ? file(findProperty('mindustryClone'))
         : rootProject.file('../Mindustry')
 def arcClone = findProperty('arcClone') ? file(findProperty('arcClone')) : rootProject.file('../Arc')
-def auditBranches = declaredBranches.findAll { findProperty("${it}.minVersionNumber") }
 def releaseTag = { String version -> 'v' + (version.endsWith('.0') ? version[0..-3] : version) }
+def auditBranches = declaredBranches.findAll { findProperty("${it}.minVersionNumber") || findProperty("${it}.minBeBuild") }
+def effectiveFrom = { String branch ->
+    def build = findProperty("${branch}.minBeBuild")
+    return build ? build.toString() : releaseTag(findProperty("${branch}.minVersionNumber").toString())
+}
+def effectiveTo = { String branch ->
+    def build = findProperty("${branch}.maxBeBuild")
+    if (build)
+        return build.toString()
+    def version = findProperty("${branch}.maxVersionNumber")
+    return version ? releaseTag(version.toString()) : 'HEAD'
+}
 
 auditBranches.each { String branch ->
     tasks.register("auditTypeHistory${branch.capitalize()}", JavaExec) {
@@ -116,25 +128,15 @@ auditBranches.each { String branch ->
         mainClass = 'copper.bridge.compat.audit.TypeHistoryAudit'
         args '--branch', branch, '--classes', new File(enhancedRoot, branch).absolutePath,
                 '--mindustry', mindustryClone.absolutePath, '--arc', arcClone.absolutePath,
-                '--from', releaseTag(findProperty("${branch}.minVersionNumber").toString())
-        def to = findProperty("${branch}.maxVersionNumber")
-        if (to)
-            args '--to', releaseTag(to.toString())
+                '--jars', new File(rootProject.projectDir, '.mindustry').absolutePath,
+                '--properties', rootProject.file('gradle.properties').absolutePath,
+                '--from', effectiveFrom(branch), '--to', effectiveTo(branch)
         doFirst {
             if (!new File(mindustryClone, '.git').isDirectory() || !new File(arcClone, '.git').isDirectory())
                 throw new GradleException("source audit needs the game and arc clones; pass -PmindustryClone and"
                         + " -ParcClone (looked for ${mindustryClone} and ${arcClone})")
         }
     }
-}
-
-tasks.register('auditTypeHistory') {
-    group = 'pack'
-    description = "Audits every release-window branch against the game and arc source clones."
-    dependsOn auditBranches.collect { "auditTypeHistory${it.capitalize()}" }
-}
-
-auditBranches.each { String branch ->
     tasks.register("auditMemberHistory${branch.capitalize()}", JavaExec) {
         group = 'pack'
         description = "Audits ${branch}'s methods, fields and nested classes across its commits."
@@ -143,10 +145,9 @@ auditBranches.each { String branch ->
         mainClass = 'copper.bridge.compat.audit.MemberHistoryAudit'
         args '--branch', branch, '--classes', new File(enhancedRoot, branch).absolutePath,
                 '--mindustry', mindustryClone.absolutePath, '--arc', arcClone.absolutePath,
-                '--from', releaseTag(findProperty("${branch}.minVersionNumber").toString())
-        def to = findProperty("${branch}.maxVersionNumber")
-        if (to)
-            args '--to', releaseTag(to.toString())
+                '--jars', new File(rootProject.projectDir, '.mindustry').absolutePath,
+                '--properties', rootProject.file('gradle.properties').absolutePath,
+                '--from', effectiveFrom(branch), '--to', effectiveTo(branch)
         doFirst {
             if (!new File(mindustryClone, '.git').isDirectory() || !new File(arcClone, '.git').isDirectory())
                 throw new GradleException("member audit needs the game and arc clones; pass -PmindustryClone and"
@@ -155,14 +156,47 @@ auditBranches.each { String branch ->
     }
 }
 
+tasks.register('auditTypeHistory') {
+    group = 'pack'
+    description = "Audits every branch's referenced types across its effective window."
+    dependsOn auditBranches.collect { "auditTypeHistory${it.capitalize()}" }
+}
+
 tasks.register('auditMemberHistory') {
     group = 'pack'
-    description = "Audits every release-window branch's members across its commits."
+    description = "Audits every branch's methods, fields and nested classes across its effective window."
     dependsOn auditBranches.collect { "auditMemberHistory${it.capitalize()}" }
+}
+
+def containmentBranches = auditBranches.findAll {
+    findProperty("${it}.minVersionNumber") && findProperty("${it}.minBeBuild") && findProperty("${it}.maxBeBuild")
+}
+containmentBranches.each { String branch ->
+    tasks.register("checkWindow${branch.capitalize()}", JavaExec) {
+        group = 'pack'
+        description = "Checks ${branch}'s release interval lies inside its BE interval."
+        classpath = project(':compat').sourceSets.main.runtimeClasspath
+        mainClass = 'copper.bridge.compat.audit.WindowContainment'
+        args '--branch', branch,
+                '--mindustry', mindustryClone.absolutePath,
+                '--properties', rootProject.file('gradle.properties').absolutePath,
+                '--release-from', releaseTag(findProperty("${branch}.minVersionNumber").toString()),
+                '--be-from', findProperty("${branch}.minBeBuild").toString(),
+                '--be-to', findProperty("${branch}.maxBeBuild").toString()
+        def releaseTo = findProperty("${branch}.maxVersionNumber")
+        if (releaseTo)
+            args '--release-to', releaseTag(releaseTo.toString())
+    }
+}
+
+tasks.register('checkWindowContainment') {
+    group = 'pack'
+    description = "Checks every release interval lies inside its branch's BE interval."
+    dependsOn containmentBranches.collect { "checkWindow${it.capitalize()}" }
 }
 
 tasks.register('auditSourceHistory') {
     group = 'pack'
-    description = "Runs the type and member source-history audits."
-    dependsOn 'auditTypeHistory', 'auditMemberHistory'
+    description = "Checks window containment and runs the type and member source-history audits."
+    dependsOn 'checkWindowContainment', 'auditTypeHistory', 'auditMemberHistory'
 }

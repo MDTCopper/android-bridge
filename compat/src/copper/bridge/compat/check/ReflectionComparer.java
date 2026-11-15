@@ -1,6 +1,7 @@
 package copper.bridge.compat.check;
 
 import copper.bridge.compat.api.*;
+import copper.bridge.compat.refs.HandledRefs;
 import copper.bridge.compat.refs.ReflectionRef;
 import copper.bridge.compat.sources.RefJars;
 import copper.bridge.compat.sources.SourceTree;
@@ -23,12 +24,17 @@ public final class ReflectionComparer {
 
     public static List<String> compareJar(List<ReflectionRef> refs, Range branch, Map<String, Range> overrides,
                                           RefJars jars, ClassOrigins origins) {
+        return compareJar(refs, branch, overrides, jars, origins, null);
+    }
+
+    public static List<String> compareJar(List<ReflectionRef> refs, Range branch, Map<String, Range> overrides,
+                                          RefJars jars, ClassOrigins origins, HandledRefs handled) {
         List<String> issues = new ArrayList<>();
         for (ReflectionRef ref : refs) {
             if (ref.kind == ReflectionRef.Kind.TYPE)
                 continue;
             if (outsideGame(ref, origins)) {
-                if (gameName(ref.owner))
+                if (gameName(ref.owner) && (handled == null || !handled.handles(ref.owner)))
                     System.out.println("  warning: reflection target is not on either endpoint classpath: " + ref);
                 continue;
             }

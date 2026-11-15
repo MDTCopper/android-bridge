@@ -1,5 +1,6 @@
 package copper.bridge.v8;
 
+import copper.bridge.annotation.BridgeHandled;
 import copper.bridge.annotation.BridgeOverride;
 
 import arc.*;
@@ -169,6 +170,7 @@ public class BridgeApplication implements Application {
     }
 
     /** Installs arc's Net for the 127 line's Core.net; the class left arc-core later, so it is created by name. */
+    @BridgeHandled(value = "arc/Net", reason = "arc.Net exists only in the middle of the range; absence is caught")
     private static void initNet() {
         try {
             Object net = Class.forName("arc.Net").getConstructor().newInstance();

@@ -2,6 +2,7 @@ package copper.bridge.compat.audit;
 
 import copper.bridge.compat.refs.ClassRef;
 import copper.bridge.compat.refs.ClassRefs;
+import copper.bridge.compat.refs.HandledRefs;
 import copper.bridge.compat.refs.ReflectionRef;
 import copper.bridge.compat.refs.ReflectionRefs;
 import copper.bridge.compat.refs.TypeDep;
@@ -27,6 +28,8 @@ public final class TypeHistoryAudit {
         Path classes = Paths.get(required(options, "classes"));
         Path mindustry = Paths.get(required(options, "mindustry"));
         Path arc = Paths.get(required(options, "arc"));
+        Path jars = options.containsKey("jars") ? Paths.get(options.get("jars")) : null;
+        Path properties = options.containsKey("properties") ? Paths.get(options.get("properties")) : null;
         String from = required(options, "from");
         String to = options.getOrDefault("to", "").trim();
         if (to.isEmpty())
@@ -56,6 +59,7 @@ public final class TypeHistoryAudit {
 
         Set<String> all = union(union(direct, reflected), typed);
         Set<String> unaudited = new TreeSet<>();
+        List<String> issues = new ArrayList<>();
         List<String> fallbacks = new ArrayList<>();
         Map<String, String> sequences = new HashMap<>();
         int commits = 0;
@@ -67,7 +71,7 @@ public final class TypeHistoryAudit {
             }
             if (owners.isEmpty())
                 continue;
-            Resolved resolved = resolve(clone, mindustry, from, to);
+            Resolved resolved = resolve(clone, mindustry, jars, properties, from, to, issues);
             if (resolved == null) {
                 unaudited.add(clone.equals(arc) ? "arc" : "game");
                 continue;
@@ -76,14 +80,17 @@ public final class TypeHistoryAudit {
                 fallbacks.add((clone.equals(arc) ? "arc" : "game") + " " + from + ".." + to + " -> "
                         + resolved.from.substring(0, Math.min(10, resolved.from.length())) + ".."
                         + resolved.to.substring(0, Math.min(10, resolved.to.length()))
-                        + " by game tag time");
+                        + " by version metadata");
             History history = history(clone, resolved.from, resolved.to, owners);
             sequences.putAll(history.sequences);
             commits = Math.max(commits, history.commits);
         }
 
         List<String> findings = new ArrayList<>();
+        HandledRefs handled = HandledRefs.read(classes);
         for (String owner : all) {
+            if (handled.handles(owner))
+                continue;
             String sequence = sequences.get(owner);
             if (sequence == null)
                 continue;
@@ -101,11 +108,15 @@ public final class TypeHistoryAudit {
             System.out.println(branch + ": " + finding);
         for (String fallback : fallbacks)
             System.out.println(branch + ": " + fallback);
+        for (String issue : issues)
+            System.out.println(branch + ": " + issue);
         for (String repo : unaudited)
             System.out.println(branch + ": no " + repo + " source for " + from + ".." + to
                     + "; its types were not audited");
         System.out.println(branch + ": " + all.size() + " referenced type(s), " + findings.size()
                 + " transient type(s) across " + commits + " commit(s)");
+        if (!issues.isEmpty())
+            System.exit(1);
     }
 
     static final class Resolved {
@@ -122,20 +133,39 @@ public final class TypeHistoryAudit {
      * Resolves both revisions. Arc has no tags before v93, so its window is anchored to the game tag commit time and
      * the nearest earlier Arc commit, reported so the approximation is never silent.
      */
-    static Resolved resolve(Path clone, Path game, String from, String to)
+    static Resolved resolve(Path clone, Path game, Path jars, Path properties, String from, String to,
+                            List<String> issues)
             throws IOException, InterruptedException {
         if (refs(clone, from, to))
             return new Resolved(from, to);
-        if (clone.equals(game))
-            return null;
 
-        String arcFrom = revision(clone, from) ? from : before(clone, gameTime(game, from));
-        String arcTo = revision(clone, to) ? to : before(clone, gameTime(game, to));
+        String gameFrom = gameRevision(game, jars, properties, from, issues);
+        String gameTo = gameRevision(game, jars, properties, to, issues);
+        if (gameFrom == null || gameTo == null)
+            return null;
+        if (clone.equals(game))
+            return new Resolved(gameFrom, gameTo);
+
+        String arcFrom = revision(clone, from) ? from : before(clone, gameTime(game, gameFrom));
+        String arcTo = revision(clone, to) ? to : before(clone, gameTime(game, gameTo));
         return arcFrom == null || arcTo == null ? null : new Resolved(arcFrom, arcTo);
     }
 
+    private static String gameRevision(Path game, Path jars, Path properties, String ref, List<String> issues)
+            throws IOException, InterruptedException {
+        if (!ref.matches("\\d+") && revision(game, ref))
+            return ref;
+        if (jars == null) {
+            issues.add("no --jars path for " + ref);
+            return null;
+        }
+        return VersionInfo.commit(jars, ref, game, properties, issues);
+    }
+
     private static boolean revision(Path clone, String ref) throws IOException, InterruptedException {
-        return outputStatus(clone, "rev-parse", "--verify", "--quiet", ref) == 0;
+        if (ref.matches("\\d+"))
+            return false;
+        return outputStatus(clone, "rev-parse", "--verify", "--quiet", ref + "^{commit}") == 0;
     }
 
     private static long gameTime(Path game, String ref) throws IOException, InterruptedException {
@@ -276,8 +306,7 @@ public final class TypeHistoryAudit {
 
     /** Whether the clone has both revisions. Arc predates the split with its own tags, so a window can predate it. */
     private static boolean refs(Path clone, String from, String to) throws IOException, InterruptedException {
-        return outputStatus(clone, "rev-parse", "--verify", "--quiet", from) == 0
-                && outputStatus(clone, "rev-parse", "--verify", "--quiet", to) == 0;
+        return revision(clone, from) && revision(clone, to);
     }
 
     private static List<String> output(Path clone, String... args) throws IOException, InterruptedException {

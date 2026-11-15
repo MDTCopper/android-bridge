@@ -1,5 +1,6 @@
 package copper.bridge.v7;
 
+import copper.bridge.annotation.BridgeHandled;
 import copper.bridge.annotation.BridgeOverride;
 
 import arc.*;
@@ -171,6 +172,8 @@ public class BridgeApplication implements Application {
      * against, or the SoloudAudio the 11234 build has under its SoLoud name. No mock - a silent game would hide the
      * failure it stands for.
      */
+    @BridgeHandled(value = "arc/audio/SoloudAudio",
+            reason = "11234 has SoloudAudio; older builds fall back to LegacyAudio")
     private static void initAudio() {
         arc.Audio audio;
         try {

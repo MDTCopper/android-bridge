@@ -4,7 +4,6 @@ import com.sun.source.tree.*;
 import com.sun.source.util.JavacTask;
 
 import copper.bridge.compat.refs.*;
-
 import javax.tools.*;
 import java.io.*;
 import java.net.URI;
@@ -29,12 +28,16 @@ public final class MemberHistoryAudit {
         Path classes = Paths.get(required(options, "classes"));
         Path mindustry = Paths.get(required(options, "mindustry"));
         Path arc = Paths.get(required(options, "arc"));
+        Path jars = options.containsKey("jars") ? Paths.get(options.get("jars")) : null;
+        Path properties = options.containsKey("properties") ? Paths.get(options.get("properties")) : null;
         String from = required(options, "from");
         String to = options.getOrDefault("to", "").trim();
         if (to.isEmpty())
             to = "HEAD";
 
         List<MemberTarget> deps = deps(classes);
+        HandledRefs handled = HandledRefs.read(classes);
+        deps.removeIf(dep -> handled.handles(dep.owner));
         List<String> issues = new ArrayList<>();
         Map<String, String> sequences = new HashMap<>();
         int commits = 0;
@@ -44,7 +47,8 @@ public final class MemberHistoryAudit {
                     .collect(Collectors.toList());
             if (repoDeps.isEmpty())
                 continue;
-            TypeHistoryAudit.Resolved resolved = TypeHistoryAudit.resolve(clone, mindustry, from, to);
+            TypeHistoryAudit.Resolved resolved = TypeHistoryAudit.resolve(clone, mindustry, jars, properties, from,
+                    to, issues);
             if (resolved == null) {
                 issues.add("no " + (clone.equals(arc) ? "arc" : "game") + " source for " + from + ".." + to);
                 continue;
@@ -52,7 +56,7 @@ public final class MemberHistoryAudit {
             if (!resolved.from.equals(from) || !resolved.to.equals(to))
                 System.out.println(branch + ": " + (clone.equals(arc) ? "arc" : "game") + " " + from + ".." + to
                         + " -> " + resolved.from.substring(0, Math.min(10, resolved.from.length())) + ".."
-                        + resolved.to.substring(0, Math.min(10, resolved.to.length())) + " by game tag time");
+                        + resolved.to.substring(0, Math.min(10, resolved.to.length())) + " by version metadata");
             Map<String, String> result = history(clone, resolved.from, resolved.to, repoDeps, issues);
             sequences.putAll(result);
             commits = Math.max(commits, count(clone, resolved.from, resolved.to));

@@ -95,11 +95,11 @@ tasks.register('checkBridgeApi') {
     dependsOn checkedBranches.collect { "checkBridgeApi${it.capitalize()}" }
 }
 
-// --- source window audit -----------------------------------------------------
+// --- source history audit ----------------------------------------------------
 //
-// The endpoint check cannot see a type that disappears and reappears inside a range. This audit reads the game and
-// arc source clones at every release tag in a branch's window, so it needs no additional jars. A build-id window has
-// no tag to read, so it is not covered here; the jars already staged for compiling remain the evidence there.
+// The endpoint check cannot see a type or member that disappears and reappears inside a range. These audits read the
+// game and arc source clones at every commit in a branch window, so they need no additional jars. A build-id window
+// has no commit to read, so it is not covered here; the jars already staged for compiling remain the evidence there.
 
 def mindustryClone = findProperty('mindustryClone') ? file(findProperty('mindustryClone'))
         : rootProject.file('../Mindustry')
@@ -108,12 +108,12 @@ def auditBranches = declaredBranches.findAll { findProperty("${it}.minVersionNum
 def releaseTag = { String version -> 'v' + (version.endsWith('.0') ? version[0..-3] : version) }
 
 auditBranches.each { String branch ->
-    tasks.register("auditWindow${branch.capitalize()}", JavaExec) {
+    tasks.register("auditTypeHistory${branch.capitalize()}", JavaExec) {
         group = 'pack'
-        description = "Audits ${branch}'s referenced types across its release tags."
+        description = "Audits ${branch}'s referenced types across its commits."
         dependsOn 'enhanceBranches'
         classpath = project(':compat').sourceSets.main.runtimeClasspath
-        mainClass = 'copper.bridge.compat.audit.WindowAudit'
+        mainClass = 'copper.bridge.compat.audit.TypeHistoryAudit'
         args '--branch', branch, '--classes', new File(enhancedRoot, branch).absolutePath,
                 '--mindustry', mindustryClone.absolutePath, '--arc', arcClone.absolutePath,
                 '--from', releaseTag(findProperty("${branch}.minVersionNumber").toString())
@@ -128,19 +128,19 @@ auditBranches.each { String branch ->
     }
 }
 
-tasks.register('auditWindowSources') {
+tasks.register('auditTypeHistory') {
     group = 'pack'
     description = "Audits every release-window branch against the game and arc source clones."
-    dependsOn auditBranches.collect { "auditWindow${it.capitalize()}" }
+    dependsOn auditBranches.collect { "auditTypeHistory${it.capitalize()}" }
 }
 
 auditBranches.each { String branch ->
-    tasks.register("auditMembers${branch.capitalize()}", JavaExec) {
+    tasks.register("auditMemberHistory${branch.capitalize()}", JavaExec) {
         group = 'pack'
         description = "Audits ${branch}'s methods, fields and nested classes across its commits."
         dependsOn 'enhanceBranches'
         classpath = project(':compat').sourceSets.main.runtimeClasspath
-        mainClass = 'copper.bridge.compat.audit.MemberAudit'
+        mainClass = 'copper.bridge.compat.audit.MemberHistoryAudit'
         args '--branch', branch, '--classes', new File(enhancedRoot, branch).absolutePath,
                 '--mindustry', mindustryClone.absolutePath, '--arc', arcClone.absolutePath,
                 '--from', releaseTag(findProperty("${branch}.minVersionNumber").toString())
@@ -155,8 +155,14 @@ auditBranches.each { String branch ->
     }
 }
 
-tasks.register('auditMemberSources') {
+tasks.register('auditMemberHistory') {
     group = 'pack'
     description = "Audits every release-window branch's members across its commits."
-    dependsOn auditBranches.collect { "auditMembers${it.capitalize()}" }
+    dependsOn auditBranches.collect { "auditMemberHistory${it.capitalize()}" }
+}
+
+tasks.register('auditSourceHistory') {
+    group = 'pack'
+    description = "Runs the type and member source-history audits."
+    dependsOn 'auditTypeHistory', 'auditMemberHistory'
 }

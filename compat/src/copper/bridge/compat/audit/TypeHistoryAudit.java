@@ -19,7 +19,7 @@ import java.util.*;
  * <p>Reads source trees with one {@code git log} per repository; a per-commit {@code git ls-tree} would spawn
  * thousands of processes. A build-id window has no commit to resolve and is not covered.
  */
-public final class WindowAudit {
+public final class TypeHistoryAudit {
 
     public static void main(String[] args) throws Exception {
         Map<String, String> options = parse(args);

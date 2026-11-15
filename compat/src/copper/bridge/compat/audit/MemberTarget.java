@@ -3,7 +3,7 @@ package copper.bridge.compat.audit;
 import org.objectweb.asm.Type;
 
 /** One declaration the branch depends on, reduced to what a Java source declaration can prove. */
-final class MemberDep {
+final class MemberTarget {
     enum Kind {
         CLASS, METHOD, FIELD, CONSTRUCTOR
     }
@@ -15,7 +15,7 @@ final class MemberDep {
     /** Parameter count; -1 when reflection did not carry a descriptor. */
     final int arity;
 
-    MemberDep(String owner, Kind kind, String name, int arity) {
+    MemberTarget(String owner, Kind kind, String name, int arity) {
         this.owner = owner;
         this.outer = owner.contains("$") ? owner.substring(0, owner.indexOf('$')) : owner;
         this.kind = kind;
@@ -23,18 +23,18 @@ final class MemberDep {
         this.arity = arity;
     }
 
-    static MemberDep method(String owner, String name, String descriptor) {
+    static MemberTarget method(String owner, String name, String descriptor) {
         Type method = Type.getMethodType(descriptor);
-        return new MemberDep(owner, "<init>".equals(name) ? Kind.CONSTRUCTOR : Kind.METHOD, name,
+        return new MemberTarget(owner, "<init>".equals(name) ? Kind.CONSTRUCTOR : Kind.METHOD, name,
                 method.getArgumentTypes().length);
     }
 
-    static MemberDep field(String owner, String name) {
-        return new MemberDep(owner, Kind.FIELD, name, -1);
+    static MemberTarget field(String owner, String name) {
+        return new MemberTarget(owner, Kind.FIELD, name, -1);
     }
 
-    static MemberDep type(String owner) {
-        return new MemberDep(owner, Kind.CLASS, owner, -1);
+    static MemberTarget type(String owner) {
+        return new MemberTarget(owner, Kind.CLASS, owner, -1);
     }
 
     String key() {

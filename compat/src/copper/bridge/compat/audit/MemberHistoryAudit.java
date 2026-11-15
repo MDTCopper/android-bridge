@@ -21,7 +21,7 @@ import java.util.stream.*;
  * <p>Reads source with the javac parser; parse errors are reported, not skipped. File contents come from one
  * {@code git cat-file --batch} per repository.
  */
-public final class MemberAudit {
+public final class MemberHistoryAudit {
 
     public static void main(String[] args) throws Exception {
         Map<String, String> options = parse(args);
@@ -34,17 +34,17 @@ public final class MemberAudit {
         if (to.isEmpty())
             to = "HEAD";
 
-        List<MemberDep> deps = deps(classes);
+        List<MemberTarget> deps = deps(classes);
         List<String> issues = new ArrayList<>();
         Map<String, String> sequences = new HashMap<>();
         int commits = 0;
         for (Path clone : new Path[]{mindustry, arc}) {
-            List<MemberDep> repoDeps = deps.stream()
+            List<MemberTarget> repoDeps = deps.stream()
                     .filter(dep -> (isArc(dep.owner) ? arc : mindustry).equals(clone))
                     .collect(Collectors.toList());
             if (repoDeps.isEmpty())
                 continue;
-            WindowAudit.Resolved resolved = WindowAudit.resolve(clone, mindustry, from, to);
+            TypeHistoryAudit.Resolved resolved = TypeHistoryAudit.resolve(clone, mindustry, from, to);
             if (resolved == null) {
                 issues.add("no " + (clone.equals(arc) ? "arc" : "game") + " source for " + from + ".." + to);
                 continue;
@@ -79,17 +79,17 @@ public final class MemberAudit {
             System.exit(1);
     }
 
-    private static Map<String, String> history(Path clone, String from, String to, List<MemberDep> deps,
+    private static Map<String, String> history(Path clone, String from, String to, List<MemberTarget> deps,
                                                List<String> issues) throws Exception {
-        Map<String, List<MemberDep>> byOuter = new LinkedHashMap<>();
-        for (MemberDep dep : deps)
+        Map<String, List<MemberTarget>> byOuter = new LinkedHashMap<>();
+        for (MemberTarget dep : deps)
             byOuter.computeIfAbsent(dep.outer, key -> new ArrayList<>()).add(dep);
 
         Set<String> fromTree = new HashSet<>(output(clone, "ls-tree", "-r", "--name-only", from));
         Set<String> toTree = new HashSet<>(output(clone, "ls-tree", "-r", "--name-only", to));
         Map<String, String> sequences = new HashMap<>();
         Map<String, String> contents = new HashMap<>();
-        for (Map.Entry<String, List<MemberDep>> entry : byOuter.entrySet()) {
+        for (Map.Entry<String, List<MemberTarget>> entry : byOuter.entrySet()) {
             String path = sourcePath(fromTree, entry.getKey());
             if (path == null)
                 path = sourcePath(toTree, entry.getKey());
@@ -114,7 +114,7 @@ public final class MemberAudit {
                 keys.clear();
                 if (content != null)
                     keys.addAll(Source.parse(content, path, issues));
-                for (MemberDep dep : entry.getValue()) {
+                for (MemberTarget dep : entry.getValue()) {
                     boolean present = false;
                     for (String key : keys) {
                         if (dep.matches(key)) {
@@ -198,13 +198,13 @@ public final class MemberAudit {
         return Integer.parseInt(output(clone, "rev-list", "--count", from + ".." + to).get(0).trim());
     }
 
-    private static List<MemberDep> deps(Path classes) {
-        Map<String, MemberDep> deps = new LinkedHashMap<>();
+    private static List<MemberTarget> deps(Path classes) {
+        Map<String, MemberTarget> deps = new LinkedHashMap<>();
         for (ClassRef ref : ClassRefs.read(classes)) {
             if (!game(ref.owner))
                 continue;
-            MemberDep dep = ref.descriptor.startsWith("(") ? MemberDep.method(ref.owner, ref.name, ref.descriptor)
-                    : MemberDep.field(ref.owner, ref.name);
+            MemberTarget dep = ref.descriptor.startsWith("(") ? MemberTarget.method(ref.owner, ref.name, ref.descriptor)
+                    : MemberTarget.field(ref.owner, ref.name);
             deps.putIfAbsent(dep.key(), dep);
             if (ref.owner.contains("$"))
                 addNested(deps, ref.owner);
@@ -212,7 +212,7 @@ public final class MemberAudit {
         for (BridgeOverrideRef ref : BridgeOverrideRefs.read(classes)) {
             if (!game(ref.owner))
                 continue;
-            MemberDep dep = MemberDep.method(ref.owner, ref.name, ref.descriptor);
+            MemberTarget dep = MemberTarget.method(ref.owner, ref.name, ref.descriptor);
             deps.putIfAbsent(dep.key(), dep);
             if (ref.owner.contains("$"))
                 addNested(deps, ref.owner);
@@ -221,16 +221,16 @@ public final class MemberAudit {
         for (ReflectionRef ref : reflection.refs) {
             if (!game(ref.owner))
                 continue;
-            MemberDep dep;
+            MemberTarget dep;
             if (ref.kind == ReflectionRef.Kind.TYPE) {
                 if (!ref.owner.contains("$"))
                     continue;
-                dep = MemberDep.type(ref.owner);
+                dep = MemberTarget.type(ref.owner);
             } else if (ref.kind == ReflectionRef.Kind.FIELD) {
-                dep = MemberDep.field(ref.owner, ref.member);
+                dep = MemberTarget.field(ref.owner, ref.member);
             } else {
-                dep = new MemberDep(ref.owner, ref.kind == ReflectionRef.Kind.CONSTRUCTOR
-                        ? MemberDep.Kind.CONSTRUCTOR : MemberDep.Kind.METHOD, ref.member, -1);
+                dep = new MemberTarget(ref.owner, ref.kind == ReflectionRef.Kind.CONSTRUCTOR
+                        ? MemberTarget.Kind.CONSTRUCTOR : MemberTarget.Kind.METHOD, ref.member, -1);
             }
             deps.putIfAbsent(dep.key(), dep);
             if (ref.owner.contains("$"))
@@ -243,10 +243,10 @@ public final class MemberAudit {
         return new ArrayList<>(deps.values());
     }
 
-    private static void addNested(Map<String, MemberDep> deps, String owner) {
+    private static void addNested(Map<String, MemberTarget> deps, String owner) {
         String current = owner;
         while (current.contains("$")) {
-            MemberDep dep = MemberDep.type(current);
+            MemberTarget dep = MemberTarget.type(current);
             deps.putIfAbsent(dep.key(), dep);
             current = current.substring(0, current.indexOf('$'));
         }

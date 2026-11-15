@@ -23,19 +23,23 @@ public final class ClassOrigins {
 
     private final Set<String> branch;
     private final List<ClassSource> bridge;
-    private final JarIndex game;
+    private final List<JarIndex> games;
 
     /**
      * @param branchClasses the classes directory of the branch being checked
      * @param bridgePaths what the bridge jar carries besides its branches: a classes directory or a jar each
-     * @param game the epoch jar the branch was compiled against
+     * @param games the game jars on the classpath: the epoch and, for classes that exist only at the floor, that jar
      */
-    public ClassOrigins(Path branchClasses, List<Path> bridgePaths, JarIndex game) {
+    public ClassOrigins(Path branchClasses, List<Path> bridgePaths, List<JarIndex> games) {
         this.branch = names(branchClasses);
         this.bridge = new ArrayList<>();
         for (Path path : bridgePaths)
             this.bridge.add(source(path));
-        this.game = game;
+        this.games = games;
+    }
+
+    public ClassOrigins(Path branchClasses, List<Path> bridgePaths, JarIndex game) {
+        this(branchClasses, bridgePaths, Collections.singletonList(game));
     }
 
     public Layer of(String owner) {
@@ -47,7 +51,11 @@ public final class ClassOrigins {
             if (source.contains(owner))
                 return Layer.BRIDGE;
         }
-        return game.classInfo(owner) == null ? Layer.DANGLING : Layer.GAME;
+        for (JarIndex game : games) {
+            if (game.classInfo(owner) != null)
+                return Layer.GAME;
+        }
+        return Layer.DANGLING;
     }
 
     /** The JDK's modules only: a classpath hit is not the JDK's, so only the {@code jrt} scheme counts. */

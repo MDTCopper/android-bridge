@@ -1,6 +1,7 @@
 package copper.bridge.compat;
 
 import copper.bridge.compat.check.*;
+import copper.bridge.compat.api.JarIndex;
 import copper.bridge.compat.config.CheckConfig;
 import copper.bridge.compat.refs.*;
 import copper.bridge.compat.sources.Git;
@@ -89,7 +90,7 @@ public final class Check {
             System.out.println("  floor   " + config.floor);
             System.out.println("  ceiling " + config.ceiling);
 
-            ClassOrigins origins = origins(args, options, bridge, jars);
+            ClassOrigins origins = origins(args, options, bridge, jars, config.floor);
             if (origins == null)
                 throw new IllegalArgumentException("jar mode needs --epoch and --bridge-classpath: a reference is "
                         + "only the game's when the runtime classpath resolves it there");
@@ -170,7 +171,8 @@ public final class Check {
      * The layered classpath, or null for a hand run that did not stage the epoch jar and the bridge's classes; the
      * old package-prefix rule then decides what is the game's.
      */
-    private static ClassOrigins origins(String[] args, Map<String, String> options, Path branchClasses, RefJars jars) {
+    private static ClassOrigins origins(String[] args, Map<String, String> options, Path branchClasses, RefJars jars,
+                                        String floor) {
         String epoch = options.get("epoch");
         List<String> bridgePaths = repeatedValues(args, "bridge-classpath");
         if (epoch == null || epoch.trim().isEmpty() || bridgePaths.isEmpty())
@@ -179,7 +181,13 @@ public final class Check {
         List<Path> paths = new ArrayList<>();
         for (String path : bridgePaths)
             paths.add(Paths.get(path));
-        return new ClassOrigins(branchClasses, paths, jars.jar(epoch.trim()));
+        List<JarIndex> games = new ArrayList<>();
+        games.add(jars.jar(epoch.trim()));
+        // A class compiled against the floor can name a type the epoch removed; it is still the game's, and its own
+        // @CompatRange limits the comparison to the floor.
+        if (floor != null && !floor.trim().isEmpty() && !floor.trim().equals(epoch.trim()))
+            games.add(jars.jar(floor.trim()));
+        return new ClassOrigins(branchClasses, paths, games);
     }
 
     /**

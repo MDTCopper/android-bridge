@@ -33,7 +33,7 @@ public class Main {
         // turning the process's stdout and stderr into logcat and the log file.
         configureLog();
 
-        BridgeApplication application = new BridgeApplication();
+        BridgeApplication application = BridgeApplications.create();
 
         // the pre-ClientLauncher line: the game is the ApplicationCore listener, and the platform hooks are a
         // static instance rather than a callback the launcher hands back.

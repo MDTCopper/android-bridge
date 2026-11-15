@@ -14,8 +14,15 @@ def enhancedRoot = layout.buildDirectory.dir('enhanced').get().asFile
 def checkedBranches = declaredBranches.findAll { findProperty("${it}.compatFloor") }
 def propertiesPath = rootProject.file('gradle.properties').absolutePath
 
+// v1 has a second source set compiled against its floor; pack reads it by its conventional output path because a
+// cross-project sourceSets lookup at pack's configuration time races that project's configuration.
+def legacyBranches = ['v1']
+
 def classDirs = declaredBranches.collectEntries { String branch ->
-    [(branch): project(":bridge:${branch}").sourceSets.main.output.classesDirs.singleFile]
+    def dirs = [project(":bridge:${branch}").sourceSets.main.output.classesDirs.singleFile]
+    if (branch in legacyBranches)
+        dirs.add(new File(rootProject.projectDir, "bridge/${branch}/build/classes/java/legacy"))
+    [(branch): dirs]
 }
 
 // The branch classes after the build-name renames. The check and the jar only ever see this directory.
@@ -23,13 +30,19 @@ tasks.register('enhanceBranches', JavaExec) {
     group = 'pack'
     description = "Renames the methods a branch declared under a build name to their game names."
     dependsOn ':compat:classes'
-    declaredBranches.each { dependsOn ":bridge:${it}:compileJava" }
+    declaredBranches.each {
+        dependsOn ":bridge:${it}:compileJava"
+        if (it in legacyBranches)
+            dependsOn ":bridge:${it}:compileLegacyJava"
+    }
     classpath = project(':compat').sourceSets.main.runtimeClasspath
     mainClass = 'copper.bridge.compat.enhance.Enhancer'
     args '--out', enhancedRoot.absolutePath
-    classDirs.each { String branch, File dir -> args '--classes', branch + '=' + dir.absolutePath }
+    classDirs.each { String branch, List dirs ->
+        dirs.each { File dir -> args '--classes', branch + '=' + dir.absolutePath }
+    }
     inputs.files(compatClasses)
-    inputs.files(classDirs.values())
+    inputs.files(classDirs.values().flatten())
     outputs.dir(enhancedRoot)
 }
 
@@ -81,3 +94,4 @@ tasks.register('checkBridgeApi') {
     description = "Runs every branch's API check."
     dependsOn checkedBranches.collect { "checkBridgeApi${it.capitalize()}" }
 }
+

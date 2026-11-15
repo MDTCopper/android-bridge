@@ -1,5 +1,6 @@
 package copper.bridge.v1;
 
+import copper.bridge.annotation.CompatRange;
 import copper.bridge.annotation.BridgeOverride;
 
 import io.anuke.arc.*;
@@ -16,7 +17,7 @@ import java.util.*;
  * lifecycle callbacks, a {@code GLSurfaceView} owns the render thread - and neither exists here, so this class owns
  * the loop that turns forwarded events back into a lifecycle on one thread with the EGL context current.
  */
-public class BridgeApplication implements Application {
+public abstract class BridgeApplication implements Application {
     private static final long SURFACE_TIMEOUT_MILLIS = 20000;
 
 
@@ -50,7 +51,7 @@ public class BridgeApplication implements Application {
         Core.files = files;
         Core.settings = new Settings();
         initAudio();
-        Core.net = new NoNet();
+        Core.net = createNet();
 
         graphics.configure();
 
@@ -197,17 +198,19 @@ public class BridgeApplication implements Application {
         return Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
     }
 
+    /** The arc Net this application installs; the 65-class replaces it with the floor's socket-shaped interface. */
+    protected Net createNet() {
+        return new NoNet();
+    }
+
     /** {@code arc.Net} is an interface at this branch's floor; the game's own {@code Vars.net} does the real work. */
+    @CompatRange(floor = "v83")
     private static class NoNet implements Net {
         @BridgeOverride
         public void http(HttpRequest request, io.anuke.arc.function.Consumer<HttpResponse> success,
                          io.anuke.arc.function.Consumer<Throwable> failure) {
             if (failure != null)
                 failure.accept(new IllegalStateException("no HTTP stack on the bridge"));
-        }
-
-        @BridgeOverride
-        public void cancelHttpRequest(HttpRequest request) {
         }
 
         @BridgeOverride

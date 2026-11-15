@@ -28,30 +28,33 @@ public final class Enhancer {
     public static void main(String[] args) throws IOException {
         Map<String, List<String>> options = parse(args);
         Path out = Paths.get(single(options, "out"));
-        Map<String, Path> branches = branches(options);
+        Map<String, List<Path>> branches = branches(options);
 
         if (Files.exists(out))
             delete(out);
         Files.createDirectories(out);
 
-        for (Map.Entry<String, Path> branch : branches.entrySet()) {
+        for (Map.Entry<String, List<Path>> branch : branches.entrySet()) {
             int renames = enhance(branch.getKey(), branch.getValue(), out.resolve(branch.getKey()));
             System.out.println(branch.getKey() + ": " + renames + " method name(s)");
         }
     }
 
-    private static int enhance(String branch, Path source, Path target) throws IOException {
-        List<Path> files;
-        try (Stream<Path> stream = Files.walk(source)) {
-            files = stream.filter(path -> path.toString().endsWith(".class")).collect(Collectors.toList());
-        }
-
+    private static int enhance(String branch, List<Path> sources, Path target) throws IOException {
         Map<String, ClassNode> classes = new LinkedHashMap<>();
-        for (Path file : files) {
-            String relative = source.relativize(file).toString().replace('\\', '/');
-            ClassNode node = new ClassNode();
-            new ClassReader(Files.readAllBytes(file)).accept(node, 0);
-            classes.put(relative, node);
+        for (Path source : sources) {
+            List<Path> files;
+            try (Stream<Path> stream = Files.walk(source)) {
+                files = stream.filter(path -> path.toString().endsWith(".class")).collect(Collectors.toList());
+            }
+            for (Path file : files) {
+                String relative = source.relativize(file).toString().replace('\\', '/');
+                if (classes.containsKey(relative))
+                    throw new IllegalArgumentException("duplicate class " + relative + " in " + branch);
+                ClassNode node = new ClassNode();
+                new ClassReader(Files.readAllBytes(file)).accept(node, 0);
+                classes.put(relative, node);
+            }
         }
 
         Map<String, String> renames = new HashMap<>();
@@ -151,13 +154,14 @@ public final class Enhancer {
         return owner + "|" + name + "|" + descriptor;
     }
 
-    private static Map<String, Path> branches(Map<String, List<String>> options) {
-        Map<String, Path> branches = new LinkedHashMap<>();
+    private static Map<String, List<Path>> branches(Map<String, List<String>> options) {
+        Map<String, List<Path>> branches = new LinkedHashMap<>();
         for (String value : options.getOrDefault("classes", Collections.emptyList())) {
             int split = value.indexOf('=');
             if (split <= 0)
                 throw new IllegalArgumentException("--classes wants <branch>=<dir>: " + value);
-            branches.put(value.substring(0, split), Paths.get(value.substring(split + 1)));
+            branches.computeIfAbsent(value.substring(0, split), key -> new ArrayList<>())
+                    .add(Paths.get(value.substring(split + 1)));
         }
         if (branches.isEmpty())
             throw new IllegalArgumentException("no --classes");

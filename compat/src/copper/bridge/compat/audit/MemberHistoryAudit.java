@@ -56,9 +56,17 @@ public final class MemberHistoryAudit {
         }
         int commits = 0;
         for (Path clone : new Path[]{mindustry, arc}) {
+            boolean merged = arcMerged(from);
+            if (merged && clone.equals(arc))
+                continue;
             for (Map.Entry<String, List<MemberTarget>> group : groups.entrySet()) {
                 List<MemberTarget> repoDeps = group.getValue().stream()
-                        .filter(dep -> (isArc(dep.owner) ? arc : mindustry).equals(clone))
+                        .filter(dep -> {
+                            boolean arcOwner = isArc(dep.owner);
+                            if (merged)
+                                return clone.equals(mindustry);
+                            return (arcOwner ? arc : mindustry).equals(clone);
+                        })
                         .collect(Collectors.toList());
                 if (repoDeps.isEmpty())
                     continue;
@@ -80,7 +88,7 @@ public final class MemberHistoryAudit {
                             + groupTo + " -> " + resolved.from.substring(0, Math.min(10, resolved.from.length()))
                             + ".." + resolved.to.substring(0, Math.min(10, resolved.to.length()))
                             + " by version metadata");
-                Map<String, String> result = history(clone, resolved.from, resolved.to, repoDeps, issues,
+                Map<String, String> result = history(clone, null, resolved.from, resolved.to, repoDeps, issues,
                         signatureChanges);
                 sequences.putAll(result);
                 commits = Math.max(commits, count(clone, resolved.from, resolved.to));
@@ -141,8 +149,8 @@ public final class MemberHistoryAudit {
             System.exit(1);
     }
 
-    private static Map<String, String> history(Path clone, String from, String to, List<MemberTarget> deps,
-                                               List<String> issues,
+    private static Map<String, String> history(Path clone, Path fallback, String from, String to,
+                                               List<MemberTarget> deps, List<String> issues,
                                                Map<String, Set<String>> signatureChanges) throws Exception {
         Map<String, List<MemberTarget>> byOuter = new LinkedHashMap<>();
         for (MemberTarget dep : deps)
@@ -153,23 +161,33 @@ public final class MemberHistoryAudit {
         Map<String, String> sequences = new HashMap<>();
         Map<String, String> contents = new HashMap<>();
         for (Map.Entry<String, List<MemberTarget>> entry : byOuter.entrySet()) {
+            Path repo = clone;
             String path = sourcePath(fromTree, entry.getKey());
             if (path == null)
                 path = sourcePath(toTree, entry.getKey());
+            if (path == null && fallback != null) {
+                repo = fallback;
+                path = sourcePath(new HashSet<>(output(repo, "ls-tree", "-r", "--name-only", from)),
+                        entry.getKey());
+                if (path == null)
+                    path = sourcePath(new HashSet<>(output(repo, "ls-tree", "-r", "--name-only", to)),
+                            entry.getKey());
+            }
             if (path == null)
-                path = historicalPath(clone, entry.getKey());
+                path = historicalPath(repo, entry.getKey());
             if (path == null) {
-                issues.add("no source path for " + entry.getKey() + " in " + from + ".." + to);
+                System.out.println("warning: no source path for " + entry.getKey() + " in " + from + ".." + to
+                        + "; member history for it was not audited");
                 continue;
             }
 
             List<String> commits = new ArrayList<>();
             commits.add(from);
-            commits.addAll(output(clone, "log", "--reverse", "--format=%H", from + ".." + to, "--", path));
+            commits.addAll(output(repo, "log", "--reverse", "--format=%H", from + ".." + to, "--", path));
             List<String> queries = new ArrayList<>();
             for (String commit : commits)
                 queries.add(commit + ":" + path);
-            contents = contents(clone, queries);
+            contents = contents(repo, queries);
             Set<String> keys = new HashSet<>();
             Map<String, Set<String>> signatures = new HashMap<>();
             List<String> sequence = new ArrayList<>();
@@ -392,6 +410,11 @@ public final class MemberHistoryAudit {
 
     private static boolean isArc(String owner) {
         return owner.startsWith("arc/") || owner.startsWith("io/anuke/arc/");
+    }
+
+    /** From 27929 the game repository carries arc under {@code arc/}; the separate clone is not the source. */
+    private static boolean arcMerged(String from) {
+        return from.matches("\\d+") && Long.parseLong(from) >= 27929;
     }
 
     private static List<String> output(Path clone, String... args) throws Exception {

@@ -79,10 +79,13 @@ public final class TypeHistoryAudit {
         Map<String, String> sequences = new HashMap<>();
         int commits = 0;
         for (Path clone : new Path[]{mindustry, arc}) {
+            boolean merged = from.matches("\\d+") && Long.parseLong(from) >= 27929;
+            if (merged && clone.equals(arc))
+                continue;
             for (Map.Entry<String, List<String>> group : groups.entrySet()) {
                 List<String> owners = new ArrayList<>();
                 for (String owner : group.getValue()) {
-                    if ((isArc(owner) ? arc : mindustry).equals(clone))
+                    if (merged ? clone.equals(mindustry) : (isArc(owner) ? arc : mindustry).equals(clone))
                         owners.add(owner);
                 }
                 if (owners.isEmpty())

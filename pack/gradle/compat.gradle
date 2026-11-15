@@ -209,5 +209,5 @@ tasks.register('checkWindowContainment') {
 tasks.register('auditSourceHistory') {
     group = 'pack'
     description = "Checks window containment and runs the type and member source-history audits."
-    dependsOn 'checkWindowContainment', 'auditTypeHistory', 'auditMemberHistory'
+    dependsOn 'checkBridgeApi', 'checkWindowContainment', 'auditTypeHistory', 'auditMemberHistory'
 }

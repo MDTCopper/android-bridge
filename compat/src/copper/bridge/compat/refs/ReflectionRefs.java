@@ -240,8 +240,20 @@ public final class ReflectionRefs {
                 Object value = ((LdcInsnNode)insn).cst;
                 if (value instanceof String)
                     return new Sym(Kind.STRING, (String)value);
-                if (value instanceof Type && ((Type)value).getSort() == Type.OBJECT)
-                    return new Sym(Kind.CLASS, ((Type)value).getInternalName());
+                if (value instanceof Type && ((Type)value).getSort() == Type.OBJECT) {
+                    String owner = ((Type)value).getInternalName();
+                    result.refs.add(new ReflectionRef(sourceClass, owner, null, ReflectionRef.Kind.TYPE, override));
+                    return new Sym(Kind.CLASS, owner);
+                }
+                if (value instanceof Type && ((Type)value).getSort() == Type.ARRAY) {
+                    Type element = ((Type)value).getElementType();
+                    if (element.getSort() == Type.OBJECT) {
+                        String owner = element.getInternalName();
+                        result.refs.add(new ReflectionRef(sourceClass, owner, null, ReflectionRef.Kind.TYPE,
+                                override));
+                        return new Sym(Kind.CLASS, owner);
+                    }
+                }
             }
             return super.newOperation(insn);
         }
@@ -301,7 +313,9 @@ public final class ReflectionRefs {
                     unresolved("Class.forName");
                     return null;
                 }
-                return new Sym(Kind.CLASS, name.replace('.', '/'));
+                String owner = name.replace('.', '/');
+                result.refs.add(new ReflectionRef(sourceClass, owner, null, ReflectionRef.Kind.TYPE, override));
+                return new Sym(Kind.CLASS, owner);
             }
             if (WHOLE_CLASS.contains(call.name)) {
                 String owner = classValue(values.size() > 0 ? values.get(0) : null);
@@ -341,7 +355,9 @@ public final class ReflectionRefs {
                 unresolved("ClassLoader.loadClass");
                 return null;
             }
-            return new Sym(Kind.CLASS, name.replace('.', '/'));
+            String owner = name.replace('.', '/');
+            result.refs.add(new ReflectionRef(sourceClass, owner, null, ReflectionRef.Kind.TYPE, override));
+            return new Sym(Kind.CLASS, owner);
         }
 
         private void handleCall(MethodInsnNode call, List<? extends BasicValue> values) {

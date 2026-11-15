@@ -1,5 +1,7 @@
 package copper.bridge.v1;
 
+import copper.bridge.annotation.BridgeReflect;
+
 import io.anuke.arc.util.*;
 import copper.bridge.*;
 import copper.bridge.jvm.Launch;
@@ -128,6 +130,7 @@ public class Main {
         setIfPresent(SharedLibraryLoader.class, "is64Bit", false);
     }
 
+    @BridgeReflect(kind = BridgeReflect.Kind.FIELD, classArg = 0, memberArg = 1)
     private static void setIfPresent(Class<?> owner, String name, Object value) {
         try {
             java.lang.reflect.Field field = owner.getDeclaredField(name);

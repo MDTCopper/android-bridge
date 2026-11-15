@@ -105,6 +105,7 @@ def mindustryClone = findProperty('mindustryClone') ? file(findProperty('mindust
         : rootProject.file('../Mindustry')
 def arcClone = findProperty('arcClone') ? file(findProperty('arcClone')) : rootProject.file('../Arc')
 def auditBranches = declaredBranches.findAll { findProperty("${it}.minVersionNumber") }
+def releaseTag = { String version -> 'v' + (version.endsWith('.0') ? version[0..-3] : version) }
 
 auditBranches.each { String branch ->
     tasks.register("auditWindow${branch.capitalize()}", JavaExec) {
@@ -115,10 +116,10 @@ auditBranches.each { String branch ->
         mainClass = 'copper.bridge.compat.audit.WindowAudit'
         args '--branch', branch, '--classes', new File(enhancedRoot, branch).absolutePath,
                 '--mindustry', mindustryClone.absolutePath, '--arc', arcClone.absolutePath,
-                '--from', findProperty("${branch}.minVersionNumber")
+                '--from', releaseTag(findProperty("${branch}.minVersionNumber").toString())
         def to = findProperty("${branch}.maxVersionNumber")
         if (to)
-            args '--to', to
+            args '--to', releaseTag(to.toString())
         doFirst {
             if (!new File(mindustryClone, '.git').isDirectory() || !new File(arcClone, '.git').isDirectory())
                 throw new GradleException("source audit needs the game and arc clones; pass -PmindustryClone and"

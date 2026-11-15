@@ -4,6 +4,7 @@ import copper.bridge.compat.api.*;
 import copper.bridge.compat.refs.ReflectionRef;
 import copper.bridge.compat.sources.RefJars;
 import copper.bridge.compat.sources.SourceTree;
+import org.objectweb.asm.Opcodes;
 
 import java.nio.file.Path;
 import java.util.*;
@@ -24,19 +25,49 @@ public final class ReflectionComparer {
                                           RefJars jars, ClassOrigins origins) {
         List<String> issues = new ArrayList<>();
         for (ReflectionRef ref : refs) {
-            if (outsideGame(ref, origins))
+            if (ref.kind == ReflectionRef.Kind.TYPE)
                 continue;
+            if (outsideGame(ref, origins)) {
+                if (gameName(ref.owner))
+                    System.out.println("  warning: reflection target is not on either endpoint classpath: " + ref);
+                continue;
+            }
             Range range = ref.overrideKey == null ? branch : overrides.get(ref.overrideKey);
             if (range == null) {
                 issues.add("no range for @CompatRange " + ref.overrideKey + " on " + ref.sourceClass);
                 continue;
             }
-            boolean floor = present(jars.jar(range.floor), ref);
-            boolean ceiling = present(jars.jar(range.ceiling), ref);
-            if (floor == ceiling)
-                issues.add(message(ref, floor));
+            JarIndex floorJar = jars.jar(range.floor);
+            JarIndex ceilingJar = jars.jar(range.ceiling);
+            boolean floorPresent = present(floorJar, ref);
+            boolean ceilingPresent = present(ceilingJar, ref);
+            if (!floorPresent && !ceilingPresent) {
+                issues.add("reflection target is absent at both ends: " + ref + " (dead probe)");
+                continue;
+            }
+            // Accessibility matters as much as presence: a private field at the floor justifies reflection even when
+            // the same field is public at the ceiling.
+            if (directly(floorJar, ref) && directly(ceilingJar, ref))
+                issues.add("reflection target is public at both ends: " + ref + " (use it directly)");
         }
         return issues;
+    }
+
+    private static boolean gameName(String owner) {
+        return owner.startsWith("arc/") || owner.startsWith("io/anuke/arc/")
+                || owner.startsWith("mindustry/") || owner.startsWith("io/anuke/mindustry/");
+    }
+
+    private static boolean directly(JarIndex jar, ReflectionRef ref) {        ClassInfo info = jar.classInfo(ref.owner);
+        if (info == null || (info.access & Opcodes.ACC_PUBLIC) == 0)
+            return false;
+        if (ref.member == null || "<init>".equals(ref.member))
+            return true;
+        for (MemberInfo member : info.members()) {
+            if (member.name.equals(ref.member) && (member.access & Opcodes.ACC_PUBLIC) != 0)
+                return true;
+        }
+        return false;
     }
 
     public static List<String> compareCode(List<ReflectionRef> refs, Range branch, Map<String, Range> overrides,

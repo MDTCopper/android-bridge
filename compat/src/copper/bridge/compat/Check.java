@@ -33,7 +33,8 @@ public final class Check {
         Path bridge = Paths.get(required(options, "bridge"));
         List<ClassRef> refs = ClassRefs.read(bridge);
         Map<String, String> classRanges = ClassRanges.read(bridge);
-        List<ReflectionRef> reflections = ReflectionRefs.read(bridge);
+        ReflectionRefs.Result reflection = ReflectionRefs.read(bridge);
+        List<ReflectionRef> reflections = reflection.refs;
         List<BridgeOverrideRef> interfaces = BridgeOverrideRefs.read(bridge);
         List<ArcReflectRef> reflect = ArcReflectRefs.read(bridge);
         String mode = options.getOrDefault("mode", "jar").trim();
@@ -46,6 +47,7 @@ public final class Check {
         } else {
             throw new IllegalArgumentException("unknown --mode " + mode + " (jar or code)");
         }
+        issues.addAll(reflection.issues);
 
         System.out.println(branch + " (" + mode + "): " + refs.size() + " reference(s), "
                 + reflections.size() + " direct reflection target(s), " + interfaces.stream().filter(r -> r.annotated).count()

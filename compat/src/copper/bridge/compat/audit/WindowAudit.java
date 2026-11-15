@@ -2,6 +2,8 @@ package copper.bridge.compat.audit;
 
 import copper.bridge.compat.refs.ClassRef;
 import copper.bridge.compat.refs.ClassRefs;
+import copper.bridge.compat.refs.ReflectionRef;
+import copper.bridge.compat.refs.ReflectionRefs;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -9,15 +11,11 @@ import java.nio.file.*;
 import java.util.*;
 
 /**
- * Reports the game and arc types a branch references whose source appears, disappears and appears again across the
- * release tags of its window. The endpoints alone cannot show that pattern, and a branch referencing such a type works
- * on the ends and fails in the middle.
+ * Reports the game and arc types a branch references - directly or through reflection - whose source appears,
+ * disappears and appears again across the commits of its window.
  *
- * <p>It reads source trees, not jars: the check runs against the game and arc clones the release build already needs,
- * and downloads nothing. Build ids have no tag, so a bleeding-edge window cannot be audited this way; the jars that
- * are already staged remain the compile-side evidence there.
- *
- * <p>Usage: {@code --branch v2 --classes <dir> --mindustry <clone> --arc <clone> --from 84 --to 91}.
+ * <p>Reads source trees with one {@code git log} per repository; a per-commit {@code git ls-tree} would spawn
+ * thousands of processes. A build-id window has no commit to resolve and is not covered.
  */
 public final class WindowAudit {
 
@@ -27,84 +25,202 @@ public final class WindowAudit {
         Path classes = Paths.get(required(options, "classes"));
         Path mindustry = Paths.get(required(options, "mindustry"));
         Path arc = Paths.get(required(options, "arc"));
-        double from = Double.parseDouble(required(options, "from"));
-        String toText = options.getOrDefault("to", "").trim();
-        double to = toText.isEmpty() ? Double.POSITIVE_INFINITY : Double.parseDouble(toText);
+        String from = required(options, "from");
+        String to = options.getOrDefault("to", "").trim();
+        if (to.isEmpty())
+            to = "HEAD";
 
-        Set<String> owners = new TreeSet<>();
+        Set<String> direct = new TreeSet<>();
         for (ClassRef ref : ClassRefs.read(classes)) {
             if (isGameOrArc(ref.owner))
-                owners.add(ref.owner);
+                direct.add(ref.owner);
+        }
+        ReflectionRefs.Result reflection = ReflectionRefs.read(classes);
+        Set<String> reflected = new TreeSet<>();
+        for (ReflectionRef ref : reflection.refs) {
+            if (isGameOrArc(ref.owner))
+                reflected.add(ref.owner);
+        }
+        if (!reflection.issues.isEmpty()) {
+            for (String issue : reflection.issues)
+                System.out.println(branch + ": " + issue);
+            System.exit(1);
         }
 
-        Map<String, List<String>> tagCache = new HashMap<>();
-        Map<String, Set<String>> pathCache = new HashMap<>();
-        List<String> findings = new ArrayList<>();
-        for (String owner : owners) {
-            boolean arcOwner = isArc(owner);
-            Path clone = arcOwner ? arc : mindustry;
-            List<String> tags = tags(clone, from, to, tagCache);
-            if (tags.size() < 2)
+        Set<String> all = union(direct, reflected);
+        Set<String> unaudited = new TreeSet<>();
+        Map<String, String> sequences = new HashMap<>();
+        int commits = 0;
+        for (Path clone : new Path[]{mindustry, arc}) {
+            List<String> owners = new ArrayList<>();
+            for (String owner : all) {
+                if ((isArc(owner) ? arc : mindustry).equals(clone))
+                    owners.add(owner);
+            }
+            if (owners.isEmpty())
                 continue;
+            if (!refs(clone, from, to)) {
+                unaudited.add(clone.equals(arc) ? "arc" : "game");
+                continue;
+            }
+            History history = history(clone, from, to, owners);
+            sequences.putAll(history.sequences);
+            commits = Math.max(commits, history.commits);
+        }
 
-            String base = owner.contains("$") ? owner.substring(0, owner.indexOf('$')) : owner;
-            String suffix = "/" + base + ".java";
-            StringBuilder sequence = new StringBuilder();
+        List<String> findings = new ArrayList<>();
+        for (String owner : all) {
+            String sequence = sequences.get(owner);
+            if (sequence == null)
+                continue;
             int changes = 0;
-            int last = -1;
-            for (String tag : tags) {
-                int present = source(clone, tag, suffix, pathCache) ? 1 : 0;
-                sequence.append(present);
-                if (last >= 0 && present != last)
+            for (int i = 1; i < sequence.length(); i++) {
+                if (sequence.charAt(i) != sequence.charAt(i - 1))
                     changes++;
-                last = present;
             }
             if (changes > 1)
-                findings.add(owner + " " + sequence);
+                findings.add((reflected.contains(owner) ? "reflection " : "direct ") + owner + " " + sequence);
         }
 
         for (String finding : findings)
             System.out.println(branch + ": " + finding);
-        System.out.println(branch + ": " + owners.size() + " referenced type(s), " + findings.size()
-                + " transient type(s) across the release tags");
+        for (String repo : unaudited)
+            System.out.println(branch + ": no " + repo + " source for " + from + ".." + to
+                    + "; its types were not audited");
+        System.out.println(branch + ": " + all.size() + " referenced type(s), " + findings.size()
+                + " transient type(s) across " + commits + " commit(s)");
     }
 
-    private static List<String> tags(Path clone, double from, double to, Map<String, List<String>> cache)
-            throws IOException, InterruptedException {
-        String key = clone + "|" + from + "|" + to;
-        List<String> cached = cache.get(key);
-        if (cached != null)
-            return cached;
+    private static final class History {
+        final Map<String, String> sequences;
+        final int commits;
 
-        List<String> tags = new ArrayList<>();
-        for (String tag : output(clone, "tag", "--list", "v*")) {
-            double value;
-            try {
-                value = Double.parseDouble(tag.substring(1));
-            } catch (NumberFormatException e) {
+        History(Map<String, String> sequences, int commits) {
+            this.sequences = sequences;
+            this.commits = commits;
+        }
+    }
+
+    /**
+     * Rebuilds every owner's presence from the tree at {@code from} and one name-status log. Matches suffix once per
+     * changed path, not once per owner per commit.
+     */
+    private static History history(Path clone, String from, String to, List<String> owners)
+            throws IOException, InterruptedException {
+        Set<String> paths = new HashSet<>(output(clone, "ls-tree", "-r", "--name-only", from));
+        Map<String, List<Integer>> matching = new HashMap<>();
+        List<String> suffixes = new ArrayList<>();
+        for (int i = 0; i < owners.size(); i++) {
+            String owner = owners.get(i);
+            String base = owner.contains("$") ? owner.substring(0, owner.indexOf('$')) : owner;
+            String suffix = "/" + base + ".java";
+            suffixes.add(suffix);
+            matching.computeIfAbsent(suffix, key -> new ArrayList<>()).add(i);
+        }
+
+        int[] counts = new int[owners.size()];
+        for (String path : paths) {
+            for (Map.Entry<String, List<Integer>> entry : matching.entrySet()) {
+                if (path.endsWith(entry.getKey())) {
+                    for (int index : entry.getValue())
+                        counts[index]++;
+                    break;
+                }
+            }
+        }
+
+        StringBuilder[] sequences = new StringBuilder[owners.size()];
+        for (int i = 0; i < owners.size(); i++) {
+            sequences[i] = new StringBuilder();
+            sequences[i].append(counts[i] > 0 ? '1' : '0');
+        }
+
+        List<String> lines = output(clone, "log", "--reverse", "--format=@@%H",
+                "--name-status", "--diff-filter=ADR", from + ".." + to);
+        boolean started = false;
+        List<String[]> changes = new ArrayList<>();
+        for (String line : lines) {
+            if (line.startsWith("@@")) {
+                if (started) {
+                    apply(changes, paths, counts, matching);
+                    append(sequences, counts);
+                }
+                started = true;
+                changes.clear();
                 continue;
             }
-            if (value >= from && value <= to)
-                tags.add(tag);
+            if (line.isEmpty())
+                continue;
+            String[] parts = line.split("\t");
+            if (parts.length >= 2)
+                changes.add(parts);
         }
-        tags.sort(Comparator.comparingDouble(tag -> Double.parseDouble(tag.substring(1))));
-        cache.put(key, tags);
-        return tags;
+        if (started) {
+            apply(changes, paths, counts, matching);
+            append(sequences, counts);
+        }
+
+        Map<String, String> result = new LinkedHashMap<>();
+        for (int i = 0; i < owners.size(); i++)
+            result.put(owners.get(i), sequences[i].toString());
+        int total = Integer.parseInt(output(clone, "rev-list", "--count", from + ".." + to).get(0).trim());
+        return new History(result, total);
     }
 
-    private static boolean source(Path clone, String tag, String suffix, Map<String, Set<String>> cache)
-            throws IOException, InterruptedException {
-        String key = clone + "|" + tag;
-        Set<String> paths = cache.get(key);
-        if (paths == null) {
-            paths = new HashSet<>(output(clone, "ls-tree", "-r", "--name-only", tag));
-            cache.put(key, paths);
+    private static void append(StringBuilder[] sequences, int[] counts) {
+        for (int i = 0; i < sequences.length; i++)
+            sequences[i].append(counts[i] > 0 ? '1' : '0');
+    }
+
+    private static void apply(List<String[]> changes, Set<String> paths, int[] counts,
+                              Map<String, List<Integer>> matching) {
+        for (String[] change : changes) {
+            String status = change[0];
+            if (status.startsWith("R") && change.length >= 3) {
+                remove(change[1], paths, counts, matching);
+                add(change[2], paths, counts, matching);
+            } else if (status.startsWith("A")) {
+                add(change[1], paths, counts, matching);
+            } else if (status.startsWith("D")) {
+                remove(change[1], paths, counts, matching);
+            }
         }
-        for (String path : paths) {
-            if (path.endsWith(suffix))
-                return true;
+    }
+
+    private static void add(String path, Set<String> paths, int[] counts, Map<String, List<Integer>> matching) {
+        if (!paths.add(path))
+            return;
+        for (Map.Entry<String, List<Integer>> entry : matching.entrySet()) {
+            if (path.endsWith(entry.getKey())) {
+                for (int index : entry.getValue())
+                    counts[index]++;
+                return;
+            }
         }
-        return false;
+    }
+
+    private static void remove(String path, Set<String> paths, int[] counts, Map<String, List<Integer>> matching) {
+        if (!paths.remove(path))
+            return;
+        for (Map.Entry<String, List<Integer>> entry : matching.entrySet()) {
+            if (path.endsWith(entry.getKey())) {
+                for (int index : entry.getValue())
+                    counts[index]--;
+                return;
+            }
+        }
+    }
+
+    private static Set<String> union(Set<String> first, Set<String> second) {
+        Set<String> all = new TreeSet<>(first);
+        all.addAll(second);
+        return all;
+    }
+
+    /** Whether the clone has both revisions. Arc predates the split with its own tags, so a window can predate it. */
+    private static boolean refs(Path clone, String from, String to) throws IOException, InterruptedException {
+        return outputStatus(clone, "rev-parse", "--verify", "--quiet", from) == 0
+                && outputStatus(clone, "rev-parse", "--verify", "--quiet", to) == 0;
     }
 
     private static List<String> output(Path clone, String... args) throws IOException, InterruptedException {
@@ -124,6 +240,21 @@ public final class WindowAudit {
         if (process.waitFor() != 0)
             throw new IOException("git " + String.join(" ", args) + " failed in " + clone);
         return lines;
+    }
+
+    /** Runs a probe command and returns its exit status without treating a non-zero status as an error. */
+    private static int outputStatus(Path clone, String... args) throws IOException, InterruptedException {
+        List<String> command = new ArrayList<>();
+        command.add("git");
+        command.add("-C");
+        command.add(clone.toString());
+        command.addAll(Arrays.asList(args));
+        Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
+        try (InputStream ignored = process.getInputStream()) {
+            while (ignored.read() != -1) {
+            }
+        }
+        return process.waitFor();
     }
 
     private static boolean isArc(String owner) {

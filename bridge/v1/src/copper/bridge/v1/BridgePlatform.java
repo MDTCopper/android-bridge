@@ -12,6 +12,8 @@ import io.anuke.kryonet.DefaultThreadImpl;
 import io.anuke.mindustry.core.*;
 import io.anuke.mindustry.core.ThreadHandler.ThreadProvider;
 import io.anuke.ucore.function.*;
+import io.anuke.ucore.scene.*;
+import io.anuke.ucore.scene.event.*;
 import io.anuke.ucore.scene.ui.*;
 
 import java.text.DateFormat;
@@ -43,8 +45,23 @@ public class BridgePlatform extends Platform {
     @Override
     @BridgeOverride
     public void addDialog(TextField field, int maxLength) {
-        JvmCall.textInput("", "", field.getText(), false, false, maxLength, true)
-                .onResult(field::setText);
+        // The game calls this once to attach the tap behaviour; showing the dialog here would open it on start-up.
+        ((Element)field).addListener(new ClickListener() {
+            @Override
+            @BridgeOverride
+            public void clicked(InputEvent event, float x, float y) {
+                if (Gdx.app.getType() != Application.ApplicationType.Android)
+                    return;
+                Gdx.input.setOnscreenKeyboardVisible(false);
+                JvmCall.textInput("", "", field.getText(), false, false, maxLength, true)
+                        .onResult(text -> {
+                            field.clearText();
+                            field.appendText(text);
+                            ((Element)field).fire(new ChangeListener.ChangeEvent());
+                            Gdx.graphics.requestRendering();
+                        });
+            }
+        });
     }
 
     @Override

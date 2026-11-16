@@ -5,10 +5,14 @@ import copper.bridge.annotation.BridgeOverride;
 import copper.bridge.annotation.CompatRange;
 import copper.bridge.gen.JvmCall;
 
+import com.badlogic.gdx.*;
+
 import io.anuke.kryonet.DefaultThreadImpl;
 import io.anuke.mindustry.core.ThreadHandler.ThreadProvider;
 import io.anuke.mindustry.io.Platform;
-import io.anuke.ucore.scene.ui.TextField;
+import io.anuke.ucore.scene.*;
+import io.anuke.ucore.scene.event.*;
+import io.anuke.ucore.scene.ui.*;
 
 import java.text.DateFormat;
 import java.text.NumberFormat;
@@ -40,8 +44,23 @@ public class BridgePlatformLegacy extends Platform {
     @Override
     @BridgeOverride
     public void addDialog(TextField field, int maxLength) {
-        JvmCall.textInput("", "", field.getText(), false, false, maxLength, true)
-                .onResult(field::setText);
+        // The game calls this once to attach the tap behaviour; showing the dialog here would open it on start-up.
+        ((Element)field).addListener(new ClickListener() {
+            @Override
+            @BridgeOverride
+            public void clicked(InputEvent event, float x, float y) {
+                if (Gdx.app.getType() != Application.ApplicationType.Android)
+                    return;
+                Gdx.input.setOnscreenKeyboardVisible(false);
+                JvmCall.textInput("", "", field.getText(), false, false, maxLength, true)
+                        .onResult(text -> {
+                            field.clearText();
+                            field.appendText(text);
+                            ((Element)field).fire(new ChangeListener.ChangeEvent());
+                            Gdx.graphics.requestRendering();
+                        });
+            }
+        });
     }
 
     @Override

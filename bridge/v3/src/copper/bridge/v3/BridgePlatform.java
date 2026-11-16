@@ -3,8 +3,11 @@ package copper.bridge.v3;
 import copper.bridge.annotation.BridgeOverride;
 
 import io.anuke.arc.*;
+import io.anuke.arc.input.*;
+import io.anuke.arc.scene.*;
 import io.anuke.arc.files.*;
 import io.anuke.arc.function.*;
+import io.anuke.arc.scene.event.*;
 import io.anuke.arc.scene.ui.*;
 import io.anuke.mindustry.core.Platform;
 
@@ -24,8 +27,21 @@ public class BridgePlatform extends Platform {
 
     @BridgeOverride
     public void addDialog(TextField field, int maxLength) {
-        JvmCall.textInput("", "", field.getText(), false, false, maxLength, true)
-                .onResult(field::setText);
+        // The game calls this once to attach the tap behaviour; showing the dialog here would open it on start-up.
+        ((Element)field).addListener(new ClickListener() {
+            @Override
+            @BridgeOverride
+            public void clicked(InputEvent event, float x, float y) {
+                Core.input.setOnscreenKeyboardVisible(false);
+                JvmCall.textInput("", "", field.getText(), false, false, maxLength, true)
+                        .onResult(text -> {
+                            field.clearText();
+                            field.appendText(text);
+                            ((Element)field).fire(new ChangeListener.ChangeEvent());
+                            Core.graphics.requestRendering();
+                        });
+            }
+        });
     }
 
     @BridgeOverride

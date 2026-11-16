@@ -1,7 +1,5 @@
 package copper.bridge.v2;
 
-import copper.bridge.annotation.BridgeHandled;
-import copper.bridge.annotation.BridgeRename;
 import copper.bridge.annotation.BridgeOverride;
 
 import io.anuke.arc.audio.*;
@@ -13,18 +11,8 @@ import copper.bridge.gen.*;
  * One sound of the abstract arc.Audio. The int it plays with is ART's handle, not a SoundPool stream id: a stream id
  * dies with its stream, and the game holds these for as long as it likes.
  *
- * <p>84 and 85 declare play and loop with a long handle, 86 and later with an int. Java cannot declare both under one
- * name because they differ only in return type, so the long variants carry a build name and the packer renames them;
- * the class then has both JVM overloads and matches whichever interface the running game declares. The handle-typed
- * stop/pause/set methods are ordinary overloads and need no rename.
+ * <p>This era's Sound interface names the handle {@code long}; the bridge's handles are still ints.
  */
-@BridgeHandled(targets = {"io/anuke/arc/audio/Sound:play", "io/anuke/arc/audio/Sound:loop",
-        "io/anuke/arc/audio/Sound:stop", "io/anuke/arc/audio/Sound:pause",
-        "io/anuke/arc/audio/Sound:resume", "io/anuke/arc/audio/Sound:setLooping",
-        "io/anuke/arc/audio/Sound:setPitch", "io/anuke/arc/audio/Sound:setVolume",
-        "io/anuke/arc/audio/Sound:setPan"},
-        warning = BridgeHandled.Warning.METHOD_SIGNATURE_CHANGED_WITHIN_WINDOW,
-        reason = "84/85 use a long handle, 86+ an int; both overloads are declared here")
 final class LegacySound implements Sound {
     private final int sound;
 
@@ -33,25 +21,35 @@ final class LegacySound implements Sound {
     }
 
     @BridgeOverride
-    public int play(float volume, float pitch, float pan) {
+    public long play(float volume, float pitch, float pan) {
         return sound <= 0 ? -1 : JvmCall.playSound(sound, volume, pitch, pan, false);
     }
 
-    @BridgeRename("play")
     @BridgeOverride
-    public long playLong(float volume, float pitch, float pan) {
-        return sound <= 0 ? -1 : (long)JvmCall.playSound(sound, volume, pitch, pan, false);
-    }
-
-    @BridgeOverride
-    public int loop(float volume, float pitch, float pan) {
+    public long loop(float volume, float pitch, float pan) {
         return sound <= 0 ? -1 : JvmCall.playSound(sound, volume, pitch, pan, true);
     }
 
-    @BridgeRename("loop")
+    // The four convenience overloads are abstract at the range's floor and default methods at its ceiling: the class
+    // has to declare them, or the older versions throw AbstractMethodError on the game's own play()/loop() calls.
     @BridgeOverride
-    public long loopLong(float volume, float pitch, float pan) {
-        return sound <= 0 ? -1 : (long)JvmCall.playSound(sound, volume, pitch, pan, true);
+    public long play() {
+        return play(1f);
+    }
+
+    @BridgeOverride
+    public long play(float volume) {
+        return play(volume, 1f, 0f);
+    }
+
+    @BridgeOverride
+    public long loop() {
+        return loop(1f);
+    }
+
+    @BridgeOverride
+    public long loop(float volume) {
+        return loop(1f, 1f, 0f);
     }
 
     @BridgeOverride
@@ -80,21 +78,9 @@ final class LegacySound implements Sound {
     }
 
     @BridgeOverride
-    public void stop(int handle) {
-        if (sound > 0)
-            JvmCall.stopSoundAt(sound, handle);
-    }
-
-    @BridgeOverride
     public void stop(long handle) {
         if (sound > 0)
             JvmCall.stopSoundAt(sound, (int)handle);
-    }
-
-    @BridgeOverride
-    public void pause(int handle) {
-        if (sound > 0)
-            JvmCall.pauseSoundAt(handle);
     }
 
     @BridgeOverride
@@ -104,21 +90,9 @@ final class LegacySound implements Sound {
     }
 
     @BridgeOverride
-    public void resume(int handle) {
-        if (sound > 0)
-            JvmCall.resumeSoundAt(handle);
-    }
-
-    @BridgeOverride
     public void resume(long handle) {
         if (sound > 0)
             JvmCall.resumeSoundAt((int)handle);
-    }
-
-    @BridgeOverride
-    public void setLooping(int handle, boolean looping) {
-        if (sound > 0)
-            JvmCall.setSoundLooping(handle, looping);
     }
 
     @BridgeOverride
@@ -128,33 +102,15 @@ final class LegacySound implements Sound {
     }
 
     @BridgeOverride
-    public void setPitch(int handle, float pitch) {
-        if (sound > 0)
-            JvmCall.setSoundPitch(handle, pitch);
-    }
-
-    @BridgeOverride
     public void setPitch(long handle, float pitch) {
         if (sound > 0)
             JvmCall.setSoundPitch((int)handle, pitch);
     }
 
     @BridgeOverride
-    public void setVolume(int handle, float volume) {
-        if (sound > 0)
-            JvmCall.setSoundVolume(handle, volume);
-    }
-
-    @BridgeOverride
     public void setVolume(long handle, float volume) {
         if (sound > 0)
             JvmCall.setSoundVolume((int)handle, volume);
-    }
-
-    @BridgeOverride
-    public void setPan(int handle, float pan, float volume) {
-        if (sound > 0)
-            JvmCall.setSoundPan(handle, pan, volume);
     }
 
     @BridgeOverride

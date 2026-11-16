@@ -3,28 +3,53 @@ package copper.bridge.v9;
 import copper.bridge.annotation.BridgeOverride;
 import copper.bridge.annotation.CompatRange;
 
-import arc.Graphics.Cursor;
-import arc.Graphics.Cursor.SystemCursor;
-import arc.graphics.Pixmap;
+import arc.Graphics.DisplayMode;
+import arc.Graphics.Monitor;
 
 /**
- * The floor's graphics shape: 27930 still has {@code arc.Graphics.Cursor}, which 28063 moved to
- * {@code arc.graphics.Cursor}. It is compiled against the floor epoch and selected only when the running game has
- * the old cursor type.
+ * The floor's graphics shape: 127 still declares the Monitor and display-mode group, which 159 removed. It is
+ * compiled against the floor epoch and selected only when the running game has {@code Monitor}.
  */
-@CompatRange(floor = "27930", ceiling = "27930")
+@CompatRange(floor = "11247", ceiling = "11247")
 public class BridgeGraphicsLegacy extends BridgeGraphics {
 
     @BridgeOverride
-    public Cursor newCursor(Pixmap pixmap, int xHotspot, int yHotspot) {
+    public Monitor getPrimaryMonitor() {
         return null;
     }
 
     @BridgeOverride
-    protected void setCursor(Cursor cursor) {
+    public Monitor getMonitor() {
+        return null;
     }
 
     @BridgeOverride
-    protected void setSystemCursor(SystemCursor systemCursor) {
+    public Monitor[] getMonitors() {
+        return new Monitor[0];
+    }
+
+    @BridgeOverride
+    public DisplayMode[] getDisplayModes() {
+        return new DisplayMode[0];
+    }
+
+    @BridgeOverride
+    public DisplayMode[] getDisplayModes(Monitor monitor) {
+        return new DisplayMode[0];
+    }
+
+    @BridgeOverride
+    public DisplayMode getDisplayMode() {
+        return null;
+    }
+
+    @BridgeOverride
+    public DisplayMode getDisplayMode(Monitor monitor) {
+        return null;
+    }
+
+    @BridgeOverride
+    public boolean setFullscreenMode(DisplayMode displayMode) {
+        return false;
     }
 }

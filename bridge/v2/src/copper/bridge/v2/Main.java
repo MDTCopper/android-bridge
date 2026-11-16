@@ -1,18 +1,18 @@
 package copper.bridge.v2;
 
-import copper.bridge.annotation.BridgeHandled;
+import copper.bridge.annotation.BridgeReflect;
 
 import io.anuke.arc.util.*;
 import copper.bridge.*;
 import copper.bridge.jvm.Launch;
 import copper.bridge.util.Log;
 import io.anuke.mindustry.*;
-import io.anuke.mindustry.net.*;
+import io.anuke.mindustry.net.Net;
 
 import java.io.*;
 
 /**
- * The v1 branch entry point, reached reflectively by the JVM side once the branch is chosen; both classpath rules
+ * The v2 branch entry point, reached reflectively by the JVM side once the branch is chosen; both classpath rules
  * arrive at {@link #main(String[])}, so nothing here has to know which one applied.
  */
 public class Main {
@@ -32,15 +32,14 @@ public class Main {
         prepareGameFolders();
 
         // the game wraps its logger while it sets up: the printed copy is what this bridge wants, the native side
-        // turning the process's stdout and stderr into logcat and the log file. The flag moved inside the range.
-
+        // turning the process's stdout and stderr into logcat and the log file.
         configureLog();
 
-        BridgeApplication application = new BridgeApplication();
+        BridgeApplication application = BridgeApplications.create();
 
         // the pre-ClientLauncher line: the game is the ApplicationCore listener, and the platform hooks are a
         // static instance rather than a callback the launcher hands back.
-        new copper.bridge.v2.BridgePlatform();
+        new BridgePlatform();
         installCrashHandler();
         installNetProviders();
         application.addListener(new Mindustry());
@@ -77,46 +76,38 @@ public class Main {
 
     private static void reportCrash(Throwable error) {
         try {
+            Class<?> sender = Class.forName("io.anuke.mindustry.net.CrashSender");
             io.anuke.arc.function.Consumer<File> written = file -> {
             };
-            CrashSender.send(error, written);
+            sender.getMethod("send", Throwable.class, io.anuke.arc.function.Consumer.class)
+                    .invoke(null, error, written);
         } catch (Throwable ignored) {
             Log.error(error);
         }
     }
 
-    @BridgeHandled(targets = {"io/anuke/mindustry/net/ArcNetClient", "io/anuke/mindustry/net/ArcNetServer",
-            "io/anuke/mindustry/net/MClient", "io/anuke/mindustry/net/MServer"},
-            warning = BridgeHandled.Warning.TYPE_PRESENCE_NON_MONOTONIC_WITHIN_WINDOW,
-            reason = "the 90 build replaced the net providers with MClient/MServer, then 91 restored ArcNet")
-    @BridgeHandled(targets = {"io/anuke/mindustry/net/ArcNetClient:<init>", "io/anuke/mindustry/net/ArcNetServer:<init>",
-            "io/anuke/mindustry/net/MClient:<init>", "io/anuke/mindustry/net/MServer:<init>"},
-            warning = BridgeHandled.Warning.METHOD_PRESENCE_NON_MONOTONIC_WITHIN_WINDOW,
-            reason = "constructors disappear with their classes")
-    @BridgeHandled(targets = {"io/anuke/mindustry/net/MClient:<init>", "io/anuke/mindustry/net/MServer:<init>"},
-            warning = BridgeHandled.Warning.REFLECTED_MEMBER_MISSING_FROM_ENDPOINTS,
-            reason = "looked up only when ArcNet is absent")
+    /** The network implementation lives in the desktop jar's net module; absent trees simply keep singleplayer. */
     private static void installNetProviders() {
         try {
-            Net.setClientProvider(new ArcNetClient());
-            Net.setServerProvider(new ArcNetServer());
+            Object client = Class.forName("io.anuke.mindustry.net.ArcNetClient").getConstructor().newInstance();
+            Object server = Class.forName("io.anuke.mindustry.net.ArcNetServer").getConstructor().newInstance();
+            Net.setClientProvider((Net.ClientProvider)client);
+            Net.setServerProvider((Net.ServerProvider)server);
             return;
         } catch (Throwable ignored) {
-            // 90's release replaced the providers with MClient/MServer, then 91 restored ArcNet.
         }
-        installLegacyNetProviders();
-    }
-
-    private static void installLegacyNetProviders() {
+        // 65..82 keep the providers in io.anuke.net; 83 moved them into mindustry.net with new names.
         try {
-            Net.setClientProvider((Net.ClientProvider)Class.forName("io.anuke.mindustry.net.MClient")
-                    .getConstructor().newInstance());
-            Net.setServerProvider((Net.ServerProvider)Class.forName("io.anuke.mindustry.net.MServer")
-                    .getConstructor().newInstance());
+            Object client = Class.forName("io.anuke.net.KryoClient").getConstructor().newInstance();
+            Object server = Class.forName("io.anuke.net.KryoServer").getConstructor().newInstance();
+            Net.setClientProvider((Net.ClientProvider)client);
+            Net.setServerProvider((Net.ServerProvider)server);
         } catch (Throwable ignored) {
         }
     }
 
+    /** Marks the game's logger as already installed; the field is {@code loadedFileLogger} on the newer end and
+     *  {@code loadedLogger} on the older one. */
     private static void configureLog() {
         io.anuke.arc.util.Log.setUseColors(false);
         if (Bridge.options.debug || Bridge.options.verbose)
@@ -130,7 +121,35 @@ public class Main {
         }
 
         Log.info("loading arc natives");
+        configureArcLoader();
         ArcNativesLoader.load();
+    }
+
+    /**
+     * Arc before 84 detects Android from its own static flags, which it reads from {@code java.runtime.name} when
+     * the class loads. This JVM is a desktop one, so the flags still say Linux, and the loader extracts the game
+     * jar's 32-bit desktop libgdx instead of the staged Android one. Newer arc reads {@code OS.isAndroid} and has
+     * no such fields; the no-op path covers it.
+     */
+    private static void configureArcLoader() {
+        setIfPresent(SharedLibraryLoader.class, "isAndroid", true);
+        setIfPresent(SharedLibraryLoader.class, "isWindows", false);
+        setIfPresent(SharedLibraryLoader.class, "isLinux", false);
+        setIfPresent(SharedLibraryLoader.class, "isMac", false);
+        setIfPresent(SharedLibraryLoader.class, "is64Bit", false);
+    }
+
+    @BridgeReflect(kind = BridgeReflect.Kind.FIELD, classArg = 0, memberArg = 1)
+    private static void setIfPresent(Class<?> owner, String name, Object value) {
+        try {
+            java.lang.reflect.Field field = owner.getDeclaredField(name);
+            field.setAccessible(true);
+            field.set(null, value);
+        } catch (NoSuchFieldException ignored) {
+            // newer arc keeps the flags on OS, which setOsType already set
+        } catch (Throwable e) {
+            Log.warn("could not set " + owner.getName() + "." + name + ": " + e);
+        }
     }
 
     private static void prepareGameFolders() {

@@ -1,15 +1,20 @@
 package copper.bridge.v6;
 
+import copper.bridge.annotation.BridgeHandled;
 import copper.bridge.annotation.BridgeOverride;
 
-import arc.*;
-import arc.struct.*;
+import io.anuke.arc.*;
+import io.anuke.arc.collection.*;
 
 import copper.bridge.*;
+import copper.bridge.v6.BridgeEvents;
+import copper.bridge.v6.BridgeGraphics;
+import copper.bridge.v6.BridgeInput;
 import copper.bridge.gen.*;
 import copper.bridge.util.*;
 
 import java.util.*;
+import java.lang.reflect.Proxy;
 
 /**
  * arc's application object for the JVM side of the bridge. On Android arc is driven by ART - the activity owns the
@@ -49,9 +54,8 @@ public class BridgeApplication implements Application {
         Core.input = input;
         Core.files = files;
         Core.settings = new Settings();
-        AUTOSAVE = MethodLambdas.boundRunnable(Core.settings, "autosave");
         initAudio();
-        Core.net = new Net();
+        Core.net = createNet();
 
         graphics.configure();
 
@@ -104,10 +108,8 @@ public class BridgeApplication implements Application {
 
             graphics.beginFrame();
             input.processEvents();
-            // Application.defaultUpdate does this; autosave() arrived later in the range
-            if (AUTOSAVE != null)
-                AUTOSAVE.run();
-            arc.util.Time.updateGlobal();
+            // Application.defaultUpdate does this
+            io.anuke.arc.util.Time.updateGlobal();
             for (ApplicationListener listener : listeners)
                 listener.update();
             input.processDevices();
@@ -158,14 +160,40 @@ public class BridgeApplication implements Application {
         }
     }
 
-    /** {@code Settings.autosave} is absent at the range's floor; the lambda is null there. */
-    private static Runnable AUTOSAVE;
-
     /** {@code Thread.sleep} with arc's old semantics: an interrupt is swallowed, not re-armed. */
     private static void sleep(long millis) {
         try {
             Thread.sleep(millis);
         } catch (InterruptedException ignored) {
+        }
+    }
+
+    /**
+     * The Net shape changes inside this branch: 6316 is an interface, 6320 an abstract class, 6415 concrete. Prefer
+     * the concrete instance; otherwise use the legacy subclass for the abstract class, or a proxy for the interface.
+     */
+    @BridgeHandled(targets = "io/anuke/arc/Net:<init>",
+            warning = BridgeHandled.Warning.REFLECTED_MEMBER_PRESENT_AT_BOTH_ENDS,
+            reason = "the constructor exists only if Net is a class; the interface era cannot use it")
+    private static Net createNet() {
+        try {
+            return (Net)Net.class.getConstructor().newInstance();
+        } catch (Throwable ignored) {
+        }
+        try {
+            return (Net)Class.forName("copper.bridge.v6.NoNetLegacy").getConstructor().newInstance();
+        } catch (Throwable ignored) {
+        }
+        try {
+            return (Net)Proxy.newProxyInstance(Net.class.getClassLoader(), new Class<?>[] {Net.class},
+                    (proxy, method, args) -> {
+                        if ("openURI".equals(method.getName()))
+                            return JvmCall.openUri((String)args[0]);
+                        return method.getReturnType() == boolean.class ? Boolean.FALSE : null;
+                    });
+        } catch (Throwable e) {
+            Log.warn("could not create a Net for this build: " + e);
+            return null;
         }
     }
 
@@ -199,6 +227,11 @@ public class BridgeApplication implements Application {
     }
 
     @BridgeOverride
+    public long getJavaHeap() {
+        return Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+    }
+
+    @BridgeOverride
     public String getClipboardText() {
         return JvmCall.getClipboardText();
     }
@@ -207,17 +240,6 @@ public class BridgeApplication implements Application {
     public void setClipboardText(String text) {
         JvmCall.setClipboardText(text);
     }
-
-    @BridgeOverride
-    public boolean openURI(String uri) {
-        return JvmCall.openUri(uri);
-    }
-
-    @BridgeOverride
-    public boolean openFolder(String folder) {
-        return JvmCall.openFolder(folder);
-    }
-
     /** Queues work for the loop thread, the only thread allowed to touch the game. */
     @BridgeOverride
     public void post(Runnable runnable) {

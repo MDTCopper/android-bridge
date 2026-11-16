@@ -1,12 +1,11 @@
-
 /**
- * v1 is the Audio-interface 6 line: releases 65.0 up to 83.0. It claims no bleeding-edge range: the first
- * published build is 4550, whose arc already has the abstract class Audio. 84.0 is the first release whose Arc
- * changed Audio from an interface to an abstract class, so v2 starts there.
+ * v1 is the libGDX/uCore line: releases 33 up to 57. Those tags predate Arc, so the desktop jar carries
+ * libGDX and uCore instead; it claims no bleeding-edge range and has no arc revision to track.
  *
- * Its epoch is v83, the last release before that change; every symbol must also exist at 65.0.
+ * Its epoch is v57, the newest shape. Every symbol the branch references must also exist at 33, which
+ * :pack:checkBridgeApi enforces.
  *
- * Everything is compile only: the game and arc jars arrive on the command line at runtime.
+ * Everything is compile only: the game jar arrives on the command line at runtime.
  */
 def branch = name.startsWith('bridge-') ? name.substring('bridge-'.length()) : name
 def epochClasspath = rootProject.ext.epochClasspath(branch)
@@ -19,8 +18,9 @@ def androidJarRoot = sdkRoot ? new File("$sdkRoot/platforms/")
 if (androidJarRoot == null) {
     throw new GradleException("No valid Android SDK found. Set ANDROID_HOME or ANDROID_SDK_ROOT.")
 }
-// The floor application shape: 65 still has Clipboard and the socket-shaped Net, which 83 removed.
-def floorJar = rootProject.ext.fetchEpoch('v65')
+// 33 keeps Platform in io.anuke.mindustry.io; 40 moved it to io.anuke.mindustry.core. The legacy source set
+// compiles its subclass against the floor, so the old package never appears in the main sources.
+def floorJar = rootProject.ext.fetchEpoch('v33')
 
 sourceSets {
     main {
@@ -37,26 +37,23 @@ dependencies {
     // android.jar supplies android.*; the JVM side never loads these classes.
     compileOnly files(new File(androidJarRoot, "android.jar"))
 
-    // the official desktop jar, which carries both game and arc.
+    // the official desktop jar, which carries the game, libGDX and uCore.
     compileOnly epochClasspath
 
-    // what the arc backend reaches EGL and GLES through. The version has to match the android natives
-    // pack downloads, so both read lwjglVersion.
+    // what the bridge reaches EGL and GLES through. The version has to match the android natives
+    // the caller stages, so both read lwjglVersion.
     compileOnly platform("org.lwjgl:lwjgl-bom:${property('lwjglVersion')}")
     compileOnly "org.lwjgl:lwjgl"
     compileOnly "org.lwjgl:lwjgl-egl"
     compileOnly "org.lwjgl:lwjgl-opengles"
 
-    // The legacy source set compiles against the floor, not the branch epoch: that is the only way the types 83
-    // removed can appear in a method signature. Its classes still ship in the same branch and are picked at runtime.
+    // The legacy source set compiles against the floor, not the branch epoch: that is the only way the
+    // io.anuke.mindustry.io.Platform type can appear in a subclass. Its classes ship in the same branch and
+    // are picked at runtime.
     legacyImplementation project(':core')
     legacyCompileOnly files(sourceSets.main.output.classesDirs.singleFile)
     legacyCompileOnly files(new File(androidJarRoot, "android.jar"))
     legacyCompileOnly files(floorJar)
-    legacyCompileOnly platform("org.lwjgl:lwjgl-bom:${property('lwjglVersion')}")
-    legacyCompileOnly "org.lwjgl:lwjgl"
-    legacyCompileOnly "org.lwjgl:lwjgl-egl"
-    legacyCompileOnly "org.lwjgl:lwjgl-opengles"
 }
 
 tasks.named('classes') {
@@ -68,7 +65,7 @@ tasks.named('compileLegacyJava') {
 }
 
 tasks.named('compileJava') {
-    // without the epoch's jar javac reports a wall of missing arc/mindustry symbols instead.
+    // without the epoch's jar javac reports a wall of missing libGDX/uCore symbols instead.
     doFirst {
         if (epochClasspath.isEmpty()) {
             throw new GradleException("epoch ${branch}: no jar in ${epoch.gameOut}. " +

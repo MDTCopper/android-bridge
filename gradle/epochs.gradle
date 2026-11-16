@@ -18,9 +18,14 @@ ext.epochJarFile = { String ref ->
 }
 
 /** The official desktop jar for a release tag, or for a bleeding-edge build id; older tags name it differently. */
+def classicBase = property('classicReleaseBase')
+def classicTag = property('classicReleaseTag')
 ext.epochUrls = { String ref ->
     if (ref ==~ /\d+/)
         return ["https://github.com/Anuken/MindustryBuilds/releases/download/${ref}/Mindustry-BE-Desktop-${ref}.jar"]
+    // 33..57 are pre-65 tags whose GitHub releases carry no assets; the classic builds publish one jar per tag.
+    if (ref ==~ /v(3[3-9]|4[0-9]|5[0-7])/)
+        return ["${classicBase}/${classicTag}/Mindustry-Desktop-${ref.substring(1)}.jar"]
     return [
             "https://github.com/Anuken/Mindustry/releases/download/${ref}/Mindustry.jar",
             "https://github.com/Anuken/Mindustry/releases/download/${ref}/desktop-release.jar"
@@ -84,10 +89,10 @@ ext.branchHasSources = { String branch ->
 }
 
 // The subprojects that carry an epoch: one per version branch.
-def epochNames = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9']
+def epochNames = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10']
 
 // Only epochs whose code is there are prepared, so a fresh checkout does not fetch every jar to compile
-// one. -Pepochs=v1 picks explicitly.
+// one. -Pepochs=v2 picks explicitly.
 if (!project.hasProperty('skipEpochPrepare')) {
     def wanted = project.hasProperty('epochs')
             ? (project.property('epochs') as String).split(',').collect { it.trim() }.findAll { it }

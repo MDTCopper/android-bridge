@@ -4,7 +4,8 @@ import copper.bridge.annotation.BridgeOverride;
 
 import io.anuke.arc.*;
 import io.anuke.arc.files.*;
-import io.anuke.arc.func.*;
+import io.anuke.arc.function.*;
+import io.anuke.arc.scene.ui.*;
 
 import copper.bridge.gen.*;
 import copper.bridge.v4.UriFi;
@@ -36,6 +37,10 @@ public class BridgeLauncher extends ClientLauncher implements Platform {
         });
 
         // break force landscape set by some launchers
+        installEvents();
+    }
+
+    protected void installEvents() {
         Events.on(EventType.ClientLoadEvent.class, e -> {
             if (!Core.settings.getBool("landscape"))
                 endForceLandscape();
@@ -45,11 +50,21 @@ public class BridgeLauncher extends ClientLauncher implements Platform {
     /** Writes the crash report through the game's own sender; {@code send} is the only entry in this range. */
     private void handleCrash(Throwable cause) {
         try {
-            CrashSender.send(cause, file -> {
-            });
+            sendCrash(cause);
         } catch (Throwable ignored) {
             io.anuke.arc.util.Log.err(cause);
         }
+    }
+
+    protected void sendCrash(Throwable cause) {
+        CrashSender.send(cause, file -> {
+        });
+    }
+
+    @BridgeOverride
+    public void addDialog(TextField field, int maxLength) {
+        JvmCall.textInput("", "", field.getText(), false, false, maxLength, true)
+                .onResult(field::setText);
     }
 
     @BridgeOverride
@@ -81,11 +96,11 @@ public class BridgeLauncher extends ClientLauncher implements Platform {
      * through {@link UriFi} when it is ready.
      */
     @BridgeOverride
-    public void showFileChooser(boolean open, String title, Cons<FileHandle> cons) {
+    public void showFileChooser(boolean open, String title, Consumer<FileHandle> cons) {
         pick(open, title, new String[] {""}, cons);
     }
 
-        private void pick(boolean open, String title, String[] extensions, Cons<FileHandle> cons) {
+        private void pick(boolean open, String title, String[] extensions, Consumer<FileHandle> cons) {
         String[] filter = extensions == null || extensions.length == 0 ? new String[] {""} : extensions;
 
         JvmCall.showFileChooser(open, false, title, null, filter)
@@ -95,7 +110,7 @@ public class BridgeLauncher extends ClientLauncher implements Platform {
                     for (String path : paths) {
                         if (path == null || path.isEmpty())
                             continue;
-                        cons.get(open ? Core.files.absolute(path) : new UriFi(path, "export." + filter[0]));
+                        cons.accept(open ? Core.files.absolute(path) : new UriFi(path, "export." + filter[0]));
                     }
                 })
                 .onError(message -> Log.error("file chooser failed: " + message));

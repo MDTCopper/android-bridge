@@ -2,10 +2,10 @@ package copper.bridge.v1;
 
 import copper.bridge.annotation.BridgeOverride;
 
-import io.anuke.arc.*;
-import io.anuke.arc.Graphics.Cursor.*;
-import io.anuke.arc.graphics.*;
-import io.anuke.arc.graphics.glutils.*;
+import com.badlogic.gdx.*;
+import com.badlogic.gdx.graphics.*;
+import com.badlogic.gdx.graphics.Cursor.*;
+import com.badlogic.gdx.graphics.glutils.*;
 
 import copper.bridge.*;
 import copper.bridge.BridgeOptions.GLMode;
@@ -21,11 +21,11 @@ import java.nio.*;
 import java.util.function.Function;
 
 /**
- * arc's graphics for the JVM side of the bridge. {@code android.opengl} is unreachable in this JVM, so LWJGL's EGL
+ * libGDX graphics for the JVM side of the bridge. {@code android.opengl} is unreachable in this JVM, so LWJGL's EGL
  * and OpenGL ES bindings are the only route to GL, and ART hands the window over as an opaque native pointer. A
  * pause destroys only the window surface, so GL objects survive a resume.
  */
-public class BridgeGraphics extends Graphics {
+public class BridgeGraphics implements Graphics {
 
     /** Coverage sampling attribute; not in LWJGL's core EGL headers. */
     private static final int EGL_COVERAGE_SAMPLES_NV = 0x30E1;
@@ -86,7 +86,6 @@ public class BridgeGraphics extends Graphics {
                 File eglAngle = Libraries.find(Bridge.options.anglePath, Bridge.options.abi, ANGLE_EGL, SYSTEM_EGL);
                 File glesAngle = Libraries.find(Bridge.options.anglePath, Bridge.options.abi, ANGLE_GLES, SYSTEM_GLES);
                 if (eglAngle != null && glesAngle != null) {
-                    // W^X: LWJGL opens these by absolute path, so they have to be executable and not writable.
                     Libraries.ensureLoadable(eglAngle);
                     Libraries.ensureLoadable(glesAngle);
 
@@ -113,7 +112,6 @@ public class BridgeGraphics extends Graphics {
         Configuration.EGL_LIBRARY_NAME.set(egl);
         Configuration.OPENGLES_LIBRARY_NAME.set(gles);
         Configuration.OPENGLES_EXPLICIT_INIT.set(true);
-        // LWJGL's debug output follows the two flags as arc's level does: either one asks for everything
         if (Bridge.options.debug || Bridge.options.verbose)
             Configuration.DEBUG.set(true);
 
@@ -122,9 +120,7 @@ public class BridgeGraphics extends Graphics {
         GLES.create();
     }
 
-    /** Unpacks the LWJGL natives from the bridge jar and points both loaders at them: LWJGL's own search path, and
-     *  {@code java.library.path} for arc's {@code SharedLibraryLoader}, which would otherwise extract the game jar's
-     *  Linux copy. */
+    /** Unpacks the LWJGL natives from the bridge jar and points both loaders at them. */
     private void prepareLwjglNatives() {
         File lwjgl = LwjglNatives.extract();
         if (lwjgl == null)
@@ -134,14 +130,10 @@ public class BridgeGraphics extends Graphics {
         Configuration.LIBRARY_PATH.set(libPath);
         System.setProperty("java.library.path", libPath + File.pathSeparator + System.getProperty("java.library.path", ""));
 
-        // The game jar can carry its own desktop liblwjgl.so at the classpath root; the mapper sends LWJGL's bundled
-        // lookup to the bridge jar's per-ABI copy instead, and it must be set before Platform initializes. Extraction
-        // is pointed at the folder already unpacked, where the bytes match its hash check, so nothing is written.
         Configuration.BUNDLED_LIBRARY_PATH_MAPPER.set((Function<String, String>) LwjglNatives::mapPath);
         Configuration.SHARED_LIBRARY_EXTRACT_PATH.set(libPath);
     }
 
-    /** Finds the device's own ANGLE pair: the system's library directories in turn, the first holding both winning. */
     private static File[] findSystemAngle() {
         String suffix = bits64() ? "lib64" : "lib";
         for (String root : SYSTEM_LIBRARY_ROOTS) {
@@ -154,8 +146,6 @@ public class BridgeGraphics extends Graphics {
         return null;
     }
 
-    /** Copies a device ANGLE library into {@link #STAGING_FOLDER}, which is what makes it loadable: the linker only
-     *  lets an app process load the platform libraries {@code public.libraries.txt} names. */
     private static File stageAngle(File source) {
         File stageFolder = new File(Bridge.options.cacheFolder, STAGING_FOLDER);
         File target = new File(stageFolder, source.getName());
@@ -209,8 +199,6 @@ public class BridgeGraphics extends Graphics {
         long config = chooseConfig();
         logConfig(config);
 
-        // An explicit request is honoured; with none, the highest version this device can give is tried, and
-        // only a failed creation steps down.
         eglContext = createContext(config, Bridge.options.glMode == GLMode.GL2 ? 2 : 3);
         if (eglContext == EGL10.EGL_NO_CONTEXT && Bridge.options.glMode == GLMode.Auto) {
             Log.warn("GL", "no OpenGL ES 3 context; falling back to OpenGL ES 2");
@@ -224,11 +212,8 @@ public class BridgeGraphics extends Graphics {
         createWindowSurface(window);
     }
 
-    /** Creates a context of exactly this ES version: the config's renderable bit is not the context version. */
     private long createContext(long config, int esVersion) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
-            // ES2 is requested even for an ES3 context: every driver that can give an ES3 context
-            // reports the ES2 bit, and asking for an ES3 bit is not portable.
             int[] attribs = {EGL13.EGL_CONTEXT_CLIENT_VERSION, esVersion, EGL10.EGL_NONE};
             return EGL10.eglCreateContext(eglDisplay, config, EGL10.EGL_NO_CONTEXT, stack.ints(attribs));
         }
@@ -300,32 +285,28 @@ public class BridgeGraphics extends Graphics {
         return end == start ? 0 : Integer.parseInt(version.substring(start, end));
     }
 
-    /** The ES3 wrapper must not be installed on a device that only offers ES2. */
     private void setupGL() {
         GLES.createCapabilities();
 
         gl20 = new BridgeGL20();
-        Core.gl = gl20;
-        Core.gl20 = gl20;
+        Gdx.gl = gl20;
+        Gdx.gl20 = gl20;
 
         String version = gl20.glGetString(GL20.GL_VERSION);
         String vendor = gl20.glGetString(GL20.GL_VENDOR);
         String renderer = gl20.glGetString(GL20.GL_RENDERER);
         glVersion = new GLVersion(Application.ApplicationType.Android, version, vendor, renderer);
 
-        // GLVersion exposes atLeast/majorVersion only on the newer end and getMajorVersion on the older one, so
-        // read the version string itself.
         boolean supportsES3 = esMajor(version) >= 3;
-        // an explicit request is not quietly downgraded: the caller asked for a version this context cannot be
         if (Bridge.options.glMode == GLMode.GL3 && !supportsES3)
             throw new IllegalStateException("OpenGL ES 3 was requested, but the context is " + version);
 
         if (Bridge.options.glMode != GLMode.GL2 && supportsES3) {
             gl30 = new BridgeGL30();
             gl20 = gl30;
-            Core.gl = gl30;
-            Core.gl20 = gl30;
-            Core.gl30 = gl30;
+            Gdx.gl = gl30;
+            Gdx.gl20 = gl30;
+            Gdx.gl30 = gl30;
         }
 
         Log.info("GL", "renderer: " + renderer);
@@ -334,7 +315,6 @@ public class BridgeGraphics extends Graphics {
         Log.info("GL", "using " + (gl30 != null ? "OpenGL ES 3" : "OpenGL ES 2") + " context");
     }
 
-    /** Releases the window surface but keeps the context, so a resume does not rebuild its objects. */
     public void destroySurface() {
         if (eglDisplay == EGL10.EGL_NO_DISPLAY)
             return;
@@ -366,8 +346,6 @@ public class BridgeGraphics extends Graphics {
             GLES20.glViewport(0, 0, width, height);
     }
 
-    /** Marks the next frame as the first after a resume: a pause can last minutes, and its time would otherwise reach
-     *  the game as one delta and step its physics in one jump. */
     public void markResumed() {
         resumed = true;
     }
@@ -402,23 +380,13 @@ public class BridgeGraphics extends Graphics {
     }
 
     @BridgeOverride
-    public GL20 getGL20() {
-        return gl20;
-    }
-
-    /** Abstract on the older end of the range, concrete on the newer one; the same answer either way. */
-    @BridgeOverride
     public boolean isGL30Available() {
         return gl30 != null;
     }
 
     @BridgeOverride
-    public void setGL20(GL20 gl20) {
-        this.gl20 = gl20;
-        if (gl30 == null) {
-            Core.gl = gl20;
-            Core.gl20 = gl20;
-        }
+    public GL20 getGL20() {
+        return gl20;
     }
 
     @BridgeOverride
@@ -427,13 +395,22 @@ public class BridgeGraphics extends Graphics {
     }
 
     @BridgeOverride
+    public void setGL20(GL20 gl20) {
+        this.gl20 = gl20;
+        if (gl30 == null) {
+            Gdx.gl = gl20;
+            Gdx.gl20 = gl20;
+        }
+    }
+
+    @BridgeOverride
     public void setGL30(GL30 gl30) {
         this.gl30 = gl30;
         if (gl30 != null) {
             this.gl20 = gl30;
-            Core.gl = gl30;
-            Core.gl20 = gl30;
-            Core.gl30 = gl30;
+            Gdx.gl = gl30;
+            Gdx.gl20 = gl30;
+            Gdx.gl30 = gl30;
         }
     }
 
@@ -467,8 +444,6 @@ public class BridgeGraphics extends Graphics {
         return deltaTime;
     }
 
-    /** Abstract on the older end of the range, removed before its newer one: no {@code @BridgeOverride} on purpose. */
-    @SuppressWarnings("unused")
     @BridgeOverride
     public float getRawDeltaTime() {
         return deltaTime;
@@ -477,6 +452,11 @@ public class BridgeGraphics extends Graphics {
     @BridgeOverride
     public int getFramesPerSecond() {
         return fps;
+    }
+
+    @BridgeOverride
+    public GraphicsType getType() {
+        return GraphicsType.AndroidGL;
     }
 
     @BridgeOverride
@@ -504,79 +484,14 @@ public class BridgeGraphics extends Graphics {
         return Bridge.options.ydpi / 2.54f;
     }
 
-    /** ART's display density; arc scales the whole mobile UI by it. */
     @BridgeOverride
     public float getDensity() {
         return Bridge.options.density;
     }
 
-    /** Never called: a bridge that only draws into the activity's surface has no window. No {@code @BridgeOverride} on
-     *  purpose - arc declares it abstract up to v156 and removes it in v157. */
-    @SuppressWarnings("unused")
     @BridgeOverride
-    public boolean setWindowedMode(int width, int height) {
+    public boolean supportsDisplayModeChange() {
         return false;
-    }
-
-    @BridgeOverride
-    public void setTitle(String title) {
-    }
-
-    @BridgeOverride
-    public void setVSync(boolean vsync) {
-    }
-
-    @BridgeOverride
-    public BufferFormat getBufferFormat() {
-        return bufferFormat;
-    }
-
-    @BridgeOverride
-    public boolean supportsExtension(String extension) {
-        if (extensions == null && gl20 != null)
-            extensions = gl20.glGetString(GL20.GL_EXTENSIONS);
-        return extensions != null && extensions.contains(extension);
-    }
-
-    @BridgeOverride
-    public boolean isContinuousRendering() {
-        return true;
-    }
-
-    @BridgeOverride
-    public void setContinuousRendering(boolean isContinuous) {
-    }
-
-    @BridgeOverride
-    public void requestRendering() {
-    }
-
-    @BridgeOverride
-    public boolean isFullscreen() {
-        return true;
-    }
-
-    @BridgeOverride
-    public Cursor newCursor(Pixmap pixmap, int xHotspot, int yHotspot) {
-        return null;
-    }
-
-    @BridgeOverride
-    protected void setCursor(Cursor cursor) {
-    }
-
-    @BridgeOverride
-    protected void setSystemCursor(SystemCursor systemCursor) {
-    }
-
-    /** The surface belongs to the host activity, so a resize request from the game has nothing to act on. */
-    @BridgeOverride
-    public void setResizable(boolean resizable) {
-    }
-
-    /** The window is the host activity's, not something the game decorates. */
-    @BridgeOverride
-    public void setUndecorated(boolean undecorated) {
     }
 
     @BridgeOverride
@@ -615,12 +530,71 @@ public class BridgeGraphics extends Graphics {
     }
 
     @BridgeOverride
-    public boolean supportsDisplayModeChange() {
+    public boolean setFullscreenMode(DisplayMode displayMode) {
         return false;
     }
 
     @BridgeOverride
-    public boolean setFullscreenMode(DisplayMode displayMode) {
+    public boolean setWindowedMode(int width, int height) {
         return false;
+    }
+
+    @BridgeOverride
+    public void setTitle(String title) {
+    }
+
+    @BridgeOverride
+    public void setUndecorated(boolean undecorated) {
+    }
+
+    @BridgeOverride
+    public void setResizable(boolean resizable) {
+    }
+
+    @BridgeOverride
+    public void setVSync(boolean vsync) {
+    }
+
+    @BridgeOverride
+    public BufferFormat getBufferFormat() {
+        return bufferFormat;
+    }
+
+    @BridgeOverride
+    public boolean supportsExtension(String extension) {
+        if (extensions == null && gl20 != null)
+            extensions = gl20.glGetString(GL20.GL_EXTENSIONS);
+        return extensions != null && extensions.contains(extension);
+    }
+
+    @BridgeOverride
+    public void setContinuousRendering(boolean isContinuous) {
+    }
+
+    @BridgeOverride
+    public boolean isContinuousRendering() {
+        return true;
+    }
+
+    @BridgeOverride
+    public void requestRendering() {
+    }
+
+    @BridgeOverride
+    public boolean isFullscreen() {
+        return true;
+    }
+
+    @BridgeOverride
+    public Cursor newCursor(Pixmap pixmap, int xHotspot, int yHotspot) {
+        return null;
+    }
+
+    @BridgeOverride
+    public void setCursor(Cursor cursor) {
+    }
+
+    @BridgeOverride
+    public void setSystemCursor(SystemCursor systemCursor) {
     }
 }

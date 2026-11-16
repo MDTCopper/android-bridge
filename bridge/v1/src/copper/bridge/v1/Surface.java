@@ -1,12 +1,10 @@
 package copper.bridge.v1;
 
 /**
- * The surface ART handed over, as the JVM side sees it. One process has one window, so there is nothing to
- * construct and nothing to hand around: the state is this class's own and every reader asks it directly. The
- * writers are called from the event handlers, which run on the thread that owns the game, so a reader there never
+ * The surface ART handed over, as the JVM side sees it. One process has one window, so the state is this class's
+ * own and every reader asks it directly. Writers run on the thread that owns the game, so a reader there never
  * has to synchronize with them; the lock is for the one reader on a different thread, the wait before the loop
- * starts. It exposes no game types, so a branch can be compiled against it without dragging the core into a
- * specific game version.
+ * starts.
  */
 public class Surface {
 
@@ -43,7 +41,6 @@ public class Surface {
         }
     }
 
-    /** The native window pointer, or 0 when there is no surface. */
     public static long window() {
         synchronized (lock) {
             return window;

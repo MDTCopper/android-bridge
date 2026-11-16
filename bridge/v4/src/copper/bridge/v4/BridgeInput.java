@@ -251,9 +251,9 @@ public class BridgeInput extends Input {
     @BridgeOverride
     public void getTextInput(TextInput info) {
         // the 6 line's TextInput has no hint line and no empty-answer flag, so the dialog gets neither
-        JvmCall.textInput(info.title, "", info.text, info.numeric, info.multiline,
+        JvmCall.textInput(info.title, "", info.text, false, info.multiline,
                 info.maxLength, false)
-                .onResult(value -> info.accepted.get(value))
+                .onResult(value -> info.accepted.accept(value))
                 .onCanceled(info.canceled);
     }
 

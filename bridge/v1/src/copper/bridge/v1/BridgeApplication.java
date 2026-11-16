@@ -1,57 +1,65 @@
 package copper.bridge.v1;
 
-import copper.bridge.annotation.CompatRange;
 import copper.bridge.annotation.BridgeOverride;
 
-import io.anuke.arc.*;
-import io.anuke.arc.collection.*;
-
 import copper.bridge.*;
-import copper.bridge.gen.*;
+import copper.bridge.gen.JvmBus;
+import copper.bridge.gen.JvmCall;
 import copper.bridge.util.*;
 
+import com.badlogic.gdx.*;
+import com.badlogic.gdx.utils.*;
+
+import java.io.*;
 import java.util.*;
+import java.util.concurrent.*;
 
 /**
- * arc's application object for the JVM side of the bridge. On Android arc is driven by ART - the activity owns the
- * lifecycle callbacks, a {@code GLSurfaceView} owns the render thread - and neither exists here, so this class owns
- * the loop that turns forwarded events back into a lifecycle on one thread with the EGL context current.
+ * libGDX's application for the JVM side. The activity owns the lifecycle and the GL surface; this class owns the
+ * one thread that turns forwarded events into the calls the game expects, with the EGL context current.
  */
-public abstract class BridgeApplication implements Application {
+public class BridgeApplication implements Application {
     private static final long SURFACE_TIMEOUT_MILLIS = 20000;
 
+    private final ApplicationListener listener;
+    private final BridgeGraphics graphics;
+    private final BridgeInput input;
+    private final BridgeFiles files;
+    private final BridgeAudio audio = new BridgeAudio();
+    private final BridgeNet net = new BridgeNet();
+    private final BridgeEvents events;
 
-    public final BridgeGraphics graphics;
-    public final BridgeInput input;
-    public final BridgeFiles files;
-    public final BridgeEvents events;
-
-    protected final Array<ApplicationListener> listeners = new Array<>();
-
-    /** Plain lists: Array.addAll and Array.clear return void on the older end of the range. */
     private final List<Runnable> runnables = new ArrayList<>();
     private final List<Runnable> executedRunnables = new ArrayList<>();
+    private final List<LifecycleListener> lifecycleListeners = new CopyOnWriteArrayList<>();
+    private final Map<String, Preferences> preferences = new HashMap<>();
 
-    /** Set once the first frame was handed to the surface: the ART side takes down whatever it showed until then. */
+    private ApplicationLogger logger = new BridgeLogger();
+    private final Clipboard clipboard = new BridgeClipboard();
+
+    private Thread mainThread;
+    private int logLevel = LOG_INFO;
     private boolean firstFrameMarked;
 
-    public BridgeApplication() {
+    public BridgeApplication(ApplicationListener listener) {
+        this.listener = listener;
         this.graphics = new BridgeGraphics();
         this.input = new BridgeInput();
-        this.files = new BridgeFiles();
-        this.events = new BridgeEvents(graphics, input, listeners);
+        File data = Bridge.options.gameDataFolder;
+        this.files = new BridgeFiles(data == null ? new File(".") : data);
+        this.events = new BridgeEvents(this, graphics, input, listener);
     }
 
-    /** Runs the game until it exits, blocking the calling thread, which must be the JVM main thread. LWJGL has to be
-     *  pointed at the right EGL and GLES libraries before anything asks for a context. */
+    /** Runs the game until it exits, blocking the calling thread, which must be the JVM main thread. */
     public void run() {
-        Core.app = this;
-        Core.graphics = graphics;
-        Core.input = input;
-        Core.files = files;
-        Core.settings = new Settings();
-        initAudio();
-        Core.net = createNet();
+        mainThread = Thread.currentThread();
+
+        Gdx.app = this;
+        Gdx.graphics = graphics;
+        Gdx.input = input;
+        Gdx.files = files;
+        Gdx.audio = audio;
+        Gdx.net = net;
 
         graphics.configure();
 
@@ -66,18 +74,15 @@ public abstract class BridgeApplication implements Application {
         }
         events.markSurfaceReady();
 
-        for (ApplicationListener listener : listeners)
-            listener.init();
-        for (ApplicationListener listener : listeners)
-            listener.resize(graphics.getWidth(), graphics.getHeight());
+        listener.create();
+        listener.resize(graphics.getWidth(), graphics.getHeight());
 
         loop();
 
         teardown();
     }
 
-    /** Waits for ART to hand over the native window, taking events while waiting: ART creates the surface once its
-     *  main thread is free again, so the window pointer arrives as one of those events. */
+    /** Waits for ART to hand over the native window, taking events while waiting. */
     private boolean waitForWindow() {
         long deadline = System.currentTimeMillis() + SURFACE_TIMEOUT_MILLIS;
         while (!Surface.ready()) {
@@ -97,46 +102,41 @@ public abstract class BridgeApplication implements Application {
             runPosted();
 
             if (events.paused() || !events.surfaceReady()) {
-                // nothing may be drawn without a current surface, but events must keep flowing
                 sleep(4);
                 continue;
             }
 
             graphics.beginFrame();
             input.processEvents();
-            // Application.defaultUpdate does this
-            io.anuke.arc.util.Time.update();
-            for (ApplicationListener listener : listeners)
-                listener.update();
-            input.processDevices();
+            listener.render();
             graphics.swapBuffers();
 
             if (!firstFrameMarked) {
                 firstFrameMarked = true;
-                // the ART side owns whatever it shows over the surface, and this is the only thing it waits for
                 JvmCall.onFirstFrameDrawn();
             }
         }
     }
 
     private void teardown() {
-        for (ApplicationListener listener : listeners) {
+        try {
+            listener.pause();
+        } catch (Throwable t) {
+            Log.error(t);
+        }
+        for (LifecycleListener lifecycle : lifecycleListeners) {
             try {
-                listener.pause();
+                lifecycle.dispose();
             } catch (Throwable t) {
                 Log.error(t);
             }
         }
-        for (ApplicationListener listener : listeners) {
-            try {
-                listener.dispose();
-            } catch (Throwable t) {
-                // a failing dispose must not stop the rest of the shutdown
-                Log.error(t);
-            }
+        try {
+            listener.dispose();
+        } catch (Throwable t) {
+            Log.error(t);
         }
 
-        dispose();
         graphics.disposeContext();
         Log.info("game loop ended");
     }
@@ -147,16 +147,15 @@ public abstract class BridgeApplication implements Application {
             executedRunnables.addAll(runnables);
             runnables.clear();
         }
-        for (Runnable executedRunnable : executedRunnables) {
+        for (Runnable runnable : executedRunnables) {
             try {
-                executedRunnable.run();
+                runnable.run();
             } catch (Throwable t) {
                 Log.error(t);
             }
         }
     }
 
-    /** {@code Thread.sleep} with arc's old semantics: an interrupt is swallowed, not re-armed. */
     private static void sleep(long millis) {
         try {
             Thread.sleep(millis);
@@ -164,82 +163,167 @@ public abstract class BridgeApplication implements Application {
         }
     }
 
-    //SoloudAudio is not in this range; LegacyAudio is the only implementation.
-    private static void initAudio() {
-        try {
-            Core.audio = new LegacyAudio();
-        } catch (Throwable legacy) {
-            Log.error("audio", legacy);
-        }
-    }
-
+    @Override
     @BridgeOverride
-    public Array<ApplicationListener> getListeners() {
-        return listeners;
+    public ApplicationListener getApplicationListener() {
+        return listener;
     }
 
+    @Override
+    @BridgeOverride
+    public Graphics getGraphics() {
+        return graphics;
+    }
+
+    @Override
+    @BridgeOverride
+    public Audio getAudio() {
+        return audio;
+    }
+
+    @Override
+    @BridgeOverride
+    public Input getInput() {
+        return input;
+    }
+
+    @Override
+    @BridgeOverride
+    public Files getFiles() {
+        return files;
+    }
+
+    @Override
+    @BridgeOverride
+    public Net getNet() {
+        return net;
+    }
+
+    @Override
+    @BridgeOverride
+    public void log(String tag, String message) {
+        logger.log(tag, message);
+    }
+
+    @Override
+    @BridgeOverride
+    public void log(String tag, String message, Throwable exception) {
+        logger.log(tag, message, exception);
+    }
+
+    @Override
+    @BridgeOverride
+    public void error(String tag, String message) {
+        logger.error(tag, message);
+    }
+
+    @Override
+    @BridgeOverride
+    public void error(String tag, String message, Throwable exception) {
+        logger.error(tag, message, exception);
+    }
+
+    @Override
+    @BridgeOverride
+    public void debug(String tag, String message) {
+        logger.debug(tag, message);
+    }
+
+    @Override
+    @BridgeOverride
+    public void debug(String tag, String message, Throwable exception) {
+        logger.debug(tag, message, exception);
+    }
+
+    @Override
+    @BridgeOverride
+    public void setLogLevel(int logLevel) {
+        this.logLevel = logLevel;
+    }
+
+    @Override
+    @BridgeOverride
+    public int getLogLevel() {
+        return logLevel;
+    }
+
+    @Override
+    @BridgeOverride
+    public void setApplicationLogger(ApplicationLogger applicationLogger) {
+        this.logger = applicationLogger;
+    }
+
+    @Override
+    @BridgeOverride
+    public ApplicationLogger getApplicationLogger() {
+        return logger;
+    }
+
+    @Override
     @BridgeOverride
     public ApplicationType getType() {
         return ApplicationType.Android;
     }
 
+    @Override
     @BridgeOverride
     public int getVersion() {
         return JvmCall.getOsVersion();
     }
 
+    @Override
+    @BridgeOverride
+    public long getJavaHeap() {
+        Runtime runtime = Runtime.getRuntime();
+        return runtime.totalMemory() - runtime.freeMemory();
+    }
+
+    @Override
     @BridgeOverride
     public long getNativeHeap() {
         return JvmCall.getNativeHeap();
     }
 
+    @Override
     @BridgeOverride
-    public long getJavaHeap() {
-        return Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
-    }
-
-    /** The arc Net this application installs; the 65-class replaces it with the floor's socket-shaped interface. */
-    protected Net createNet() {
-        return new NoNet();
-    }
-
-    /** {@code arc.Net} is an interface at this branch's floor; the game's own {@code Vars.net} does the real work. */
-    @CompatRange(floor = "v83")
-    private static class NoNet implements Net {
-        @BridgeOverride
-        public void http(HttpRequest request, io.anuke.arc.function.Consumer<HttpResponse> success,
-                         io.anuke.arc.function.Consumer<Throwable> failure) {
-            if (failure != null)
-                failure.accept(new IllegalStateException("no HTTP stack on the bridge"));
-        }
-
-        @BridgeOverride
-        public boolean openURI(String uri) {
-            return JvmCall.openUri(uri);
+    public Preferences getPreferences(String name) {
+        synchronized (preferences) {
+            // The desktop game's own layout: one XML properties file per name under .prefs/.
+            return preferences.computeIfAbsent(name, key -> new BridgePreferences(files.local(".prefs/" + key)));
         }
     }
 
+    @Override
     @BridgeOverride
-    public String getClipboardText() {
-        return JvmCall.getClipboardText();
+    public Clipboard getClipboard() {
+        return clipboard;
     }
 
+    @Override
     @BridgeOverride
-    public void setClipboardText(String text) {
-        JvmCall.setClipboardText(text);
-    }
-
-    /** Queues work for the loop thread, the only thread allowed to touch the game. */
-    @BridgeOverride
-    public void post(Runnable runnable) {
+    public void postRunnable(Runnable runnable) {
         synchronized (runnables) {
             runnables.add(runnable);
         }
     }
 
+    @Override
     @BridgeOverride
     public void exit() {
         JvmCall.finishActivity();
         events.onDestroy();
     }
+
+    @Override
+    @BridgeOverride
+    public void addLifecycleListener(LifecycleListener listener) {
+        lifecycleListeners.add(listener);
+    }
+
+    @Override
+    @BridgeOverride
+    public void removeLifecycleListener(LifecycleListener listener) {
+        lifecycleListeners.remove(listener);
+    }
+
 }

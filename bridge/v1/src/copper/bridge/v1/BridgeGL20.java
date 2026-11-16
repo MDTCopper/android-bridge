@@ -1,21 +1,16 @@
 package copper.bridge.v1;
 
-import copper.bridge.annotation.BridgeHandled;
 import copper.bridge.annotation.BridgeOverride;
 
-import io.anuke.arc.graphics.*;
+import com.badlogic.gdx.graphics.*;
 import java.nio.*;
 import org.lwjgl.opengles.*;
 import org.lwjgl.system.*;
 
 /**
- * JVM-side implementation of arc's OpenGL ES 2.0 interface. The engine runs in a JVM hosted by ART, so {@code
+ * JVM-side implementation of libGDX's OpenGL ES 2.0 interface. The engine runs in a JVM hosted by ART, so {@code
  * android.opengl} is unreachable and LWJGL's OpenGL ES bindings are the only route to GL.
  */
-@BridgeHandled(targets = {"io/anuke/arc/graphics/GL20:glGetActiveAttrib",
-        "io/anuke/arc/graphics/GL20:glGetActiveUniform"},
-        warning = BridgeHandled.Warning.METHOD_SIGNATURE_CHANGED_WITHIN_WINDOW,
-        reason = "65 takes Buffer, 83 takes IntBuffer; both overloads are declared here")
 public class BridgeGL20 implements GL20 {
 
     protected static long bufferAddress(Buffer buffer) {
@@ -387,12 +382,10 @@ public class BridgeGL20 implements GL20 {
         return GLES20.glGenRenderbuffers();
     }
 
-    @BridgeOverride
     public String glGetActiveAttrib(int program, int index, IntBuffer size, IntBuffer type) {
         return GLES20.glGetActiveAttrib(program, index, size, type);
     }
 
-    @BridgeOverride
     public String glGetActiveUniform(int program, int index, IntBuffer size, IntBuffer type) {
         return GLES20.glGetActiveUniform(program, index, size, type);
     }

@@ -2,9 +2,9 @@ package copper.bridge.v6;
 
 import copper.bridge.annotation.BridgeOverride;
 
-import arc.Files.FileType;
-import arc.files.*;
-import arc.util.ArcRuntimeException;
+import io.anuke.arc.Files.FileType;
+import io.anuke.arc.files.*;
+import io.anuke.arc.util.ArcRuntimeException;
 import copper.bridge.gen.*;
 
 import java.io.*;
@@ -22,7 +22,7 @@ public class UriFi extends Fi {
         this.uri = uri;
         // there is no real path behind a document, so the name is only what dialogs display
         this.file = new File(displayName);
-        this.type = FileType.absolute;
+        this.type = FileType.values()[3]; //absolute
     }
 
     @BridgeOverride

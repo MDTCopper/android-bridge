@@ -1,10 +1,12 @@
 package copper.bridge.v2;
 
+import copper.bridge.annotation.BridgeHandled;
 import copper.bridge.annotation.BridgeOverride;
 
 import io.anuke.arc.*;
 import io.anuke.arc.files.*;
 import io.anuke.arc.function.*;
+import io.anuke.arc.scene.ui.*;
 import io.anuke.mindustry.core.Platform;
 
 import copper.bridge.gen.*;
@@ -15,10 +17,19 @@ import copper.bridge.util.*;
  * itself is the {@code ApplicationCore} listener, and everything a platform answers lives on the abstract
  * {@link Platform} whose {@code instance} this constructor installs.
  */
+@BridgeHandled(targets = "io/anuke/mindustry/core/Platform:showFileChooser",
+        warning = BridgeHandled.Warning.METHOD_SIGNATURE_CHANGED_WITHIN_WINDOW,
+        reason = "65 takes a String filter, 83 a Predicate; both overloads are declared here")
 public class BridgePlatform extends Platform {
 
     public BridgePlatform() {
         Platform.instance = this;
+    }
+
+    @BridgeOverride
+    public void addDialog(TextField field, int maxLength) {
+        JvmCall.textInput("", "", field.getText(), false, false, maxLength, true)
+                .onResult(field::setText);
     }
 
     @BridgeOverride
@@ -56,6 +67,23 @@ public class BridgePlatform extends Platform {
                         if (path == null || path.isEmpty())
                             continue;
                         if (filetype != null && !filetype.test(path))
+                            continue;
+                        cons.accept(open ? Core.files.absolute(path) : new UriFi(path, "export"));
+                    }
+                })
+                .onError(message -> Log.error("file chooser failed: " + message));
+    }
+
+    @BridgeOverride
+    public void showFileChooser(String text, String content, Consumer<FileHandle> cons, boolean open,
+                                String filetype) {
+        JvmCall.showFileChooser(open, false, text, null,
+                        new String[] {filetype == null ? "" : filetype})
+                .onResult(paths -> {
+                    if (paths == null)
+                        return;
+                    for (String path : paths) {
+                        if (path == null || path.isEmpty())
                             continue;
                         cons.accept(open ? Core.files.absolute(path) : new UriFi(path, "export"));
                     }

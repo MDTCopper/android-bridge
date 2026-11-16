@@ -2,8 +2,8 @@ package copper.bridge.v6;
 
 import copper.bridge.annotation.BridgeOverride;
 
-import arc.audio.*;
-import arc.files.*;
+import io.anuke.arc.audio.*;
+import io.anuke.arc.files.*;
 
 import copper.bridge.gen.*;
 

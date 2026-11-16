@@ -1,20 +1,19 @@
 package copper.bridge.v5;
 
-import copper.bridge.annotation.BridgeHandled;
 import copper.bridge.annotation.BridgeOverride;
 
 import io.anuke.arc.*;
 import io.anuke.arc.collection.*;
 
 import copper.bridge.*;
-import copper.bridge.v5.BridgeEvents;
-import copper.bridge.v5.BridgeGraphics;
-import copper.bridge.v5.BridgeInput;
 import copper.bridge.gen.*;
+import copper.bridge.v5.BridgeEvents;
+import copper.bridge.v5.BridgeFiles;
+import copper.bridge.v5.LegacyAudio;
+import copper.bridge.v5.BridgeGraphics;
 import copper.bridge.util.*;
 
 import java.util.*;
-import java.lang.reflect.Proxy;
 
 /**
  * arc's application object for the JVM side of the bridge. On Android arc is driven by ART - the activity owns the
@@ -55,7 +54,7 @@ public class BridgeApplication implements Application {
         Core.files = files;
         Core.settings = new Settings();
         initAudio();
-        Core.net = createNet();
+        Core.net = new NoNet();
 
         graphics.configure();
 
@@ -168,35 +167,6 @@ public class BridgeApplication implements Application {
         }
     }
 
-    /**
-     * The Net shape changes inside this branch: 6316 is an interface, 6320 an abstract class, 6415 concrete. Prefer
-     * the concrete instance; otherwise use the legacy subclass for the abstract class, or a proxy for the interface.
-     */
-    @BridgeHandled(targets = "io/anuke/arc/Net:<init>",
-            warning = BridgeHandled.Warning.REFLECTED_MEMBER_PRESENT_AT_BOTH_ENDS,
-            reason = "the constructor exists only if Net is a class; the interface era cannot use it")
-    private static Net createNet() {
-        try {
-            return (Net)Net.class.getConstructor().newInstance();
-        } catch (Throwable ignored) {
-        }
-        try {
-            return (Net)Class.forName("copper.bridge.v5.NoNetLegacy").getConstructor().newInstance();
-        } catch (Throwable ignored) {
-        }
-        try {
-            return (Net)Proxy.newProxyInstance(Net.class.getClassLoader(), new Class<?>[] {Net.class},
-                    (proxy, method, args) -> {
-                        if ("openURI".equals(method.getName()))
-                            return JvmCall.openUri((String)args[0]);
-                        return method.getReturnType() == boolean.class ? Boolean.FALSE : null;
-                    });
-        } catch (Throwable e) {
-            Log.warn("could not create a Net for this build: " + e);
-            return null;
-        }
-    }
-
     //SoloudAudio is not in this range; LegacyAudio is the only implementation.
     private static void initAudio() {
         try {
@@ -231,6 +201,21 @@ public class BridgeApplication implements Application {
         return Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
     }
 
+    /** {@code arc.Net} is an interface at this branch's floor; the game's own {@code Vars.net} does the real work. */
+    private static class NoNet implements Net {
+        @BridgeOverride
+        public void http(HttpRequest request, io.anuke.arc.func.Cons<HttpResponse> success,
+                         io.anuke.arc.func.Cons<Throwable> failure) {
+            if (failure != null)
+                failure.get(new IllegalStateException("no HTTP stack on the bridge"));
+        }
+
+        @BridgeOverride
+        public boolean openURI(String uri) {
+            return JvmCall.openUri(uri);
+        }
+    }
+
     @BridgeOverride
     public String getClipboardText() {
         return JvmCall.getClipboardText();
@@ -240,6 +225,7 @@ public class BridgeApplication implements Application {
     public void setClipboardText(String text) {
         JvmCall.setClipboardText(text);
     }
+
     /** Queues work for the loop thread, the only thread allowed to touch the game. */
     @BridgeOverride
     public void post(Runnable runnable) {

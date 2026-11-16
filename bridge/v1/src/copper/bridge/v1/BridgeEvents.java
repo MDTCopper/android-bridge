@@ -1,12 +1,12 @@
 package copper.bridge.v1;
 
-import io.anuke.arc.*;
-import io.anuke.arc.input.KeyCode;
-import io.anuke.arc.collection.*;
+import com.badlogic.gdx.*;
 
-import copper.bridge.gen.*;
+import copper.bridge.gen.JvmBus;
 import copper.bridge.jvm.Events;
-import copper.bridge.util.*;
+import copper.bridge.util.Log;
+import io.anuke.mindustry.Vars;
+import io.anuke.mindustry.core.GameState;
 
 /**
  * The branch side of {@link Events}: the handlers, performed on the thread that owns the game. None of what ART
@@ -14,22 +14,21 @@ import copper.bridge.util.*;
  * current, and the listener callbacks belong to that same thread.
  */
 public class BridgeEvents implements Events {
-    /** Cached once: the constant names changed case inside the range, the order did not. */
-    private static final KeyCode[] KEYS = KeyCode.values();
-
     private final BridgeGraphics graphics;
     private final BridgeInput input;
-    private final Array<ApplicationListener> listeners;
+    private final ApplicationListener listener;
+    private final BridgeApplication application;
 
     private volatile boolean running = true;
     private volatile boolean paused;
     private boolean surfaceReady;
 
-    public BridgeEvents(BridgeGraphics graphics, BridgeInput input,
-                        Array<ApplicationListener> listeners) {
+    public BridgeEvents(BridgeApplication application, BridgeGraphics graphics, BridgeInput input,
+                        ApplicationListener listener) {
+        this.application = application;
         this.graphics = graphics;
         this.input = input;
-        this.listeners = listeners;
+        this.listener = listener;
         JvmBus.bind(this);
     }
 
@@ -41,8 +40,7 @@ public class BridgeEvents implements Events {
         return paused;
     }
 
-    /** Whether the render loop owns GL, which is not the same as an EGL surface being bound: the flag stays set across
-     *  a surface ART took away, so the next one is wired into the same context instead of leaving the screen black. */
+    /** Whether the render loop owns GL, which is not the same as an EGL surface being bound. */
     public boolean surfaceReady() {
         return surfaceReady;
     }
@@ -60,12 +58,9 @@ public class BridgeEvents implements Events {
             return;
         }
 
-        // Only the surface arriving before the loop starts separates itself here: the loop wires that one up itself.
         if (surfaceReady) {
-            if (graphics.createSurface(window, width, height)) {
-                for (ApplicationListener listener : listeners)
-                    listener.resize(width, height);
-            }
+            if (graphics.createSurface(window, width, height))
+                listener.resize(width, height);
         }
     }
 
@@ -77,8 +72,7 @@ public class BridgeEvents implements Events {
             return;
 
         graphics.surfaceResized(width, height);
-        for (ApplicationListener listener : listeners)
-            listener.resize(width, height);
+        listener.resize(width, height);
     }
 
     @Override
@@ -86,7 +80,6 @@ public class BridgeEvents implements Events {
         Surface.destroyed();
         graphics.destroySurface();
         // surfaceReady deliberately stays true: it means "the render loop owns GL", not "an EGL surface is bound".
-        // Clearing it here stopped the next surface from being wired in, leaving the screen black after a pause.
     }
 
     @Override
@@ -95,10 +88,8 @@ public class BridgeEvents implements Events {
             return;
         paused = true;
 
-        // input state has to be dropped, or a key held across the pause stays down forever
         input.onPause();
-        for (ApplicationListener listener : listeners)
-            listener.pause();
+        listener.pause();
         Log.info("paused");
     }
 
@@ -110,8 +101,7 @@ public class BridgeEvents implements Events {
 
         input.onResume();
         graphics.markResumed();
-        for (ApplicationListener listener : listeners)
-            listener.resume();
+        listener.resume();
         Log.info("resumed");
     }
 
@@ -120,22 +110,22 @@ public class BridgeEvents implements Events {
         running = false;
     }
 
-    /** Routes a back press the way the game expects it. With a dialog open the scene gets the key directly - a plain
-     *  key event let the dialog close and {@code Control} then saw "no dialog" in the same frame and hid the app.
-     *  With no dialog open the press goes through the normal input path. */
     @Override
     public void onBackPressed() {
-        if (Core.scene != null && Core.scene.hasDialog()) {
-            Core.scene.keyDown(KeyCode.BACK);
-            Core.scene.keyUp(KeyCode.BACK);
+        // The old game has no exit button: on the main menu, back is the exit.
+        if (onMenu()) {
+            application.exit();
             return;
         }
-
-        input.backTap();
+        if (!input.backTap())
+            application.exit();
     }
 
-    @Override
-    public void onMusicComplete(int music) {
-        MusicListeners.complete(music);
+    private static boolean onMenu() {
+        try {
+            return Vars.state != null && Vars.state.is(GameState.State.menu);
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 }

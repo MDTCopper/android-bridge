@@ -98,7 +98,7 @@ final class LegacyMusic implements Music {
     }
 
     @BridgeOverride
-    public void setCompletionListener(OnCompletionListener listener) {
+    public void setOnCompletionListener(OnCompletionListener listener) {
         this.listener = listener;
     }
 
@@ -106,6 +106,6 @@ final class LegacyMusic implements Music {
     private void completed() {
         OnCompletionListener current = listener;
         if (current != null)
-            current.complete(this);
+            current.onCompletion(this);
     }
 }

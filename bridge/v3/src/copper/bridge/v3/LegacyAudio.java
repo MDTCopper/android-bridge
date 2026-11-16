@@ -8,8 +8,8 @@ import io.anuke.arc.files.*;
 import copper.bridge.gen.*;
 
 /**
- * The abstract arc.Audio of the 6 line's low end. Only ever constructed below 113, where the class still exists -
- * which is why the branch compiles at v112 - so its references are checked against v112, not the range's top.
+ * arc.Audio for the 6 line's low end: 84 turned it from an interface into an abstract class, which this branch
+ * extends. The Sound implementation carries both handle shapes itself, so there is nothing to choose here.
  */
 public class LegacyAudio extends io.anuke.arc.Audio {
 

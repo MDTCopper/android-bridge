@@ -7,6 +7,7 @@ import io.anuke.arc.files.*;
 import io.anuke.arc.func.*;
 
 import copper.bridge.gen.*;
+import copper.bridge.v5.UriFi;
 import copper.bridge.util.*;
 import io.anuke.mindustry.*;
 import io.anuke.mindustry.core.*;
@@ -70,7 +71,7 @@ public class BridgeLauncher extends ClientLauncher implements Platform {
 
     /** Left empty on purpose: a share sheet would need a {@code FileProvider} in the host app's manifest. */
     @BridgeOverride
-    public void shareFile(Fi file) {
+    public void shareFile(FileHandle file) {
     }
 
     /**
@@ -80,11 +81,11 @@ public class BridgeLauncher extends ClientLauncher implements Platform {
      * through {@link UriFi} when it is ready.
      */
     @BridgeOverride
-    public void showFileChooser(boolean open, String title, Cons<Fi> cons) {
+    public void showFileChooser(boolean open, String title, Cons<FileHandle> cons) {
         pick(open, title, new String[] {""}, cons);
     }
 
-        private void pick(boolean open, String title, String[] extensions, Cons<Fi> cons) {
+        private void pick(boolean open, String title, String[] extensions, Cons<FileHandle> cons) {
         String[] filter = extensions == null || extensions.length == 0 ? new String[] {""} : extensions;
 
         JvmCall.showFileChooser(open, false, title, null, filter)

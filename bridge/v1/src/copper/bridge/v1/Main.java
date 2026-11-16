@@ -1,51 +1,43 @@
 package copper.bridge.v1;
 
-import copper.bridge.annotation.BridgeReflect;
-
-import io.anuke.arc.util.*;
 import copper.bridge.*;
 import copper.bridge.jvm.Launch;
 import copper.bridge.util.Log;
-import io.anuke.mindustry.*;
+
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.utils.GdxNativesLoader;
+import com.badlogic.gdx.utils.SharedLibraryLoader;
+import io.anuke.kryonet.KryoClient;
+import io.anuke.kryonet.KryoServer;
+import io.anuke.mindustry.Mindustry;
 import io.anuke.mindustry.net.Net;
+import io.anuke.ucore.util.OS;
 
 import java.io.*;
 
 /**
- * The v1 branch entry point, reached reflectively by the JVM side once the branch is chosen; both classpath rules
- * arrive at {@link #main(String[])}, so nothing here has to know which one applied.
+ * The v1 branch entry point, reached reflectively by the JVM side once the branch is chosen. It boots the
+ * libGDX/uCore game the way the desktop launcher does, with the bridge's Android-backed application in place of
+ * the LWJGL window.
  */
 public class Main {
     /**
-     * Starts the game with the bridge's own class loader. The parameter list is the contract {@code
-     * copper.bridge.jvm.Launch} reflects on: {@code getDeclaredMethod("main", String[].class)}.
+     * Starts the game with the bridge's own class loader. The parameter list is the contract
+     * {@code copper.bridge.jvm.Launch} reflects on: {@code getDeclaredMethod("main", String[].class)}.
      */
     public static void main(String[] args) {
-        Log.info("starting branch " + Main.class.getPackage().getName().substring("copper.bridge.".length()) + " for game " + Launch.gameVersion());
+        Log.info("starting branch " + Main.class.getPackage().getName().substring("copper.bridge.".length())
+                + " for game " + Launch.gameVersion());
         Log.info("game arguments: " + (args.length == 0 ? "none" : String.join(" ", args)));
 
-        // runs first, before anything touches arc: OS.isAndroid decides whether arc's SharedLibraryLoader loads the
-        // staged libraries by name or extracts its own copy, and where arc puts its data folder.
         setOsType();
-
-        prepareArcNatives();
+        prepareGdxNatives();
         prepareGameFolders();
 
-        // the game wraps its logger while it sets up: the printed copy is what this bridge wants, the native side
-        // turning the process's stdout and stderr into logcat and the log file.
-        configureLog();
-
-        BridgeApplication application = BridgeApplications.create();
-
-        // the pre-ClientLauncher line: the game is the ApplicationCore listener, and the platform hooks are a
-        // static instance rather than a callback the launcher hands back.
-        new BridgePlatform();
-        installCrashHandler();
+        installPlatform();
         installNetProviders();
-        application.addListener(new Mindustry());
 
-        // only a thread that dies of its own exception consults the default handler, and this throw happens on the
-        // calling thread. With none installed, the bridge reports it itself and rethrows.
+        BridgeApplication application = new BridgeApplication(new Mindustry());
         try {
             application.run();
         } catch (Throwable e) {
@@ -60,98 +52,47 @@ public class Main {
         }
     }
 
-    /** The game's crash reporter, called after the host handler; its entry point moved inside the range. */
-    private static void installCrashHandler() {
-        Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
-        Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
-            reportCrash(error);
-            if (previous != null) {
-                previous.uncaughtException(thread, error);
-            } else {
-                Log.error(error);
-                System.exit(1);
-            }
-        });
-    }
+    /**
+     * libGDX and uCore both read the platform from static flags initialised from the JVM's system properties.
+     * The game must see Android: the mobile UI and the data directory are chosen from it.
+     */
+    private static void setOsType() {
+        OS.isAndroid = true;
+        OS.isLinux = false;
+        OS.isWindows = false;
+        OS.isMac = false;
+        OS.isIos = false;
 
-    private static void reportCrash(Throwable error) {
-        try {
-            Class<?> sender = Class.forName("io.anuke.mindustry.net.CrashSender");
-            io.anuke.arc.function.Consumer<File> written = file -> {
-            };
-            sender.getMethod("send", Throwable.class, io.anuke.arc.function.Consumer.class)
-                    .invoke(null, error, written);
-        } catch (Throwable ignored) {
-            Log.error(error);
-        }
-    }
-
-    /** The network implementation lives in the desktop jar's net module; absent trees simply keep singleplayer. */
-    private static void installNetProviders() {
-        try {
-            Object client = Class.forName("io.anuke.mindustry.net.ArcNetClient").getConstructor().newInstance();
-            Object server = Class.forName("io.anuke.mindustry.net.ArcNetServer").getConstructor().newInstance();
-            Net.setClientProvider((Net.ClientProvider)client);
-            Net.setServerProvider((Net.ServerProvider)server);
-            return;
-        } catch (Throwable ignored) {
-        }
-        // 65..82 keep the providers in io.anuke.net; 83 moved them into mindustry.net with new names.
-        try {
-            Object client = Class.forName("io.anuke.net.KryoClient").getConstructor().newInstance();
-            Object server = Class.forName("io.anuke.net.KryoServer").getConstructor().newInstance();
-            Net.setClientProvider((Net.ClientProvider)client);
-            Net.setServerProvider((Net.ServerProvider)server);
-        } catch (Throwable ignored) {
-        }
-    }
-
-    /** Marks the game's logger as already installed; the field is {@code loadedFileLogger} on the newer end and
-     *  {@code loadedLogger} on the older one. */
-    private static void configureLog() {
-        io.anuke.arc.util.Log.setUseColors(false);
-        if (Bridge.options.debug || Bridge.options.verbose)
-            io.anuke.arc.util.Log.setLogLevel(io.anuke.arc.util.Log.LogLevel.debug);
-    }
-
-    private static void prepareArcNatives() {
-        if (Bridge.options.arcNativeFolder == null) {
-            Log.warn("no arc natives were staged; arc cannot load its native code paths");
-            return;
-        }
-
-        Log.info("loading arc natives");
-        configureArcLoader();
-        ArcNativesLoader.load();
+        SharedLibraryLoader.isAndroid = true;
+        SharedLibraryLoader.isLinux = false;
+        SharedLibraryLoader.isWindows = false;
+        SharedLibraryLoader.isMac = false;
+        SharedLibraryLoader.isIos = false;
+        SharedLibraryLoader.is64Bit = false;
     }
 
     /**
-     * Arc before 84 detects Android from its own static flags, which it reads from {@code java.runtime.name} when
-     * the class loads. This JVM is a desktop one, so the flags still say Linux, and the loader extracts the game
-     * jar's 32-bit desktop libgdx instead of the staged Android one. Newer arc reads {@code OS.isAndroid} and has
-     * no such fields; the no-op path covers it.
+     * The caller stages libGDX's Android native library through {@code --arc-lib}, next to the game's other
+     * native code. libGDX resolves it by bare name on Android, so only the search path has to point there.
      */
-    private static void configureArcLoader() {
-        setIfPresent(SharedLibraryLoader.class, "isAndroid", true);
-        setIfPresent(SharedLibraryLoader.class, "isWindows", false);
-        setIfPresent(SharedLibraryLoader.class, "isLinux", false);
-        setIfPresent(SharedLibraryLoader.class, "isMac", false);
-        setIfPresent(SharedLibraryLoader.class, "is64Bit", false);
-    }
+    private static void prepareGdxNatives() {
+        File folder = Bridge.options.arcNativeFolder;
+        if (folder == null) {
+            Log.warn("no arc native folder was staged; libGDX cannot load its native library");
+            return;
+        }
 
-    @BridgeReflect(kind = BridgeReflect.Kind.FIELD, classArg = 0, memberArg = 1)
-    private static void setIfPresent(Class<?> owner, String name, Object value) {
+        System.setProperty("java.library.path",
+                folder.getAbsolutePath() + File.pathSeparator + System.getProperty("java.library.path", ""));
         try {
-            java.lang.reflect.Field field = owner.getDeclaredField(name);
-            field.setAccessible(true);
-            field.set(null, value);
-        } catch (NoSuchFieldException ignored) {
-            // newer arc keeps the flags on OS, which setOsType already set
+            GdxNativesLoader.load();
         } catch (Throwable e) {
-            Log.warn("could not set " + owner.getName() + "." + name + ": " + e);
+            Log.error("failed to load libGDX's native library from " + folder);
+            Log.error(e);
         }
     }
 
+    /** The game's own data directory; uCore reads it back through {@code Gdx.files.getLocalStoragePath()}. */
     private static void prepareGameFolders() {
         File data = Bridge.options.gameDataFolder;
         if (data == null)
@@ -162,16 +103,28 @@ public class Main {
     }
 
     /**
-     * Marks the process as Android before anything reads OS: the class reads the desktop properties when it loads,
-     * so the flags are overridden as soon as it exists. The 6 line has no isMobile/isDesktop, only these flags.
+     * 40 moved the platform class from io.anuke.mindustry.io to io.anuke.mindustry.core and changed getUUID's
+     * type. The legacy subclass is compiled against 33, so both shapes can be created without naming either
+     * one in this file's signatures.
      */
-    private static void setOsType() {
-        // read the field first, so the class initialises while the properties still say Linux
-        boolean t = OS.isAndroid;
+    private static void installPlatform() {
+        try {
+            Object instance = Class.forName("copper.bridge.v1.BridgePlatform").getConstructor().newInstance();
+            Class.forName("io.anuke.mindustry.core.Platform").getField("instance").set(null, instance);
+            return;
+        } catch (Throwable ignored) {
+        }
+        try {
+            Object instance = Class.forName("copper.bridge.v1.BridgePlatformLegacy").getConstructor().newInstance();
+            Class.forName("io.anuke.mindustry.io.Platform").getField("instance").set(null, instance);
+        } catch (Throwable e) {
+            Log.error("no game platform class could be installed");
+            Log.error(e);
+        }
+    }
 
-        OS.isAndroid = true;
-        OS.isWindows = false;
-        OS.isLinux = false;
-        OS.isMac = false;
+    private static void installNetProviders() {
+        Net.setClientProvider(new KryoClient());
+        Net.setServerProvider(new KryoServer());
     }
 }

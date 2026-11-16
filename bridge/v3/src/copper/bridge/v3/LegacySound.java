@@ -1,5 +1,7 @@
 package copper.bridge.v3;
 
+import copper.bridge.annotation.BridgeHandled;
+import copper.bridge.annotation.BridgeRename;
 import copper.bridge.annotation.BridgeOverride;
 
 import io.anuke.arc.audio.*;
@@ -10,7 +12,19 @@ import copper.bridge.gen.*;
 /**
  * One sound of the abstract arc.Audio. The int it plays with is ART's handle, not a SoundPool stream id: a stream id
  * dies with its stream, and the game holds these for as long as it likes.
+ *
+ * <p>84 and 85 declare play and loop with a long handle, 86 and later with an int. Java cannot declare both under one
+ * name because they differ only in return type, so the long variants carry a build name and the packer renames them;
+ * the class then has both JVM overloads and matches whichever interface the running game declares. The handle-typed
+ * stop/pause/set methods are ordinary overloads and need no rename.
  */
+@BridgeHandled(targets = {"io/anuke/arc/audio/Sound:play", "io/anuke/arc/audio/Sound:loop",
+        "io/anuke/arc/audio/Sound:stop", "io/anuke/arc/audio/Sound:pause",
+        "io/anuke/arc/audio/Sound:resume", "io/anuke/arc/audio/Sound:setLooping",
+        "io/anuke/arc/audio/Sound:setPitch", "io/anuke/arc/audio/Sound:setVolume",
+        "io/anuke/arc/audio/Sound:setPan"},
+        warning = BridgeHandled.Warning.METHOD_SIGNATURE_CHANGED_WITHIN_WINDOW,
+        reason = "84/85 use a long handle, 86+ an int; both overloads are declared here")
 final class LegacySound implements Sound {
     private final int sound;
 
@@ -23,9 +37,21 @@ final class LegacySound implements Sound {
         return sound <= 0 ? -1 : JvmCall.playSound(sound, volume, pitch, pan, false);
     }
 
+    @BridgeRename("play")
+    @BridgeOverride
+    public long playLong(float volume, float pitch, float pan) {
+        return sound <= 0 ? -1 : (long)JvmCall.playSound(sound, volume, pitch, pan, false);
+    }
+
     @BridgeOverride
     public int loop(float volume, float pitch, float pan) {
         return sound <= 0 ? -1 : JvmCall.playSound(sound, volume, pitch, pan, true);
+    }
+
+    @BridgeRename("loop")
+    @BridgeOverride
+    public long loopLong(float volume, float pitch, float pan) {
+        return sound <= 0 ? -1 : (long)JvmCall.playSound(sound, volume, pitch, pan, true);
     }
 
     @BridgeOverride
@@ -60,9 +86,21 @@ final class LegacySound implements Sound {
     }
 
     @BridgeOverride
+    public void stop(long handle) {
+        if (sound > 0)
+            JvmCall.stopSoundAt(sound, (int)handle);
+    }
+
+    @BridgeOverride
     public void pause(int handle) {
         if (sound > 0)
             JvmCall.pauseSoundAt(handle);
+    }
+
+    @BridgeOverride
+    public void pause(long handle) {
+        if (sound > 0)
+            JvmCall.pauseSoundAt((int)handle);
     }
 
     @BridgeOverride
@@ -72,9 +110,21 @@ final class LegacySound implements Sound {
     }
 
     @BridgeOverride
+    public void resume(long handle) {
+        if (sound > 0)
+            JvmCall.resumeSoundAt((int)handle);
+    }
+
+    @BridgeOverride
     public void setLooping(int handle, boolean looping) {
         if (sound > 0)
             JvmCall.setSoundLooping(handle, looping);
+    }
+
+    @BridgeOverride
+    public void setLooping(long handle, boolean looping) {
+        if (sound > 0)
+            JvmCall.setSoundLooping((int)handle, looping);
     }
 
     @BridgeOverride
@@ -84,14 +134,32 @@ final class LegacySound implements Sound {
     }
 
     @BridgeOverride
+    public void setPitch(long handle, float pitch) {
+        if (sound > 0)
+            JvmCall.setSoundPitch((int)handle, pitch);
+    }
+
+    @BridgeOverride
     public void setVolume(int handle, float volume) {
         if (sound > 0)
             JvmCall.setSoundVolume(handle, volume);
     }
 
     @BridgeOverride
+    public void setVolume(long handle, float volume) {
+        if (sound > 0)
+            JvmCall.setSoundVolume((int)handle, volume);
+    }
+
+    @BridgeOverride
     public void setPan(int handle, float pan, float volume) {
         if (sound > 0)
             JvmCall.setSoundPan(handle, pan, volume);
+    }
+
+    @BridgeOverride
+    public void setPan(long handle, float pan, float volume) {
+        if (sound > 0)
+            JvmCall.setSoundPan((int)handle, pan, volume);
     }
 }

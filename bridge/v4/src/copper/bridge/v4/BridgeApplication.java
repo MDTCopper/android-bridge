@@ -7,10 +7,9 @@ import io.anuke.arc.collection.*;
 
 import copper.bridge.*;
 import copper.bridge.gen.*;
+import copper.bridge.v4.BridgeGraphics;
 import copper.bridge.v4.BridgeEvents;
 import copper.bridge.v4.BridgeFiles;
-import copper.bridge.v4.LegacyAudio;
-import copper.bridge.v4.BridgeGraphics;
 import copper.bridge.util.*;
 
 import java.util.*;
@@ -40,9 +39,17 @@ public class BridgeApplication implements Application {
 
     public BridgeApplication() {
         this.graphics = new BridgeGraphics();
-        this.input = new BridgeInput();
+        this.input = createInput();
         this.files = new BridgeFiles();
         this.events = new BridgeEvents(graphics, input, listeners);
+    }
+
+    protected BridgeInput createInput() {
+        return new BridgeInput();
+    }
+
+    protected Net createNet() {
+        return new NoNet();
     }
 
     /** Runs the game until it exits, blocking the calling thread, which must be the JVM main thread. LWJGL has to be
@@ -54,7 +61,7 @@ public class BridgeApplication implements Application {
         Core.files = files;
         Core.settings = new Settings();
         initAudio();
-        Core.net = new NoNet();
+        Core.net = createNet();
 
         graphics.configure();
 
@@ -108,7 +115,7 @@ public class BridgeApplication implements Application {
             graphics.beginFrame();
             input.processEvents();
             // Application.defaultUpdate does this
-            io.anuke.arc.util.Time.updateGlobal();
+            UPDATE_TIME.run();
             for (ApplicationListener listener : listeners)
                 listener.update();
             input.processDevices();
@@ -159,6 +166,15 @@ public class BridgeApplication implements Application {
         }
     }
 
+    /** {@code updateGlobal} exists on the newer end of this branch; the older Time advances through update().
+     *  The choice is made once, so the loop calls a plain lambda body. */
+    private static final Runnable UPDATE_TIME = updateTime();
+
+    private static Runnable updateTime() {
+        Runnable global = MethodLambdas.staticRunnable(io.anuke.arc.util.Time.class, "updateGlobal");
+        return global != null ? global : io.anuke.arc.util.Time::update;
+    }
+
     /** {@code Thread.sleep} with arc's old semantics: an interrupt is swallowed, not re-armed. */
     private static void sleep(long millis) {
         try {
@@ -204,10 +220,10 @@ public class BridgeApplication implements Application {
     /** {@code arc.Net} is an interface at this branch's floor; the game's own {@code Vars.net} does the real work. */
     private static class NoNet implements Net {
         @BridgeOverride
-        public void http(HttpRequest request, io.anuke.arc.func.Cons<HttpResponse> success,
-                         io.anuke.arc.func.Cons<Throwable> failure) {
+        public void http(HttpRequest request, io.anuke.arc.function.Consumer<HttpResponse> success,
+                         io.anuke.arc.function.Consumer<Throwable> failure) {
             if (failure != null)
-                failure.get(new IllegalStateException("no HTTP stack on the bridge"));
+                failure.accept(new IllegalStateException("no HTTP stack on the bridge"));
         }
 
         @BridgeOverride

@@ -9,7 +9,7 @@ import mindustry.*;
 import java.io.*;
 
 /**
- * The v1 branch entry point, reached reflectively by the JVM side once the branch is chosen; both classpath rules
+ * The v7 branch entry point, reached reflectively by the JVM side once the branch is chosen; both classpath rules
  * arrive at {@link #main(String[])}, so nothing here has to know which one applied.
  */
 public class Main {
@@ -29,8 +29,8 @@ public class Main {
         prepareGameFolders();
 
         // the game wraps its logger while it sets up: the printed copy is what this bridge wants, the native side
-        // turning the process's stdout and stderr into logcat and the log file. Vars.loadFileLogger checks this flag.
-        Vars.loadedFileLogger = true;
+        // turning the process's stdout and stderr into logcat and the log file. The flag moved inside the range.
+        markLoggerLoaded();
 
         configureLog();
 
@@ -50,6 +50,16 @@ public class Main {
                 Log.error(e);
                 throw e;
             }
+        }
+    }
+
+    /** Marks the game's logger as already installed; the field is {@code loadedFileLogger} on the newer end and
+     *  {@code loadedLogger} on the older one. */
+    private static void markLoggerLoaded() {
+        Vars.loadedLogger = true;
+        try {
+            Vars.class.getField("loadedFileLogger").setBoolean(null, true);
+        } catch (Throwable ignored) {
         }
     }
 

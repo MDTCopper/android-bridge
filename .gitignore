@@ -2,6 +2,9 @@
 # large, it is reproducible with :prepareEpochVn, and it is not a source.
 .mindustry/
 
+# Scratch used while inspecting an epoch or a dependency: extracted sources, downloaded jars, notes.
+.local/
+
 # Gradle build trees and caches, one per module plus this root: every one of them is reproducible
 # and the jar alone is several megabytes. Covers core/build, pack/build and build/ alike, and
 # native/build on top of native/.gitignore. The daemon JVM target is generated per machine.

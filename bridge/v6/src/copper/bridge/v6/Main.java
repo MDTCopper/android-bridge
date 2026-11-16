@@ -1,15 +1,15 @@
 package copper.bridge.v6;
 
-import arc.util.*;
+import io.anuke.arc.util.*;
 import copper.bridge.*;
 import copper.bridge.jvm.Launch;
 import copper.bridge.util.Log;
-import mindustry.*;
+import io.anuke.mindustry.*;
 
 import java.io.*;
 
 /**
- * The v1 branch entry point, reached reflectively by the JVM side once the branch is chosen; both classpath rules
+ * The v6 branch entry point, reached reflectively by the JVM side once the branch is chosen; both classpath rules
  * arrive at {@link #main(String[])}, so nothing here has to know which one applied.
  */
 public class Main {
@@ -30,8 +30,6 @@ public class Main {
 
         // the game wraps its logger while it sets up: the printed copy is what this bridge wants, the native side
         // turning the process's stdout and stderr into logcat and the log file. The flag moved inside the range.
-        markLoggerLoaded();
-
         configureLog();
 
         BridgeApplication application = new BridgeApplication();
@@ -53,25 +51,10 @@ public class Main {
         }
     }
 
-    /** Marks the game's logger as already installed; the field is {@code loadedFileLogger} on the newer end and
-     *  {@code loadedLogger} on the older one. */
-    private static void markLoggerLoaded() {
-        Vars.loadedLogger = true;
-        try {
-            Vars.class.getField("loadedFileLogger").setBoolean(null, true);
-        } catch (Throwable ignored) {
-        }
-    }
-
-    /**
-     * Turns the game's log colors off and, when asked, its level up. Both are fields on every version in the range;
-     * they are private on the older ones, which is why they are set through arc's own reflector rather than
-     * assigned.
-     */
     private static void configureLog() {
-        Reflect.set(arc.util.Log.class, "useColors", false);
+        io.anuke.arc.util.Log.setUseColors(false);
         if (Bridge.options.debug || Bridge.options.verbose)
-            Reflect.set(arc.util.Log.class, "level", arc.util.Log.LogLevel.debug);
+            io.anuke.arc.util.Log.setLogLevel(io.anuke.arc.util.Log.LogLevel.debug);
     }
 
     private static void prepareArcNatives() {

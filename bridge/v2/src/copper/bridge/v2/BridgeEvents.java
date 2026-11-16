@@ -7,6 +7,8 @@ import io.anuke.arc.collection.*;
 import copper.bridge.gen.*;
 import copper.bridge.jvm.Events;
 import copper.bridge.util.*;
+import io.anuke.mindustry.Vars;
+import io.anuke.mindustry.core.GameState;
 
 /**
  * The branch side of {@link Events}: the handlers, performed on the thread that owns the game. None of what ART
@@ -128,6 +130,12 @@ public class BridgeEvents implements Events {
         if (Core.scene != null && Core.scene.hasDialog()) {
             Core.scene.keyDown(KeyCode.BACK);
             Core.scene.keyUp(KeyCode.BACK);
+            return;
+        }
+
+        // 65..82 have no exit button on the mobile main menu: back is the exit.
+        if (Vars.state != null && Vars.state.is(GameState.State.menu)) {
+            Core.app.exit();
             return;
         }
 

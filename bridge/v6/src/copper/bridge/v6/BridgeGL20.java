@@ -2,7 +2,7 @@ package copper.bridge.v6;
 
 import copper.bridge.annotation.BridgeOverride;
 
-import arc.graphics.*;
+import io.anuke.arc.graphics.*;
 import java.nio.*;
 import org.lwjgl.opengles.*;
 import org.lwjgl.system.*;

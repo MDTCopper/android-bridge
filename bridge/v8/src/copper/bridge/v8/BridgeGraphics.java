@@ -1,6 +1,5 @@
 package copper.bridge.v8;
 
-import copper.bridge.annotation.BridgeHandled;
 import copper.bridge.annotation.BridgeOverride;
 
 import arc.*;
@@ -26,9 +25,7 @@ import java.util.function.Function;
  * and OpenGL ES bindings are the only route to GL, and ART hands the window over as an opaque native pointer. A
  * pause destroys only the window surface, so GL objects survive a resume.
  */
-@BridgeHandled(targets = "arc/Graphics:newCursor", warning = BridgeHandled.Warning.METHOD_SIGNATURE_CHANGED_WITHIN_WINDOW,
-        reason = "the 3-int overload is abstract and implemented; the Color overload is a default that calls it")
-public abstract class BridgeGraphics extends Graphics {
+public class BridgeGraphics extends Graphics {
     /** Coverage sampling attribute; not in LWJGL's core EGL headers. */
     private static final int EGL_COVERAGE_SAMPLES_NV = 0x30E1;
 
@@ -56,7 +53,6 @@ public abstract class BridgeGraphics extends Graphics {
 
     private int width;
     private int height;
-    private int safeInsetLeft, safeInsetRight, safeInsetTop, safeInsetBottom;
 
     private long frameId = -1;
     private long lastFrameTime = -1;
@@ -71,34 +67,6 @@ public abstract class BridgeGraphics extends Graphics {
     private BufferFormat bufferFormat = new BufferFormat(8, 8, 8, 0, 16, 0, 0, false);
 
     public BridgeGraphics() {
-    }
-
-    /** The implementation matching the running game's display API. The choice is probed, not versioned. */
-    public static BridgeGraphics create() {
-        if (hasMonitors())
-            return legacy();
-        return new BridgeGraphicsCurrent();
-    }
-
-    static boolean hasMonitors() {
-        try {
-            Class.forName("arc.Graphics$Monitor");
-            return true;
-        } catch (Throwable ignored) {
-            return false;
-        }
-    }
-
-    /** By name: this class is loaded on every epoch, and v159 has no Monitor type for the legacy class's descriptors. */
-    private static BridgeGraphics legacy() {
-        try {
-            return (BridgeGraphics)Class.forName("copper.bridge.v8.BridgeGraphicsLegacy")
-                    .getConstructor()
-                    .newInstance();
-        } catch (Throwable e) {
-            throw new RuntimeException("the game declares arc.Graphics$Monitor but the legacy graphics could not"
-                    + " be created", e);
-        }
     }
 
     /**
@@ -319,6 +287,18 @@ public abstract class BridgeGraphics extends Graphics {
         }
     }
 
+    private static int esMajor(String version) {
+        String prefix = "OpenGL ES ";
+        int start = version.indexOf(prefix);
+        if (start < 0)
+            return 0;
+        start += prefix.length();
+        int end = start;
+        while (end < version.length() && Character.isDigit(version.charAt(end)))
+            end++;
+        return end == start ? 0 : Integer.parseInt(version.substring(start, end));
+    }
+
     /** The ES3 wrapper must not be installed on a device that only offers ES2. */
     private void setupGL() {
         GLES.createCapabilities();
@@ -330,9 +310,11 @@ public abstract class BridgeGraphics extends Graphics {
         String version = gl20.glGetString(GL20.GL_VERSION);
         String vendor = gl20.glGetString(GL20.GL_VENDOR);
         String renderer = gl20.glGetString(GL20.GL_RENDERER);
-        glVersion = new GLVersion(Application.ApplicationType.android, version, vendor, renderer);
+        glVersion = new GLVersion(BridgeApplication.ANDROID, version, vendor, renderer);
 
-        boolean supportsES3 = glVersion.atLeast(3, 0) && glVersion.majorVersion > 2;
+        // GLVersion exposes atLeast/majorVersion only on the newer end and getMajorVersion on the older one, so
+        // read the version string itself.
+        boolean supportsES3 = esMajor(version) >= 3;
         // an explicit request is not quietly downgraded: the caller asked for a version this context cannot be
         if (Bridge.options.glMode == GLMode.GL3 && !supportsES3)
             throw new IllegalStateException("OpenGL ES 3 was requested, but the context is " + version);
@@ -390,13 +372,6 @@ public abstract class BridgeGraphics extends Graphics {
         resumed = true;
     }
 
-    public void safeInsetsUpdated(int top, int bottom, int left, int right) {
-        safeInsetTop = top;
-        safeInsetBottom = bottom;
-        safeInsetLeft = left;
-        safeInsetRight = right;
-    }
-
     public void beginFrame() {
         long time = System.nanoTime();
         if (lastFrameTime == -1)
@@ -440,6 +415,12 @@ public abstract class BridgeGraphics extends Graphics {
         }
     }
 
+    /** Abstract on the older end of the range, concrete on the newer one; the same answer either way. */
+    @BridgeOverride
+    public boolean isGL30Available() {
+        return gl30 != null;
+    }
+
     @BridgeOverride
     public GL30 getGL30() {
         return gl30;
@@ -477,17 +458,19 @@ public abstract class BridgeGraphics extends Graphics {
     }
 
     @BridgeOverride
-    public int[] getSafeInsets(){
-        return new int[]{safeInsetLeft, safeInsetRight, safeInsetTop, safeInsetBottom};
-    }
-
-    @BridgeOverride
     public long getFrameId() {
         return frameId;
     }
 
     @BridgeOverride
     public float getDeltaTime() {
+        return deltaTime;
+    }
+
+    /** Abstract on the older end of the range, removed before its newer one: no {@code @BridgeOverride} on purpose. */
+    @SuppressWarnings("unused")
+    @BridgeOverride
+    public float getRawDeltaTime() {
         return deltaTime;
     }
 
@@ -586,17 +569,58 @@ public abstract class BridgeGraphics extends Graphics {
     protected void setSystemCursor(SystemCursor systemCursor) {
     }
 
-    /** The floor still declares these; the ceiling removed the whole desktop-display group. */
+    /** The surface belongs to the host activity, so a resize request from the game has nothing to act on. */
+    @BridgeOverride
+    public void setResizable(boolean resizable) {
+    }
+
+    /** The window is the host activity's, not something the game decorates. */
+    @BridgeOverride
+    public void setUndecorated(boolean undecorated) {
+    }
+
+    @BridgeOverride
+    public Monitor getPrimaryMonitor() {
+        return null;
+    }
+
+    @BridgeOverride
+    public Monitor getMonitor() {
+        return null;
+    }
+
+    @BridgeOverride
+    public Monitor[] getMonitors() {
+        return new Monitor[0];
+    }
+
+    @BridgeOverride
+    public DisplayMode[] getDisplayModes() {
+        return new DisplayMode[0];
+    }
+
+    @BridgeOverride
+    public DisplayMode[] getDisplayModes(Monitor monitor) {
+        return new DisplayMode[0];
+    }
+
+    @BridgeOverride
+    public DisplayMode getDisplayMode() {
+        return null;
+    }
+
+    @BridgeOverride
+    public DisplayMode getDisplayMode(Monitor monitor) {
+        return null;
+    }
+
     @BridgeOverride
     public boolean supportsDisplayModeChange() {
         return false;
     }
 
     @BridgeOverride
-    public void setUndecorated(boolean undecorated) {
-    }
-
-    @BridgeOverride
-    public void setResizable(boolean resizable) {
+    public boolean setFullscreenMode(DisplayMode displayMode) {
+        return false;
     }
 }

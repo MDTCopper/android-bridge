@@ -1,5 +1,6 @@
 package copper.bridge.v2;
 
+import copper.bridge.annotation.CompatRange;
 import copper.bridge.annotation.BridgeOverride;
 
 import io.anuke.arc.*;
@@ -7,9 +8,6 @@ import io.anuke.arc.collection.*;
 
 import copper.bridge.*;
 import copper.bridge.gen.*;
-import copper.bridge.v2.BridgeGraphics;
-import copper.bridge.v2.BridgeEvents;
-import copper.bridge.v2.BridgeFiles;
 import copper.bridge.util.*;
 
 import java.util.*;
@@ -19,7 +17,7 @@ import java.util.*;
  * lifecycle callbacks, a {@code GLSurfaceView} owns the render thread - and neither exists here, so this class owns
  * the loop that turns forwarded events back into a lifecycle on one thread with the EGL context current.
  */
-public class BridgeApplication implements Application {
+public abstract class BridgeApplication implements Application {
     private static final long SURFACE_TIMEOUT_MILLIS = 20000;
 
 
@@ -53,7 +51,7 @@ public class BridgeApplication implements Application {
         Core.files = files;
         Core.settings = new Settings();
         initAudio();
-        Core.net = new NoNet();
+        Core.net = createNet();
 
         graphics.configure();
 
@@ -107,7 +105,7 @@ public class BridgeApplication implements Application {
             graphics.beginFrame();
             input.processEvents();
             // Application.defaultUpdate does this
-            UPDATE_TIME.run();
+            io.anuke.arc.util.Time.update();
             for (ApplicationListener listener : listeners)
                 listener.update();
             input.processDevices();
@@ -158,15 +156,6 @@ public class BridgeApplication implements Application {
         }
     }
 
-    /** {@code updateGlobal} exists on the newer end of this branch; the older Time advances through update().
-     *  The choice is made once, so the loop calls a plain lambda body. */
-    private static final Runnable UPDATE_TIME = updateTime();
-
-    private static Runnable updateTime() {
-        Runnable global = MethodLambdas.staticRunnable(io.anuke.arc.util.Time.class, "updateGlobal");
-        return global != null ? global : io.anuke.arc.util.Time::update;
-    }
-
     /** {@code Thread.sleep} with arc's old semantics: an interrupt is swallowed, not re-armed. */
     private static void sleep(long millis) {
         try {
@@ -209,7 +198,13 @@ public class BridgeApplication implements Application {
         return Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
     }
 
+    /** The arc Net this application installs; the 65-class replaces it with the floor's socket-shaped interface. */
+    protected Net createNet() {
+        return new NoNet();
+    }
+
     /** {@code arc.Net} is an interface at this branch's floor; the game's own {@code Vars.net} does the real work. */
+    @CompatRange(floor = "v83")
     private static class NoNet implements Net {
         @BridgeOverride
         public void http(HttpRequest request, io.anuke.arc.function.Consumer<HttpResponse> success,

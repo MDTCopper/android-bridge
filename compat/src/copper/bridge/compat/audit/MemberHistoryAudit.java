@@ -28,7 +28,8 @@ public final class MemberHistoryAudit {
         String branch = required(options, "branch");
         Path classes = Paths.get(required(options, "classes"));
         Path mindustry = Paths.get(required(options, "mindustry"));
-        Path arc = Paths.get(required(options, "arc"));
+        Path arc = options.containsKey("arc") && !options.containsKey("no-arc")
+                ? Paths.get(options.get("arc")) : null;
         Path jars = options.containsKey("jars") ? Paths.get(options.get("jars")) : null;
         Path properties = options.containsKey("properties") ? Paths.get(options.get("properties")) : null;
         Path epochPath = options.containsKey("epoch") ? Paths.get(options.get("epoch")) : null;
@@ -55,7 +56,7 @@ public final class MemberHistoryAudit {
             groups.computeIfAbsent(range, key -> new ArrayList<>()).add(dep);
         }
         int commits = 0;
-        for (Path clone : new Path[]{mindustry, arc}) {
+        for (Path clone : arc == null ? new Path[]{mindustry} : new Path[]{mindustry, arc}) {
             boolean merged = arcMerged(from);
             if (merged && clone.equals(arc))
                 continue;

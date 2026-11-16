@@ -25,15 +25,16 @@ include 'core'
 include 'processor'
 
 // the version branches, one project each under bridge/: they share a build file but no code.
-include 'bridge:v1'  // the Audio-interface 6 line, compiled against v83
-include 'bridge:v2'  // the pre-ClientLauncher 6 line, compiled against v91
-include 'bridge:v3'  // the Consumer/FileHandle 6 line, compiled against release 99
-include 'bridge:v4'  // the FileHandle/Cons 6 line, compiled against 6315
-include 'bridge:v5'  // the Fi/Cons 6 line, compiled against 6415
-include 'bridge:v6'  // the array-era 6 line, compiled against 8657
-include 'bridge:v7'  // the Seq/audio 6 line and the 7 line, compiled against v112
-include 'bridge:v8'  // the 7 and 8 line, compiled against v159
-include 'bridge:v9'  // Mindustry 9: Arc merged into the game repository
+include 'bridge:v1'  // the libGDX/uCore line: releases 33 up to 57
+include 'bridge:v2'  // the Audio-interface 6 line, compiled against v83
+include 'bridge:v3'  // the pre-ClientLauncher 6 line, compiled against v91
+include 'bridge:v4'  // the Consumer/FileHandle 6 line, compiled against release 99
+include 'bridge:v5'  // the FileHandle/Cons 6 line, compiled against 6315
+include 'bridge:v6'  // the Fi/Cons 6 line, compiled against 6415
+include 'bridge:v7'  // the array-era 6 line, compiled against 8657
+include 'bridge:v8'  // the Seq/audio 6 line and the 7 line, compiled against v112
+include 'bridge:v9'  // the 7 and 8 line, compiled against v159
+include 'bridge:v10' // Mindustry 9: Arc merged into the game repository
 
 // libcopperbridge.so for every ABI, in the same task graph so its result is staged where pack
 // expects it; not a Java module.

@@ -1,14 +1,15 @@
 package copper.bridge.v3;
 
+import copper.bridge.annotation.BridgeHandled;
+
 import io.anuke.arc.util.*;
 import copper.bridge.*;
-import copper.bridge.v3.BridgeApplication;
 import copper.bridge.jvm.Launch;
 import copper.bridge.util.Log;
 import io.anuke.mindustry.*;
+import io.anuke.mindustry.net.*;
 
 import java.io.*;
-import java.lang.reflect.*;
 
 /**
  * The v3 branch entry point, reached reflectively by the JVM side once the branch is chosen; both classpath rules
@@ -32,11 +33,17 @@ public class Main {
 
         // the game wraps its logger while it sets up: the printed copy is what this bridge wants, the native side
         // turning the process's stdout and stderr into logcat and the log file. The flag moved inside the range.
+
         configureLog();
 
-        BridgeApplication application = BridgeApplications.create();
-        application.addListener(BridgeLaunchers.create());
+        BridgeApplication application = new BridgeApplication();
+
+        // the pre-ClientLauncher line: the game is the ApplicationCore listener, and the platform hooks are a
+        // static instance rather than a callback the launcher hands back.
+        new copper.bridge.v3.BridgePlatform();
+        installCrashHandler();
         installNetProviders();
+        application.addListener(new Mindustry());
 
         // only a thread that dies of its own exception consults the default handler, and this throw happens on the
         // calling thread. With none installed, the bridge reports it itself and rethrows.
@@ -54,7 +61,62 @@ public class Main {
         }
     }
 
-    /** Turns the game's log colors off and, when asked, its level up; both are public methods in this range. */
+    /** The game's crash reporter, called after the host handler; its entry point moved inside the range. */
+    private static void installCrashHandler() {
+        Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
+            reportCrash(error);
+            if (previous != null) {
+                previous.uncaughtException(thread, error);
+            } else {
+                Log.error(error);
+                System.exit(1);
+            }
+        });
+    }
+
+    private static void reportCrash(Throwable error) {
+        try {
+            io.anuke.arc.function.Consumer<File> written = file -> {
+            };
+            CrashSender.send(error, written);
+        } catch (Throwable ignored) {
+            Log.error(error);
+        }
+    }
+
+    @BridgeHandled(targets = {"io/anuke/mindustry/net/ArcNetClient", "io/anuke/mindustry/net/ArcNetServer",
+            "io/anuke/mindustry/net/MClient", "io/anuke/mindustry/net/MServer"},
+            warning = BridgeHandled.Warning.TYPE_PRESENCE_NON_MONOTONIC_WITHIN_WINDOW,
+            reason = "the 90 build replaced the net providers with MClient/MServer, then 91 restored ArcNet")
+    @BridgeHandled(targets = {"io/anuke/mindustry/net/ArcNetClient:<init>", "io/anuke/mindustry/net/ArcNetServer:<init>",
+            "io/anuke/mindustry/net/MClient:<init>", "io/anuke/mindustry/net/MServer:<init>"},
+            warning = BridgeHandled.Warning.METHOD_PRESENCE_NON_MONOTONIC_WITHIN_WINDOW,
+            reason = "constructors disappear with their classes")
+    @BridgeHandled(targets = {"io/anuke/mindustry/net/MClient:<init>", "io/anuke/mindustry/net/MServer:<init>"},
+            warning = BridgeHandled.Warning.REFLECTED_MEMBER_MISSING_FROM_ENDPOINTS,
+            reason = "looked up only when ArcNet is absent")
+    private static void installNetProviders() {
+        try {
+            Net.setClientProvider(new ArcNetClient());
+            Net.setServerProvider(new ArcNetServer());
+            return;
+        } catch (Throwable ignored) {
+            // 90's release replaced the providers with MClient/MServer, then 91 restored ArcNet.
+        }
+        installLegacyNetProviders();
+    }
+
+    private static void installLegacyNetProviders() {
+        try {
+            Net.setClientProvider((Net.ClientProvider)Class.forName("io.anuke.mindustry.net.MClient")
+                    .getConstructor().newInstance());
+            Net.setServerProvider((Net.ServerProvider)Class.forName("io.anuke.mindustry.net.MServer")
+                    .getConstructor().newInstance());
+        } catch (Throwable ignored) {
+        }
+    }
+
     private static void configureLog() {
         io.anuke.arc.util.Log.setUseColors(false);
         if (Bridge.options.debug || Bridge.options.verbose)
@@ -78,36 +140,6 @@ public class Main {
         data.mkdirs();
         System.setProperty("mindustry.data.dir", data.getAbsolutePath());
         Log.info("game data: " + data);
-    }
-
-    /**
-     * Installs the game's network implementation on the versions whose {@code Net} keeps the providers in static fields:
-     * the desktop and Android launchers set both before start-up, and without them the HUD's ping label dereferences a
-     * null provider on its first update. From the version that builds {@code Net} from {@code Platform#getNet()} the
-     * setters are gone, and that path needs nothing here.
-     */
-    private static void installNetProviders() {
-        Method setClient;
-        Method setServer;
-        try {
-            Class<?> net = Class.forName("io.anuke.mindustry.net.Net");
-            setClient = net.getMethod("setClientProvider", Class.forName("io.anuke.mindustry.net.Net$ClientProvider"));
-            setServer = net.getMethod("setServerProvider", Class.forName("io.anuke.mindustry.net.Net$ServerProvider"));
-        } catch (ClassNotFoundException | NoSuchMethodException absent) {
-            return;
-        }
-
-        try {
-            setClient.invoke(null, Class.forName("io.anuke.mindustry.net.ArcNetClient").getConstructor().newInstance());
-        } catch (Throwable failed) {
-            Log.error("net client provider", failed);
-        }
-
-        try {
-            setServer.invoke(null, Class.forName("io.anuke.mindustry.net.ArcNetServer").getConstructor().newInstance());
-        } catch (Throwable failed) {
-            Log.error("net server provider", failed);
-        }
     }
 
     /**

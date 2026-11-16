@@ -276,15 +276,15 @@ public class BridgeGL20 implements GL20 {
     @BridgeOverride
     public void glBufferData(int target, int size, Buffer data, int usage) {
         if (data == null) {
-            GLES20.glBufferData(target, size, usage);
+            GLES20.glBufferData(target, (long)size, usage);
         } else {
-            GLES20.nglBufferData(target, size, bufferAddress(data), usage);
+            GLES20.nglBufferData(target, (long)size, bufferAddress(data), usage);
         }
     }
 
     @BridgeOverride
     public void glBufferSubData(int target, int offset, int size, Buffer data) {
-        GLES20.nglBufferSubData(target, offset, size, bufferAddress(data));
+        GLES20.nglBufferSubData(target, (long)offset, (long)size, bufferAddress(data));
     }
 
     @BridgeOverride
@@ -344,7 +344,7 @@ public class BridgeGL20 implements GL20 {
 
     @BridgeOverride
     public void glDrawElements(int mode, int count, int type, int indices) {
-        GLES20.glDrawElements(mode, count, type, indices);
+        GLES20.glDrawElements(mode, count, type, (long)indices);
     }
 
     @BridgeOverride
@@ -851,6 +851,6 @@ public class BridgeGL20 implements GL20 {
 
     @BridgeOverride
     public void glVertexAttribPointer(int indx, int size, int type, boolean normalized, int stride, int ptr) {
-        GLES20.glVertexAttribPointer(indx, size, type, normalized, stride, ptr);
+        GLES20.glVertexAttribPointer(indx, size, type, normalized, stride, (long)ptr);
     }
 }

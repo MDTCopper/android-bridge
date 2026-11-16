@@ -2,14 +2,14 @@ package copper.bridge.v1;
 
 import copper.bridge.annotation.BridgeOverride;
 
-import io.anuke.arc.graphics.*;
+import com.badlogic.gdx.graphics.*;
 import java.nio.*;
 import org.lwjgl.*;
 import org.lwjgl.opengles.*;
 import org.lwjgl.system.*;
 
 /**
- * JVM-side implementation of arc's OpenGL ES 3.0 interface, layered on top of {@link BridgeGL20}: only the ES
+ * JVM-side implementation of libGDX's OpenGL ES 3.0 interface, layered on top of {@link BridgeGL20}: only the ES
  * 3.0 additions live here, and every call travels through LWJGL's OpenGL ES bindings for the reason given
  * there.
  */

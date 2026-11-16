@@ -1,11 +1,10 @@
 
 /**
- * v2 is the pre-ClientLauncher 6 line: releases 84.0 up to 91.0. It claims no bleeding-edge range: the first
- * published build is 4550, which already has ClientLauncher and belongs to v3. 92.0 is the first release with
- * ClientLauncher, so v3 starts there.
+ * v2 is the Audio-interface 6 line: releases 65.0 up to 83.0. It claims no bleeding-edge range: the first
+ * published build is 4550, whose arc already has the abstract class Audio. 84.0 is the first release whose Arc
+ * changed Audio from an interface to an abstract class, so v3 starts there.
  *
- * Its epoch is v91, the newest release before ClientLauncher. The game starts as its own ApplicationCore
- * listener, with Platform.instance injected and the network providers installed before it runs.
+ * Its epoch is v83, the last release before that change; every symbol must also exist at 65.0.
  *
  * Everything is compile only: the game and arc jars arrive on the command line at runtime.
  */
@@ -13,9 +12,22 @@ def branch = name.startsWith('bridge-') ? name.substring('bridge-'.length()) : n
 def epochClasspath = rootProject.ext.epochClasspath(branch)
 def epoch = rootProject.ext.epochInfo(branch)
 
+def sdkRoot = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")
+def androidJarRoot = sdkRoot ? new File("$sdkRoot/platforms/")
+        .listFiles()?.sort()?.reverse()?.find { f -> new File(f, "android.jar").exists() }
+        : null
+if (androidJarRoot == null) {
+    throw new GradleException("No valid Android SDK found. Set ANDROID_HOME or ANDROID_SDK_ROOT.")
+}
+// The floor application shape: 65 still has Clipboard and the socket-shaped Net, which 83 removed.
+def floorJar = rootProject.ext.fetchEpoch('v65')
+
 sourceSets {
     main {
         java.srcDirs = ["src"]
+    }
+    legacy {
+        java.srcDirs = ["legacy"]
     }
 }
 
@@ -23,13 +35,6 @@ dependencies {
     api project(':core')
 
     // android.jar supplies android.*; the JVM side never loads these classes.
-    def sdkRoot = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")
-    def androidJarRoot = sdkRoot ? new File("$sdkRoot/platforms/")
-            .listFiles()?.sort()?.reverse()?.find { f -> new File(f, "android.jar").exists() }
-            : null
-    if (androidJarRoot == null) {
-        throw new GradleException("No valid Android SDK found. Set ANDROID_HOME or ANDROID_SDK_ROOT.")
-    }
     compileOnly files(new File(androidJarRoot, "android.jar"))
 
     // the official desktop jar, which carries both game and arc.
@@ -41,6 +46,25 @@ dependencies {
     compileOnly "org.lwjgl:lwjgl"
     compileOnly "org.lwjgl:lwjgl-egl"
     compileOnly "org.lwjgl:lwjgl-opengles"
+
+    // The legacy source set compiles against the floor, not the branch epoch: that is the only way the types 83
+    // removed can appear in a method signature. Its classes still ship in the same branch and are picked at runtime.
+    legacyImplementation project(':core')
+    legacyCompileOnly files(sourceSets.main.output.classesDirs.singleFile)
+    legacyCompileOnly files(new File(androidJarRoot, "android.jar"))
+    legacyCompileOnly files(floorJar)
+    legacyCompileOnly platform("org.lwjgl:lwjgl-bom:${property('lwjglVersion')}")
+    legacyCompileOnly "org.lwjgl:lwjgl"
+    legacyCompileOnly "org.lwjgl:lwjgl-egl"
+    legacyCompileOnly "org.lwjgl:lwjgl-opengles"
+}
+
+tasks.named('classes') {
+    dependsOn 'compileLegacyJava'
+}
+
+tasks.named('compileLegacyJava') {
+    dependsOn 'compileJava'
 }
 
 tasks.named('compileJava') {

@@ -1,86 +1,90 @@
 package copper.bridge.v1;
 
-import copper.bridge.annotation.BridgeHandled;
 import copper.bridge.annotation.BridgeOverride;
 
-import io.anuke.arc.*;
-import io.anuke.arc.files.*;
-import io.anuke.arc.function.*;
-import io.anuke.mindustry.core.Platform;
+import copper.bridge.annotation.CompatRange;
+import copper.bridge.gen.JvmCall;
+import copper.bridge.util.Log;
 
-import copper.bridge.gen.*;
-import copper.bridge.util.*;
+import com.badlogic.gdx.*;
+import com.badlogic.gdx.files.*;
+import io.anuke.kryonet.DefaultThreadImpl;
+import io.anuke.mindustry.core.*;
+import io.anuke.mindustry.core.ThreadHandler.ThreadProvider;
+import io.anuke.ucore.function.*;
+import io.anuke.ucore.scene.ui.*;
+
+import java.text.DateFormat;
+import java.text.NumberFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 /**
- * The game's platform hooks for the pre-ClientLauncher 6 line. This era has no {@code ClientLauncher}: the game
- * itself is the {@code ApplicationCore} listener, and everything a platform answers lives on the abstract
- * {@link Platform} whose {@code instance} this constructor installs.
+ * The game's platform hooks for 40..57. The desktop launcher owns a window and Discord; the bridge owns neither,
+ * so the answers that matter are the Android ones: landscape control and the file picker.
  */
-@BridgeHandled(targets = "io/anuke/mindustry/core/Platform:showFileChooser",
-        warning = BridgeHandled.Warning.METHOD_SIGNATURE_CHANGED_WITHIN_WINDOW,
-        reason = "65 takes a String filter, 83 a Predicate; both overloads are declared here")
+@CompatRange(floor = "v57", ceiling = "v57")
 public class BridgePlatform extends Platform {
+    private final DateFormat dates = SimpleDateFormat.getDateTimeInstance();
 
-    public BridgePlatform() {
-        Platform.instance = this;
-    }
-
+    @Override
     @BridgeOverride
-    public void hide() {
-        JvmCall.hide();
+    public String format(Date date) {
+        return dates.format(date);
     }
 
+    @Override
+    @BridgeOverride
+    public String format(int number) {
+        return NumberFormat.getIntegerInstance().format(number);
+    }
+
+    @Override
+    @BridgeOverride
+    public void addDialog(TextField field, int maxLength) {
+        JvmCall.textInput("", "", field.getText(), false, false, maxLength, true)
+                .onResult(field::setText);
+    }
+
+    @Override
+    @BridgeOverride
+    public String getLocaleName(Locale locale) {
+        return locale.getDisplayName(locale);
+    }
+
+    @Override
+    @BridgeOverride
+    public ThreadProvider getThreadProvider() {
+        return new DefaultThreadImpl();
+    }
+
+    @Override
+    @BridgeOverride
+    public void showFileChooser(String text, String content, Consumer<FileHandle> cons, boolean open,
+                                String filetype) {
+        String[] extensions = filetype == null || filetype.isEmpty() ? new String[] {""} : new String[] {filetype};
+        JvmCall.showFileChooser(open, false, text, null, extensions)
+                .onResult(paths -> {
+                    for (String path : paths) {
+                        if (path != null && !path.isEmpty())
+                            cons.accept(open ? Gdx.files.absolute(path)
+                                    : new BridgeUriFileHandle(path, filetype == null || filetype.isEmpty()
+                                    ? "export" : "export." + filetype));
+                    }
+                })
+                .onError(message -> Log.error("file chooser failed: " + message));
+    }
+
+    @Override
     @BridgeOverride
     public void beginForceLandscape() {
         JvmCall.forceLandscape(true);
     }
 
+    @Override
     @BridgeOverride
     public void endForceLandscape() {
         JvmCall.forceLandscape(false);
-    }
-
-    /** Left empty on purpose: a share sheet would need a {@code FileProvider} in the host app's manifest. */
-    @BridgeOverride
-    public void shareFile(FileHandle file) {
-    }
-
-    /**
-     * The era's chooser carries a description and a predicate instead of an extension list; the predicate is
-     * applied to the paths the picker returns, since ART cannot turn it back into a MIME filter.
-     */
-    @BridgeOverride
-    public void showFileChooser(String text, String content, Consumer<FileHandle> cons, boolean open,
-                                Predicate<String> filetype) {
-        JvmCall.showFileChooser(open, false, text, null, new String[] {""})
-                .onResult(paths -> {
-                    if (paths == null)
-                        return;
-                    for (String path : paths) {
-                        if (path == null || path.isEmpty())
-                            continue;
-                        if (filetype != null && !filetype.test(path))
-                            continue;
-                        cons.accept(open ? Core.files.absolute(path) : new UriFi(path, "export"));
-                    }
-                })
-                .onError(message -> Log.error("file chooser failed: " + message));
-    }
-
-    @BridgeOverride
-    public void showFileChooser(String text, String content, Consumer<FileHandle> cons, boolean open,
-                                String filetype) {
-        JvmCall.showFileChooser(open, false, text, null,
-                        new String[] {filetype == null ? "" : filetype})
-                .onResult(paths -> {
-                    if (paths == null)
-                        return;
-                    for (String path : paths) {
-                        if (path == null || path.isEmpty())
-                            continue;
-                        cons.accept(open ? Core.files.absolute(path) : new UriFi(path, "export"));
-                    }
-                })
-                .onError(message -> Log.error("file chooser failed: " + message));
     }
 }

@@ -4,6 +4,7 @@ import copper.bridge.annotation.BridgeHandled;
 import copper.bridge.annotation.BridgeOverride;
 
 import arc.*;
+import arc.Graphics.Cursor.*;
 import arc.graphics.*;
 import arc.graphics.gl.*;
 
@@ -25,9 +26,8 @@ import java.util.function.Function;
  * and OpenGL ES bindings are the only route to GL, and ART hands the window over as an opaque native pointer. A
  * pause destroys only the window surface, so GL objects survive a resume.
  */
-@BridgeHandled(targets = "arc/Graphics$Cursor",
-        warning = BridgeHandled.Warning.NESTED_TYPE_PRESENCE_NON_MONOTONIC_WITHIN_WINDOW,
-        reason = "the cursor type moves out of Graphics during the v9 branch; the legacy/current graphics classes cover both")
+@BridgeHandled(targets = "arc/Graphics:newCursor", warning = BridgeHandled.Warning.METHOD_SIGNATURE_CHANGED_WITHIN_WINDOW,
+        reason = "the 3-int overload is abstract and implemented; the Color overload is a default that calls it")
 public abstract class BridgeGraphics extends Graphics {
     /** Coverage sampling attribute; not in LWJGL's core EGL headers. */
     private static final int EGL_COVERAGE_SAMPLES_NV = 0x30E1;
@@ -49,7 +49,8 @@ public abstract class BridgeGraphics extends Graphics {
     private long eglContext = EGL10.EGL_NO_CONTEXT;
     private long eglSurface = EGL10.EGL_NO_SURFACE;
 
-    private GLProvider gl;
+    private GL20 gl20;
+    private GL30 gl30;
     private GLVersion glVersion;
     private String extensions;
 
@@ -72,47 +73,39 @@ public abstract class BridgeGraphics extends Graphics {
     public BridgeGraphics() {
     }
 
-    /** The implementation matching the running game's cursor API. The choice is probed, not versioned. */
+    /** The implementation matching the running game's display API. The choice is probed, not versioned. */
     public static BridgeGraphics create() {
-        if (hasLegacyCursor())
+        if (hasMonitors())
             return legacy();
         return new BridgeGraphicsCurrent();
     }
 
-    static boolean hasLegacyCursor() {
+    static boolean hasMonitors() {
         try {
-            Class.forName("arc.Graphics$Cursor");
+            Class.forName("arc.Graphics$Monitor");
             return true;
         } catch (Throwable ignored) {
             return false;
         }
     }
 
-    /** By name: this class is loaded on the ceiling too, which has no arc.Graphics.Cursor for the legacy descriptors. */
+    /** By name: this class is loaded on every epoch, and v159 has no Monitor type for the legacy class's descriptors. */
     private static BridgeGraphics legacy() {
         try {
             return (BridgeGraphics)Class.forName("copper.bridge.v9.BridgeGraphicsLegacy")
                     .getConstructor()
                     .newInstance();
         } catch (Throwable e) {
-            throw new RuntimeException("the game declares arc.Graphics$Cursor but the legacy graphics could not"
+            throw new RuntimeException("the game declares arc.Graphics$Monitor but the legacy graphics could not"
                     + " be created", e);
         }
     }
 
     /**
-     * Points LWJGL at this device's EGL and GLES libraries and loads them: LWJGL would otherwise load its own bundled
-     * natives, which do not exist for Android. A pair that is not there is reported and the system's used instead.
-     *
-     * <p>LWJGL's own natives come first: they sit inside the bridge jar, and every loader in the process has to be
-     * pointed at the unpacked folder before the first library is opened.
+     * Points LWJGL at this device's EGL and GLES libraries and loads them; LWJGL's own bundled natives do not exist
+     * for Android. A pair that is not there is reported and the system's used instead.
      */
     public void configure() {
-        // v9's arc has one GL entry point wrapping ES3, so an ES2 context cannot run the game at all: a caller that
-        // asked for one is told here, before anything is loaded, instead of failing on the first ES3 call later.
-        if (Bridge.options.glMode == GLMode.GL2)
-            throw new IllegalStateException("Mindustry 9 needs OpenGL ES 3; an OpenGL ES 2 launch was requested");
-
         prepareLwjglNatives();
 
         String egl = SYSTEM_EGL;
@@ -161,7 +154,7 @@ public abstract class BridgeGraphics extends Graphics {
     }
 
     /** Unpacks the LWJGL natives from the bridge jar and points both loaders at them: LWJGL's own search path, and
-     *  {@code java.library.path} for arc's {@code SharedLibraryLoader}, which would otherwise extract v9's game jar's
+     *  {@code java.library.path} for arc's {@code SharedLibraryLoader}, which would otherwise extract the game jar's
      *  Linux copy. */
     private void prepareLwjglNatives() {
         File lwjgl = LwjglNatives.extract();
@@ -172,11 +165,9 @@ public abstract class BridgeGraphics extends Graphics {
         Configuration.LIBRARY_PATH.set(libPath);
         System.setProperty("java.library.path", libPath + File.pathSeparator + System.getProperty("java.library.path", ""));
 
-        // LWJGL looks a bundled native up at linux/<arch>/<module>/<file>; the bridge jar keeps the same tail under
-        // native/lwjgl/, and LwjglNatives::mapPath is the one place that layout is written down. LWJGL is then told
-        // to extract into the folder just unpacked, where the bytes are the same and its CRC check matches: nothing
-        // is written again.
-        // LWJGL captures the mapper when Platform initializes, so it must be set here, before the first GL call.
+        // The game jar can carry its own desktop liblwjgl.so at the classpath root; the mapper sends LWJGL's bundled
+        // lookup to the bridge jar's per-ABI copy instead, and it must be set before Platform initializes. Extraction
+        // is pointed at the folder already unpacked, where the bytes match its hash check, so nothing is written.
         Configuration.BUNDLED_LIBRARY_PATH_MAPPER.set((Function<String, String>) LwjglNatives::mapPath);
         Configuration.SHARED_LIBRARY_EXTRACT_PATH.set(libPath);
     }
@@ -226,7 +217,7 @@ public abstract class BridgeGraphics extends Graphics {
         width = surfaceWidth;
         height = surfaceHeight;
 
-        if (gl == null)
+        if (gl20 == null)
             setupGL();
 
         GLES20.glViewport(0, 0, width, height);
@@ -249,12 +240,17 @@ public abstract class BridgeGraphics extends Graphics {
         long config = chooseConfig();
         logConfig(config);
 
-        // v9's arc has one GL entry point that wraps the ES3 functions, so an ES2 context would fail on the
-        // first ES3 call instead of at creation - and a --gl2 request was refused in configure() already.
-        eglContext = createContext(config, 3);
+        // An explicit request is honoured; with none, the highest version this device can give is tried, and
+        // only a failed creation steps down.
+        eglContext = createContext(config, Bridge.options.glMode == GLMode.GL2 ? 2 : 3);
+        if (eglContext == EGL10.EGL_NO_CONTEXT && Bridge.options.glMode == GLMode.Auto) {
+            Log.warn("GL", "no OpenGL ES 3 context; falling back to OpenGL ES 2");
+            eglContext = createContext(config, 2);
+        }
         if (eglContext == EGL10.EGL_NO_CONTEXT)
-            throw new IllegalStateException("eglCreateContext failed: 0x"
-                    + Integer.toHexString(EGL10.eglGetError()) + "; Mindustry 9 needs an OpenGL ES 3 context");
+            throw new IllegalStateException("eglCreateContext failed: 0x" + Integer.toHexString(EGL10.eglGetError())
+                    + (Bridge.options.glMode == GLMode.Auto ? "" : " (an OpenGL ES "
+                    + (Bridge.options.glMode == GLMode.GL2 ? "2" : "3") + " context was requested)"));
 
         createWindowSurface(window);
     }
@@ -323,27 +319,37 @@ public abstract class BridgeGraphics extends Graphics {
         }
     }
 
-    /** v9 has one GL entry point: Core.glProvider, dispatched by the static Gl facade. */
+    /** The ES3 wrapper must not be installed on a device that only offers ES2. */
     private void setupGL() {
         GLES.createCapabilities();
 
-        gl = new BridgeGLProvider();
-        Core.glProvider = gl;
+        gl20 = new BridgeGL20();
+        Core.gl = gl20;
+        Core.gl20 = gl20;
 
-        String version = gl.glGetString(Gl.version);
-        String vendor = gl.glGetString(Gl.vendor);
-        String renderer = gl.glGetString(Gl.renderer);
+        String version = gl20.glGetString(GL20.GL_VERSION);
+        String vendor = gl20.glGetString(GL20.GL_VENDOR);
+        String renderer = gl20.glGetString(GL20.GL_RENDERER);
         glVersion = new GLVersion(Application.ApplicationType.android, version, vendor, renderer);
+
+        boolean supportsES3 = glVersion.atLeast(3, 0) && glVersion.majorVersion > 2;
+        // an explicit request is not quietly downgraded: the caller asked for a version this context cannot be
+        if (Bridge.options.glMode == GLMode.GL3 && !supportsES3)
+            throw new IllegalStateException("OpenGL ES 3 was requested, but the context is " + version);
+
+        if (Bridge.options.glMode != GLMode.GL2 && supportsES3) {
+            gl30 = new BridgeGL30();
+            gl20 = gl30;
+            Core.gl = gl30;
+            Core.gl20 = gl30;
+            Core.gl30 = gl30;
+        }
 
         Gl.reset();
         Log.info("GL", "renderer: " + renderer);
         Log.info("GL", "vendor: " + vendor);
         Log.info("GL", "version: " + version);
-        Log.info("GL", "using OpenGL ES " + glVersion.majorVersion + " context"
-                + (Bridge.options.glMode == GLMode.Auto ? "" : " (requested " + Bridge.options.glMode + ")"));
-        // the context is created as ES3 above, but a driver that quietly handed out ES2 must not reach the game
-        if (!glVersion.atLeast(3, 0))
-            throw new IllegalStateException("Mindustry 9 needs an OpenGL ES 3 context, but this one is " + version);
+        Log.info("GL", "using " + (gl30 != null ? "OpenGL ES 3" : "OpenGL ES 2") + " context");
     }
 
     /** Releases the window surface but keeps the context, so a resume does not rebuild its objects. */
@@ -374,7 +380,7 @@ public abstract class BridgeGraphics extends Graphics {
     public void surfaceResized(int surfaceWidth, int surfaceHeight) {
         width = surfaceWidth;
         height = surfaceHeight;
-        if (gl != null)
+        if (gl20 != null)
             GLES20.glViewport(0, 0, width, height);
     }
 
@@ -418,6 +424,36 @@ public abstract class BridgeGraphics extends Graphics {
     public void swapBuffers() {
         if (eglSurface != EGL10.EGL_NO_SURFACE)
             EGL10.eglSwapBuffers(eglDisplay, eglSurface);
+    }
+
+    @BridgeOverride
+    public GL20 getGL20() {
+        return gl20;
+    }
+
+    @BridgeOverride
+    public void setGL20(GL20 gl20) {
+        this.gl20 = gl20;
+        if (gl30 == null) {
+            Core.gl = gl20;
+            Core.gl20 = gl20;
+        }
+    }
+
+    @BridgeOverride
+    public GL30 getGL30() {
+        return gl30;
+    }
+
+    @BridgeOverride
+    public void setGL30(GL30 gl30) {
+        this.gl30 = gl30;
+        if (gl30 != null) {
+            this.gl20 = gl30;
+            Core.gl = gl30;
+            Core.gl20 = gl30;
+            Core.gl30 = gl30;
+        }
     }
 
     @BridgeOverride
@@ -491,6 +527,14 @@ public abstract class BridgeGraphics extends Graphics {
         return Bridge.options.density;
     }
 
+    /** Never called: a bridge that only draws into the activity's surface has no window. No {@code @BridgeOverride} on
+     *  purpose - arc declares it abstract up to v156 and removes it in v157. */
+    @SuppressWarnings("unused")
+    @BridgeOverride
+    public boolean setWindowedMode(int width, int height) {
+        return false;
+    }
+
     @BridgeOverride
     public void setTitle(String title) {
     }
@@ -506,8 +550,8 @@ public abstract class BridgeGraphics extends Graphics {
 
     @BridgeOverride
     public boolean supportsExtension(String extension) {
-        if (extensions == null && gl != null)
-            extensions = gl.glGetString(Gl.extensions);
+        if (extensions == null && gl20 != null)
+            extensions = gl20.glGetString(GL20.GL_EXTENSIONS);
         return extensions != null && extensions.contains(extension);
     }
 
@@ -527,5 +571,32 @@ public abstract class BridgeGraphics extends Graphics {
     @BridgeOverride
     public boolean isFullscreen() {
         return true;
+    }
+
+    @BridgeOverride
+    public Cursor newCursor(Pixmap pixmap, int xHotspot, int yHotspot) {
+        return null;
+    }
+
+    @BridgeOverride
+    protected void setCursor(Cursor cursor) {
+    }
+
+    @BridgeOverride
+    protected void setSystemCursor(SystemCursor systemCursor) {
+    }
+
+    /** The floor still declares these; the ceiling removed the whole desktop-display group. */
+    @BridgeOverride
+    public boolean supportsDisplayModeChange() {
+        return false;
+    }
+
+    @BridgeOverride
+    public void setUndecorated(boolean undecorated) {
+    }
+
+    @BridgeOverride
+    public void setResizable(boolean resizable) {
     }
 }

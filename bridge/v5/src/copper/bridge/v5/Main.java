@@ -9,7 +9,7 @@ import io.anuke.mindustry.*;
 import java.io.*;
 
 /**
- * The v1 branch entry point, reached reflectively by the JVM side once the branch is chosen; both classpath rules
+ * The v5 branch entry point, reached reflectively by the JVM side once the branch is chosen; both classpath rules
  * arrive at {@link #main(String[])}, so nothing here has to know which one applied.
  */
 public class Main {

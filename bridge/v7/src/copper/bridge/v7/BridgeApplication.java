@@ -1,6 +1,5 @@
 package copper.bridge.v7;
 
-import copper.bridge.annotation.BridgeHandled;
 import copper.bridge.annotation.BridgeOverride;
 
 import arc.*;
@@ -20,17 +19,15 @@ import java.util.*;
 public class BridgeApplication implements Application {
     private static final long SURFACE_TIMEOUT_MILLIS = 20000;
 
-    /** {@code android}, by ordinal: the constant is capitalized on the range's older end. */
-    public static final ApplicationType ANDROID = ApplicationType.values()[0];
 
     public final BridgeGraphics graphics;
     public final BridgeInput input;
     public final BridgeFiles files;
     public final BridgeEvents events;
 
-    protected final Seq<ApplicationListener> listeners = new Seq<>();
+    protected final Array<ApplicationListener> listeners = new Array<>();
 
-    /** Plain lists: Seq.addAll and Seq.clear return void on the older end of the range and Seq here. */
+    /** Plain lists: Array.addAll and Array.clear return void on the older end of the range. */
     private final List<Runnable> runnables = new ArrayList<>();
     private final List<Runnable> executedRunnables = new ArrayList<>();
 
@@ -52,6 +49,7 @@ public class BridgeApplication implements Application {
         Core.input = input;
         Core.files = files;
         Core.settings = new Settings();
+        AUTOSAVE = MethodLambdas.boundRunnable(Core.settings, "autosave");
         initAudio();
         Core.net = new Net();
 
@@ -106,8 +104,9 @@ public class BridgeApplication implements Application {
 
             graphics.beginFrame();
             input.processEvents();
-            // Application.defaultUpdate does this; the method itself arrived after the floor, so spell it out
-            Core.settings.autosave();
+            // Application.defaultUpdate does this; autosave() arrived later in the range
+            if (AUTOSAVE != null)
+                AUTOSAVE.run();
             arc.util.Time.updateGlobal();
             for (ApplicationListener listener : listeners)
                 listener.update();
@@ -159,6 +158,9 @@ public class BridgeApplication implements Application {
         }
     }
 
+    /** {@code Settings.autosave} is absent at the range's floor; the lambda is null there. */
+    private static Runnable AUTOSAVE;
+
     /** {@code Thread.sleep} with arc's old semantics: an interrupt is swallowed, not re-armed. */
     private static void sleep(long millis) {
         try {
@@ -167,41 +169,23 @@ public class BridgeApplication implements Application {
         }
     }
 
-    /**
-     * Installs the audio implementation the running game declares: the abstract arc.Audio this branch compiles
-     * against, or the SoloudAudio the 11234 build has under its SoLoud name. No mock - a silent game would hide the
-     * failure it stands for.
-     */
-    @BridgeHandled(targets = "arc/audio/SoloudAudio", warning = BridgeHandled.Warning.TYPE_PRESENCE_NON_MONOTONIC_WITHIN_WINDOW,
-            reason = "11234 has SoloudAudio; older builds fall back to LegacyAudio")
-    @BridgeHandled(targets = "arc/audio/SoloudAudio:<init>", warning = BridgeHandled.Warning.METHOD_PRESENCE_NON_MONOTONIC_WITHIN_WINDOW,
-            reason = "constructor exists only where the class exists")
-    @BridgeHandled(targets = "arc/audio/SoloudAudio:<init>", warning = BridgeHandled.Warning.REFLECTED_MEMBER_MISSING_FROM_ENDPOINTS,
-            reason = "looked up only where the class exists")
+    //SoloudAudio is not in this range; LegacyAudio is the only implementation.
     private static void initAudio() {
-        arc.Audio audio;
         try {
-            audio = (arc.Audio) Class.forName("arc.audio.SoloudAudio").getConstructor().newInstance();
-        } catch (Throwable soloud) {
-            try {
-                audio = new LegacyAudio();
-            } catch (Throwable legacy) {
-                Log.error("audio", legacy);
-                return;
-            }
+            Core.audio = new LegacyAudio();
+        } catch (Throwable legacy) {
+            Log.error("audio", legacy);
         }
-
-        Core.audio = audio;
     }
 
     @BridgeOverride
-    public Seq<ApplicationListener> getListeners() {
+    public Array<ApplicationListener> getListeners() {
         return listeners;
     }
 
     @BridgeOverride
     public ApplicationType getType() {
-        return ANDROID;
+        return ApplicationType.Android;
     }
 
     @BridgeOverride

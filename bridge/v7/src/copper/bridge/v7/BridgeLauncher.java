@@ -41,9 +41,13 @@ public class BridgeLauncher extends ClientLauncher implements Platform {
         });
     }
 
-    /** Writes the crash report through the game's own sender; the 6 line has it in every version. */
+    /** Writes the crash report through the game's own sender; {@code log} only exists on the newer end. */
     private void handleCrash(Throwable cause) {
-        CrashSender.log(cause);
+        try {
+            CrashSender.class.getMethod("log", Throwable.class).invoke(null, cause);
+        } catch (Throwable ignored) {
+            arc.util.Log.err(cause);
+        }
     }
 
     @BridgeOverride
@@ -79,14 +83,7 @@ public class BridgeLauncher extends ClientLauncher implements Platform {
         pick(open, title, new String[] {""}, cons);
     }
 
-    /** The same picker with a file-type filter. The interface gained this method after the range's floor, so it
-     *  carries no {@code @BridgeOverride}. */
-    @BridgeOverride
-    public void showMultiFileChooser(Cons<Fi> cons, String... extensions) {
-        pick(true, "@open", extensions, cons);
-    }
-
-    private void pick(boolean open, String title, String[] extensions, Cons<Fi> cons) {
+        private void pick(boolean open, String title, String[] extensions, Cons<Fi> cons) {
         String[] filter = extensions == null || extensions.length == 0 ? new String[] {""} : extensions;
 
         JvmCall.showFileChooser(open, false, title, null, filter)

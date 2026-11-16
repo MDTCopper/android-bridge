@@ -2,16 +2,16 @@ package copper.bridge.v6;
 
 import copper.bridge.annotation.BridgeOverride;
 
-import arc.*;
-import arc.files.*;
-import arc.func.*;
+import io.anuke.arc.*;
+import io.anuke.arc.files.*;
+import io.anuke.arc.func.*;
 
 import copper.bridge.gen.*;
 import copper.bridge.util.*;
-import mindustry.*;
-import mindustry.core.*;
-import mindustry.game.*;
-import mindustry.net.*;
+import io.anuke.mindustry.*;
+import io.anuke.mindustry.core.*;
+import io.anuke.mindustry.game.*;
+import io.anuke.mindustry.net.*;
 
 /**
  * The game launcher for this branch: the game's own {@link ClientLauncher}, so start-up order, loading screen and
@@ -29,7 +29,7 @@ public class BridgeLauncher extends ClientLauncher implements Platform {
             if (handler != null) {
                 handler.uncaughtException(thread, error);
             } else {
-                arc.util.Log.err(error);
+                io.anuke.arc.util.Log.err(error);
                 System.exit(1);
             }
         });
@@ -41,12 +41,13 @@ public class BridgeLauncher extends ClientLauncher implements Platform {
         });
     }
 
-    /** Writes the crash report through the game's own sender; {@code log} only exists on the newer end. */
+    /** Writes the crash report through the game's own sender; {@code send} is the only entry in this range. */
     private void handleCrash(Throwable cause) {
         try {
-            CrashSender.class.getMethod("log", Throwable.class).invoke(null, cause);
+            CrashSender.send(cause, file -> {
+            });
         } catch (Throwable ignored) {
-            arc.util.Log.err(cause);
+            io.anuke.arc.util.Log.err(cause);
         }
     }
 

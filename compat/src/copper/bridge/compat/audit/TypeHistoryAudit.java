@@ -27,7 +27,8 @@ public final class TypeHistoryAudit {
         String branch = required(options, "branch");
         Path classes = Paths.get(required(options, "classes"));
         Path mindustry = Paths.get(required(options, "mindustry"));
-        Path arc = Paths.get(required(options, "arc"));
+        Path arc = options.containsKey("arc") && !options.containsKey("no-arc")
+                ? Paths.get(options.get("arc")) : null;
         Path jars = options.containsKey("jars") ? Paths.get(options.get("jars")) : null;
         Path properties = options.containsKey("properties") ? Paths.get(options.get("properties")) : null;
         String from = required(options, "from");
@@ -78,7 +79,7 @@ public final class TypeHistoryAudit {
         List<String> fallbacks = new ArrayList<>();
         Map<String, String> sequences = new HashMap<>();
         int commits = 0;
-        for (Path clone : new Path[]{mindustry, arc}) {
+        for (Path clone : arc == null ? new Path[]{mindustry} : new Path[]{mindustry, arc}) {
             boolean merged = from.matches("\\d+") && Long.parseLong(from) >= 27929;
             if (merged && clone.equals(arc))
                 continue;

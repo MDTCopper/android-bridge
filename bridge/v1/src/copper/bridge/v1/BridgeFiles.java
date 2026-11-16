@@ -2,73 +2,99 @@ package copper.bridge.v1;
 
 import copper.bridge.annotation.BridgeOverride;
 
-import io.anuke.arc.*;
-import io.anuke.arc.files.*;
-import io.anuke.arc.util.*;
 import copper.bridge.*;
+import copper.bridge.util.*;
+
+import com.badlogic.gdx.*;
+import com.badlogic.gdx.files.*;
 
 import java.io.*;
 
 /**
- * The JVM side of arc's {@link Files} abstraction: {@code local} and {@code external} are the game data folder,
- * {@code absolute} is never rebased, and {@code internal}/{@code classpath} are entries of the game jars - which is
- * all of it, since a classpath cannot be enumerated and a directory that lives only inside a jar has no listing,
- * exactly as on the desktop.
- *
- * <p>This branch's {@code Files} has no default path methods, so every entry point names its type here.
+ * libGDX's files for the bridge. {@code local} and {@code external} are the game data folder, {@code absolute} is
+ * never rebased, and {@code internal}/{@code classpath} are class-loader resources: the game jar is on the startup
+ * loader's classpath, which is exactly where libGDX's desktop backend looks for an internal file.
  */
 public class BridgeFiles implements Files {
+
     private final File dataFolder;
 
-    public BridgeFiles() {
-        this.dataFolder = require(Bridge.options.gameDataFolder, "game data folder");
+    public BridgeFiles(File data) {
+        this.dataFolder = data;
     }
 
+    /** FileHandle's (File, FileType) constructor is protected; this keeps the type the caller asked for. */
+    private static final class Handle extends FileHandle {
+        Handle(File file, FileType type) {
+            super(file, type);
+        }
+    }
+
+    @Override
     @BridgeOverride
     public FileHandle getFileHandle(String path, FileType type) {
-        return new BridgeFi(this, path, type);
+        switch (type) {
+            case Classpath:
+            case Internal:
+                // FileHandle.read/exists fall back to the class loader for these types, which is the game jar.
+                return new Handle(new File(path), type);
+            case Local:
+            case External:
+                return new Handle(new File(dataFolder, path), type);
+            default:
+                return new Handle(new File(path), type);
+        }
     }
 
+    @Override
     @BridgeOverride
     public FileHandle classpath(String path) {
         return getFileHandle(path, FileType.Classpath);
     }
 
+    @Override
     @BridgeOverride
     public FileHandle internal(String path) {
         return getFileHandle(path, FileType.Internal);
     }
 
+    @Override
     @BridgeOverride
     public FileHandle external(String path) {
         return getFileHandle(path, FileType.External);
     }
 
+    @Override
     @BridgeOverride
     public FileHandle absolute(String path) {
         return getFileHandle(path, FileType.Absolute);
     }
 
+    @Override
     @BridgeOverride
     public FileHandle local(String path) {
         return getFileHandle(path, FileType.Local);
     }
 
+    @Override
     @BridgeOverride
     public String getExternalStoragePath() {
         return dataFolder.getAbsolutePath() + File.separator;
     }
 
+    @Override
     @BridgeOverride
     public boolean isExternalStorageAvailable() {
         return usable(dataFolder);
     }
 
+    @Override
     @BridgeOverride
     public String getLocalStoragePath() {
         return dataFolder.getAbsolutePath() + File.separator;
     }
 
+    @Override
     @BridgeOverride
     public boolean isLocalStorageAvailable() {
         return usable(dataFolder);
@@ -77,10 +103,5 @@ public class BridgeFiles implements Files {
     /** Whether a folder can be written to, creating it when the ART side has not done so yet. */
     private static boolean usable(File folder) {
         return (folder.isDirectory() || folder.mkdirs()) && folder.canWrite();
-    }
-
-    private static File require(File folder, String what) {
-        if (folder == null) throw new ArcRuntimeException("BridgeFiles: the ART side handed over no " + what);
-        return folder;
     }
 }

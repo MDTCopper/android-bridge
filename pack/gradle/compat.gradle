@@ -105,6 +105,7 @@ tasks.register('checkBridgeApi') {
 def mindustryClone = findProperty('mindustryClone') ? file(findProperty('mindustryClone'))
         : rootProject.file('../Mindustry')
 def arcClone = findProperty('arcClone') ? file(findProperty('arcClone')) : rootProject.file('../Arc')
+def ucoreClone = findProperty('ucoreClone') ? file(findProperty('ucoreClone')) : rootProject.file('../uCore')
 def releaseTag = { String version -> 'v' + (version.endsWith('.0') ? version[0..-3] : version) }
 def auditBranches = declaredBranches.findAll { findProperty("${it}.minVersionNumber") || findProperty("${it}.minBeBuild") }
 def effectiveFrom = { String branch ->
@@ -140,16 +141,17 @@ auditBranches.each { String branch ->
         if (framework == 'arc')
             args '--arc', arcClone.absolutePath
         else
-            args '--no-arc'
+            args '--no-arc', '--ucore', ucoreClone.absolutePath
         def epoch = epochJarFor(branch)
         if (epoch)
             args '--epoch', epoch.absolutePath
         doFirst {
             if (!new File(mindustryClone, '.git').isDirectory()
-                    || (framework == 'arc' && !new File(arcClone, '.git').isDirectory()))
+                    || (framework == 'arc' ? !new File(arcClone, '.git').isDirectory()
+                    : !new File(ucoreClone, '.git').isDirectory()))
                 throw new GradleException("source audit needs the game clone"
-                        + (framework == 'arc' ? " and the arc clone" : "")
-                        + "; pass -PmindustryClone and -ParcClone")
+                        + (framework == 'arc' ? " and the arc clone" : " and the uCore clone")
+                        + "; pass -PmindustryClone, -ParcClone and -PucoreClone")
         }
     }
     tasks.register("auditMemberHistory${branch.capitalize()}", JavaExec) {
@@ -166,16 +168,17 @@ auditBranches.each { String branch ->
         if (framework == 'arc')
             args '--arc', arcClone.absolutePath
         else
-            args '--no-arc'
+            args '--no-arc', '--ucore', ucoreClone.absolutePath
         def epoch = epochJarFor(branch)
         if (epoch)
             args '--epoch', epoch.absolutePath
         doFirst {
             if (!new File(mindustryClone, '.git').isDirectory()
-                    || (framework == 'arc' && !new File(arcClone, '.git').isDirectory()))
+                    || (framework == 'arc' ? !new File(arcClone, '.git').isDirectory()
+                    : !new File(ucoreClone, '.git').isDirectory()))
                 throw new GradleException("member audit needs the game clone"
-                        + (framework == 'arc' ? " and the arc clone" : "")
-                        + "; pass -PmindustryClone and -ParcClone")
+                        + (framework == 'arc' ? " and the arc clone" : " and the uCore clone")
+                        + "; pass -PmindustryClone, -ParcClone and -PucoreClone")
         }
     }
 }

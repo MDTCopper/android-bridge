@@ -29,6 +29,7 @@ public final class TypeHistoryAudit {
         Path mindustry = Paths.get(required(options, "mindustry"));
         Path arc = options.containsKey("arc") && !options.containsKey("no-arc")
                 ? Paths.get(options.get("arc")) : null;
+        Path ucore = options.containsKey("ucore") ? Paths.get(options.get("ucore")) : null;
         Path jars = options.containsKey("jars") ? Paths.get(options.get("jars")) : null;
         Path properties = options.containsKey("properties") ? Paths.get(options.get("properties")) : null;
         String from = required(options, "from");
@@ -79,14 +80,21 @@ public final class TypeHistoryAudit {
         List<String> fallbacks = new ArrayList<>();
         Map<String, String> sequences = new HashMap<>();
         int commits = 0;
-        for (Path clone : arc == null ? new Path[]{mindustry} : new Path[]{mindustry, arc}) {
+        List<Path> clones = new ArrayList<>();
+        clones.add(mindustry);
+        if (arc != null)
+            clones.add(arc);
+        if (ucore != null)
+            clones.add(ucore);
+        for (Path clone : clones) {
             boolean merged = from.matches("\\d+") && Long.parseLong(from) >= 27929;
-            if (merged && clone.equals(arc))
+            if (merged && arc != null && clone.equals(arc))
                 continue;
             for (Map.Entry<String, List<String>> group : groups.entrySet()) {
                 List<String> owners = new ArrayList<>();
                 for (String owner : group.getValue()) {
-                    if (merged ? clone.equals(mindustry) : (isArc(owner) ? arc : mindustry).equals(clone))
+                    Path repo = isUcore(owner) ? ucore : isArc(owner) ? arc : mindustry;
+                    if (repo != null && (merged ? clone.equals(mindustry) : repo.equals(clone)))
                         owners.add(owner);
                 }
                 if (owners.isEmpty())
@@ -97,13 +105,14 @@ public final class TypeHistoryAudit {
                     groupFrom = "default".equals(ends[0]) ? from : ends[0];
                     groupTo = ends.length < 2 || "default".equals(ends[1]) ? to : ends[1];
                 }
-                Resolved resolved = resolve(clone, mindustry, jars, properties, groupFrom, groupTo, issues);
+                Resolved resolved = resolve(clone, mindustry, arc, ucore, jars, properties, groupFrom, groupTo, issues);
                 if (resolved == null) {
-                    unaudited.add(clone.equals(arc) ? "arc" : "game");
+                    unaudited.add(clone.equals(arc) ? "arc" : clone.equals(ucore) ? "ucore" : "game");
                     continue;
                 }
                 if (!resolved.from.equals(groupFrom) || !resolved.to.equals(groupTo))
-                    fallbacks.add((clone.equals(arc) ? "arc" : "game") + " " + groupFrom + ".." + groupTo + " -> "
+                    fallbacks.add((clone.equals(arc) ? "arc" : clone.equals(ucore) ? "ucore" : "game") + " "
+                            + groupFrom + ".." + groupTo + " -> "
                             + resolved.from.substring(0, Math.min(10, resolved.from.length())) + ".."
                             + resolved.to.substring(0, Math.min(10, resolved.to.length()))
                             + " by version metadata");
@@ -164,9 +173,18 @@ public final class TypeHistoryAudit {
      * Resolves both revisions. Arc has no tags before v93, so its window is anchored to the game tag commit time and
      * the nearest earlier Arc commit, reported so the approximation is never silent.
      */
-    static Resolved resolve(Path clone, Path game, Path jars, Path properties, String from, String to,
-                            List<String> issues)
+    static Resolved resolve(Path clone, Path game, Path arc, Path ucore, Path jars, Path properties,
+                            String from, String to, List<String> issues)
             throws IOException, InterruptedException {
+        if (clone.equals(ucore)) {
+            String gameFrom = gameRevision(game, jars, properties, from, issues);
+            String gameTo = gameRevision(game, jars, properties, to, issues);
+            if (gameFrom == null || gameTo == null)
+                return null;
+            String ucoreFrom = before(clone, gameTime(game, gameFrom));
+            String ucoreTo = before(clone, gameTime(game, gameTo));
+            return ucoreFrom == null || ucoreTo == null ? null : new Resolved(ucoreFrom, ucoreTo);
+        }
         if (refs(clone, from, to))
             return new Resolved(from, to);
 
@@ -444,12 +462,17 @@ public final class TypeHistoryAudit {
         return process.waitFor();
     }
 
-    private static boolean isArc(String owner) {
+    static boolean isArc(String owner) {
         return owner.startsWith("arc/") || owner.startsWith("io/anuke/arc/");
     }
 
     private static boolean isGameOrArc(String owner) {
-        return isArc(owner) || owner.startsWith("mindustry/") || owner.startsWith("io/anuke/mindustry/");
+        return isArc(owner) || isUcore(owner) || owner.startsWith("mindustry/")
+                || owner.startsWith("io/anuke/mindustry/");
+    }
+
+    static boolean isUcore(String owner) {
+        return owner.startsWith("ucore/") || owner.startsWith("io/anuke/ucore/");
     }
 
     private static Map<String, String> parse(String[] args) {

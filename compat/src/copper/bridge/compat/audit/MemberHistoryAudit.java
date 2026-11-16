@@ -30,6 +30,7 @@ public final class MemberHistoryAudit {
         Path mindustry = Paths.get(required(options, "mindustry"));
         Path arc = options.containsKey("arc") && !options.containsKey("no-arc")
                 ? Paths.get(options.get("arc")) : null;
+        Path ucore = options.containsKey("ucore") ? Paths.get(options.get("ucore")) : null;
         Path jars = options.containsKey("jars") ? Paths.get(options.get("jars")) : null;
         Path properties = options.containsKey("properties") ? Paths.get(options.get("properties")) : null;
         Path epochPath = options.containsKey("epoch") ? Paths.get(options.get("epoch")) : null;
@@ -56,17 +57,24 @@ public final class MemberHistoryAudit {
             groups.computeIfAbsent(range, key -> new ArrayList<>()).add(dep);
         }
         int commits = 0;
-        for (Path clone : arc == null ? new Path[]{mindustry} : new Path[]{mindustry, arc}) {
+        List<Path> clones = new ArrayList<>();
+        clones.add(mindustry);
+        if (arc != null)
+            clones.add(arc);
+        if (ucore != null)
+            clones.add(ucore);
+        for (Path clone : clones) {
             boolean merged = arcMerged(from);
-            if (merged && clone.equals(arc))
+            if (merged && arc != null && clone.equals(arc))
                 continue;
             for (Map.Entry<String, List<MemberTarget>> group : groups.entrySet()) {
                 List<MemberTarget> repoDeps = group.getValue().stream()
                         .filter(dep -> {
-                            boolean arcOwner = isArc(dep.owner);
+                            Path repo = TypeHistoryAudit.isUcore(dep.owner) ? ucore
+                                    : TypeHistoryAudit.isArc(dep.owner) ? arc : mindustry;
                             if (merged)
                                 return clone.equals(mindustry);
-                            return (arcOwner ? arc : mindustry).equals(clone);
+                            return repo != null && repo.equals(clone);
                         })
                         .collect(Collectors.toList());
                 if (repoDeps.isEmpty())
@@ -77,16 +85,17 @@ public final class MemberHistoryAudit {
                     groupFrom = "default".equals(ends[0]) ? from : ends[0];
                     groupTo = ends.length < 2 || "default".equals(ends[1]) ? to : ends[1];
                 }
-                TypeHistoryAudit.Resolved resolved = TypeHistoryAudit.resolve(clone, mindustry, jars, properties,
-                        groupFrom, groupTo, issues);
+                TypeHistoryAudit.Resolved resolved = TypeHistoryAudit.resolve(clone, mindustry, arc, ucore,
+                        jars, properties, groupFrom, groupTo, issues);
                 if (resolved == null) {
-                    issues.add("no " + (clone.equals(arc) ? "arc" : "game") + " source for " + groupFrom + ".."
-                            + groupTo);
+                    issues.add("no " + (clone.equals(arc) ? "arc" : clone.equals(ucore) ? "ucore" : "game")
+                            + " source for " + groupFrom + ".." + groupTo);
                     continue;
                 }
                 if (!resolved.from.equals(groupFrom) || !resolved.to.equals(groupTo))
-                    System.out.println(branch + ": " + (clone.equals(arc) ? "arc" : "game") + " " + groupFrom + ".."
-                            + groupTo + " -> " + resolved.from.substring(0, Math.min(10, resolved.from.length()))
+                    System.out.println(branch + ": " + (clone.equals(arc) ? "arc" : clone.equals(ucore) ? "ucore" : "game")
+                            + " " + groupFrom + ".." + groupTo + " -> "
+                            + resolved.from.substring(0, Math.min(10, resolved.from.length()))
                             + ".." + resolved.to.substring(0, Math.min(10, resolved.to.length()))
                             + " by version metadata");
                 Map<String, String> result = history(clone, null, resolved.from, resolved.to, repoDeps, issues,

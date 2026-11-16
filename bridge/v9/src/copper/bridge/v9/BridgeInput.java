@@ -17,9 +17,7 @@ public class BridgeInput extends Input {
     public final class Events extends InputBatch {
         @Override
         public void pointerDown(int pointerId, float rawX, float rawY, float rawPressure) {
-            // A down for an already tracked pointer keeps its slot: a second one would strand the first.
-            int index = lookUpPointerIndex(pointerId);
-            if (index == -1) index = freePointerIndex();
+            int index = freePointerIndex();
             if (index == -1) return;
 
             int x = (int)rawX;

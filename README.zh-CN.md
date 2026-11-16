@@ -69,11 +69,12 @@
 git clone https://github.com/MDTCopper/android-bridge.git
 git clone https://github.com/Anuken/Mindustry.git
 git clone https://github.com/Anuken/Arc.git
+git clone https://github.com/Anuken/uCore.git
 cd android-bridge
 ./gradlew :pack:bridgeJar
 ```
 
-必须是完整克隆，不能用浅克隆或 partial clone：兼容性审计会读取两边完整历史。
+必须是完整克隆，不能用浅克隆或 partial clone：兼容性审计会读取这些仓库的完整历史。
 跳过审计的快速构建：
 
 ```bash
@@ -107,7 +108,7 @@ cmakeVersion=3.22.1
 ./gradlew :pack:bridgeJar
 ```
 
-`:pack:bridgeJar` 会跑源码历史审计，需要完整的 `../Mindustry` 与 `../Arc` 克隆。只有刻意跳过审计时才用
+`:pack:bridgeJar` 会跑源码历史审计，需要完整的 `../Mindustry`、`../Arc` 与 `../uCore` 克隆。只有刻意跳过审计时才用
 `:pack:bridgeJarFast`。
 
 只想看一眼有哪些任务：
@@ -137,7 +138,7 @@ cmakeVersion=3.22.1
 ./gradlew :pack:bridgeJar
 ```
 
-它会用完整的 `../Mindustry`、`../Arc` 克隆跑源码历史审计。`:pack:bridgeJarFast` 会跳过审计；影响版本兼容性的改动不要用它。
+它会用完整的 `../Mindustry`、`../Arc`、`../uCore` 克隆跑源码历史审计。`:pack:bridgeJarFast` 会跳过审计；影响版本兼容性的改动不要用它。
 
 动过 `bridge/vN` 的源码之后需要**拿真 jar 在区间下界的版本上把游戏跑起来验证**，编译过不等于跑得起来。
 

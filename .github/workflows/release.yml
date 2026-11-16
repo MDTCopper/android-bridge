@@ -33,11 +33,12 @@ jobs:
           java-version: 17
           distribution: 'temurin'
 
-      # The three repositories, side by side in the run directory and nothing cloned from outside it.
+      # The four repositories, side by side in the run directory and nothing cloned from outside it.
       # The bridge's own repository is cloned too - at the revision this workflow is running for,
       # which is why it is a checkout by commit rather than a plain clone of a branch.
-      - name: Checkout Arc, Mindustry and the bridge
+      - name: Checkout uCore, Arc, Mindustry and the bridge
         run: |
+          git clone https://github.com/Anuken/uCore.git uCore
           git clone https://github.com/Anuken/Arc.git Arc
           git clone https://github.com/Anuken/Mindustry.git Mindustry
           git clone https://github.com/${{ github.repository }}.git Bridge

@@ -74,7 +74,7 @@ Run the full build before committing:
 ./gradlew :pack:bridgeJar
 ```
 
-That task requires full clones of Mindustry and Arc beside this repository (`../Mindustry`, `../Arc`); the
+That task requires full clones of Mindustry, Arc and uCore beside this repository (`../Mindustry`, `../Arc`, `../uCore`); the
 source-history audit walks every commit in the declared windows and is part of `bridgeJar`. It also pulls in
 the Java compile, the native build, the dex, and every branch. Without an NDK or the Android SDK it cannot run;
 compile the Java modules directly and say in the pull request which steps you did not run.

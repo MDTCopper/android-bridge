@@ -63,7 +63,7 @@ JVM 一侧负责游戏循环与 EGL/GL。宿主 App 由使用方自行提供或�
 ./gradlew :pack:bridgeJar
 ```
 
-该任务要求本仓库旁边有完整的 Mindustry 与 Arc 克隆（`../Mindustry`、`../Arc`）；源码历史审计会遍历声明窗口内的每个提交，并且已经并入 `bridgeJar`。它还会带上 Java 编译、native 构建、dex 与全部分支。没有 NDK 或 Android SDK 时无法执行；此时直接编译 Java 模块，并在 PR 中说明未执行的步骤。
+该任务要求本仓库旁边有完整的 Mindustry、Arc 与 uCore 克隆（`../Mindustry`、`../Arc`、`../uCore`）；源码历史审计会遍历声明窗口内的每个提交，并且已经并入 `bridgeJar`。它还会带上 Java 编译、native 构建、dex 与全部分支。没有 NDK 或 Android SDK 时无法执行；此时直接编译 Java 模块，并在 PR 中说明未执行的步骤。
 
 `:pack:bridgeJarFast` 会跳过源码历史审计，只用于不需要兼容性检查的构建，不能替代兼容性改动前的完整构建。
 

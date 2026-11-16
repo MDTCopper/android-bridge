@@ -107,19 +107,14 @@ public class BridgeInput implements View.OnTouchListener, View.OnGenericMotionLi
         }
     }
 
-    /** Writes every sample of a move event, one record per sample per pointer, which preserves a fast swipe. */
+    /** Forwards the current position of every pointer, like the stock Android backend; replaying history makes a
+     *  stationary finger look like repeated moves, which the game turns into extra zoom ticks. */
     private int move(MotionEvent event) {
-        int records = 0;
-        int history = event.getHistorySize();
         int pointers = event.getPointerCount();
-        for (int h = 0; h <= history; h++) {
-            for (int p = 0; p < pointers; p++) {
-                float x = h < history ? event.getHistoricalX(p, h) : event.getX(p);
-                float y = h < history ? event.getHistoricalY(p, h) : event.getY(p);
-                ArtBatch.input.pointerMove(event.getPointerId(p), x, y, event.getPressure(p));
-                records++;
-            }
+        for (int p = 0; p < pointers; p++) {
+            ArtBatch.input.pointerMove(event.getPointerId(p), event.getX(p), event.getY(p),
+                    event.getPressure(p));
         }
-        return records;
+        return pointers;
     }
 }

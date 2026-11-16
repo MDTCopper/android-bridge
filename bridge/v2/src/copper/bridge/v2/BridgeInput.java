@@ -24,9 +24,9 @@ public class BridgeInput extends Input {
     public final class Events extends InputBatch {
         @Override
         public void pointerDown(int pointerId, float rawX, float rawY, float rawPressure) {
-            // A down for an already tracked pointer keeps its slot: a second one would strand the first.
-            int index = lookUpPointerIndex(pointerId);
-            if (index == -1) index = freePointerIndex();
+            // The stock backend allocates the lowest free slot on every down; looking the id up first can hand a
+            // second finger the first one's slot if Android reuses an id.
+            int index = freePointerIndex();
             if (index == -1) return;
 
             int x = (int)rawX;
@@ -54,9 +54,9 @@ public class BridgeInput extends Input {
             int y = Core.graphics.getHeight() - 1 - (int)rawY;
             KeyCode key = KeyCode.byOrdinal(button[index]);
 
-            realId[index] = -1;
             touchX[index] = x;
             touchY[index] = y;
+            realId[index] = -1;
             deltaX[index] = 0;
             deltaY[index] = 0;
             button[index] = 0;

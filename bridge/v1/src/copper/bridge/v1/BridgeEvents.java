@@ -125,8 +125,8 @@ public class BridgeEvents implements Events {
             application.exit();
             return;
         }
-        if (!input.backTap())
-            application.exit();
+        // In play, back is the game's menu key; never turn an unhandled press into an exit.
+        input.backTap();
     }
 
     private static boolean hasDialog() {

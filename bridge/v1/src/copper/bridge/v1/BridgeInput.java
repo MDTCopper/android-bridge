@@ -158,6 +158,8 @@ public class BridgeInput implements Input {
     private final boolean[] downState = new boolean[256];
     private final boolean[] justPressed = new boolean[256];
     private boolean justTouched;
+    private boolean pendingBack;
+    private boolean backReleasePending;
     private long currentEventTimeStamp = System.nanoTime();
     private InputProcessor processor;
 
@@ -166,16 +168,20 @@ public class BridgeInput implements Input {
         JvmBatch.bind(new Events());
     }
 
-    /** One back tap through the normal input path; false when nothing consumed it. */
-    public boolean backTap() {
-        boolean handled = processor != null && processor.keyDown(Keys.BACK);
-        if (processor != null)
-            processor.keyUp(Keys.BACK);
-        return handled;
+    /** Queues one back tap for the frame after this event pump; the game polls key state during render. */
+    public void backTap() {
+        pendingBack = true;
     }
 
     /** Drains every pending frame and replays it, so a swipe sampled faster than the frame rate arrives whole. */
     public void processEvents() {
+        if (backReleasePending) {
+            backReleasePending = false;
+            downState[Keys.BACK] = false;
+            if (processor != null)
+                processor.keyUp(Keys.BACK);
+        }
+
         justTouched = false;
         Arrays.fill(justPressed, false);
 
@@ -185,6 +191,15 @@ public class BridgeInput implements Input {
             currentEventTimeStamp = System.nanoTime();
             JvmBatch.input.processRecords();
             JvmBatch.input.next();
+        }
+
+        if (pendingBack) {
+            pendingBack = false;
+            downState[Keys.BACK] = true;
+            justPressed[Keys.BACK] = true;
+            if (processor != null)
+                processor.keyDown(Keys.BACK);
+            backReleasePending = true;
         }
     }
 

@@ -8,9 +8,11 @@ import copper.bridge.gen.JvmCall;
 import copper.bridge.util.*;
 
 import com.badlogic.gdx.*;
+import com.badlogic.gdx.controllers.*;
 import com.badlogic.gdx.utils.*;
 
 import java.io.*;
+import java.lang.reflect.*;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -63,6 +65,8 @@ public class BridgeApplication implements Application {
 
         graphics.configure();
 
+        prepareControllers();
+
         if (!waitForWindow()) {
             Log.error("no surface arrived within " + SURFACE_TIMEOUT_MILLIS + "ms; the game cannot start");
             return;
@@ -80,6 +84,23 @@ public class BridgeApplication implements Application {
         loop();
 
         teardown();
+    }
+
+    /**
+     * The desktop jar has no Android controller backend, and libGDX picks that backend from the application
+     * type before the game's input class can catch anything. Registering an empty manager for this application
+     * makes {@code Controllers} skip the lookup; the bridge has no controller support to offer.
+     */
+    private static void prepareControllers() {
+        try {
+            Field managersField = Controllers.class.getDeclaredField("managers");
+            managersField.setAccessible(true);
+            ObjectMap<Application, ControllerManager> managers =
+                    (ObjectMap<Application, ControllerManager>)managersField.get(null);
+            managers.put(Gdx.app, new ControllerManagerStub());
+        } catch (Throwable e) {
+            Log.warn("no controller manager could be installed; libGDX may fail to initialise input");
+        }
     }
 
     /** Waits for ART to hand over the native window, taking events while waiting. */

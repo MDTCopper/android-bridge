@@ -1,12 +1,16 @@
 package copper.bridge.v1;
 
 import com.badlogic.gdx.*;
+import com.badlogic.gdx.utils.*;
 
 import copper.bridge.gen.JvmBus;
 import copper.bridge.jvm.Events;
 import copper.bridge.util.Log;
 import io.anuke.mindustry.Vars;
 import io.anuke.mindustry.core.GameState;
+import io.anuke.ucore.core.Core;
+import io.anuke.ucore.scene.Element;
+import io.anuke.ucore.scene.ui.Dialog;
 
 /**
  * The branch side of {@link Events}: the handlers, performed on the thread that owns the game. None of what ART
@@ -112,13 +116,32 @@ public class BridgeEvents implements Events {
 
     @Override
     public void onBackPressed() {
-        // The old game has no exit button: on the main menu, back is the exit.
+        // A dialog owns back while it is open; only the bare main menu is the old game's exit path.
+        if (hasDialog()) {
+            input.backTap();
+            return;
+        }
         if (onMenu()) {
             application.exit();
             return;
         }
         if (!input.backTap())
             application.exit();
+    }
+
+    private static boolean hasDialog() {
+        try {
+            if (Core.scene == null)
+                return false;
+            Array<Element> children = Core.scene.getRoot().getChildren();
+            for (int i = 0; i < children.size; i++) {
+                Element child = children.get(i);
+                if (child instanceof Dialog && ((Dialog)child).isShown())
+                    return true;
+            }
+        } catch (Throwable ignored) {
+        }
+        return false;
     }
 
     private static boolean onMenu() {

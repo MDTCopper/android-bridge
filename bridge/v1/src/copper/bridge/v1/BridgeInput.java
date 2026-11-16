@@ -29,7 +29,7 @@ public class BridgeInput implements Input {
             if (index == -1) return;
 
             int x = (int)rawX;
-            int y = Gdx.graphics.getHeight() - 1 - (int)rawY;
+            int y = (int)rawY;
 
             realId[index] = pointerId;
             touchX[index] = x;
@@ -50,25 +50,26 @@ public class BridgeInput implements Input {
             if (index == -1) return;
 
             int x = (int)rawX;
-            int y = Gdx.graphics.getHeight() - 1 - (int)rawY;
+            int y = (int)rawY;
 
-            realId[index] = -1;
             touchX[index] = x;
             touchY[index] = y;
+
+            if (processor != null)
+                processor.touchUp(x, y, index, Buttons.LEFT);
+
+            realId[index] = -1;
             deltaX[index] = 0;
             deltaY[index] = 0;
             pressure[index] = 0f;
             touched[index] = false;
-
-            if (processor != null)
-                processor.touchUp(x, y, index, Buttons.LEFT);
         }
 
         @Override
         public void pointerMove(int pointerId, float rawX, float rawY, float rawPressure) {
             int index = lookUpPointerIndex(pointerId);
             int x = (int)rawX;
-            int y = Gdx.graphics.getHeight() - 1 - (int)rawY;
+            int y = (int)rawY;
 
             if (index == -1) {
                 if (x == mouseLastX && (int)rawY == mouseLastY) return;
@@ -76,7 +77,7 @@ public class BridgeInput implements Input {
                 if (processor != null)
                     processor.mouseMoved(x, y);
                 deltaX[0] = x - mouseLastX;
-                deltaY[0] = -((int)rawY - mouseLastY);
+                deltaY[0] = (int)rawY - mouseLastY;
                 touchX[0] = x;
                 touchY[0] = y;
                 mouseLastX = x;
@@ -85,7 +86,7 @@ public class BridgeInput implements Input {
             }
 
             deltaX[index] = x - touchX[index];
-            deltaY[index] = -((int)rawY - touchY[index]);
+            deltaY[index] = (int)rawY - touchY[index];
             touchX[index] = x;
             touchY[index] = y;
             pressure[index] = rawPressure;

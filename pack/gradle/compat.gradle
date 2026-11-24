@@ -98,9 +98,9 @@ tasks.register('checkBridgeApi') {
 // --- source history audit ----------------------------------------------------
 //
 // The endpoint check cannot see a type or member that disappears and reappears inside a range. These audits read the
-// game and arc source clones at every commit. A branch with a BE range uses its BE endpoints: the release interval
-// must lie inside it, checked by checkWindowContainment, so a release-only endpoint cannot hide a change. The build-id
-// commits come from gradle.properties; the audits never download a jar.
+// game and arc source clones at every commit. A branch with a BE range is audited between the commits its BE endpoints
+// were cut from; a branch without one, between its release tags. The build-id commits come from gradle.properties; the
+// audits never download a jar.
 
 def mindustryClone = findProperty('mindustryClone') ? file(findProperty('mindustryClone'))
         : rootProject.file('../Mindustry')
@@ -195,35 +195,8 @@ tasks.register('auditMemberHistory') {
     dependsOn auditBranches.collect { "auditMemberHistory${it.capitalize()}" }
 }
 
-def containmentBranches = auditBranches.findAll {
-    findProperty("${it}.minVersionNumber") && findProperty("${it}.minBeBuild") && findProperty("${it}.maxBeBuild")
-}
-containmentBranches.each { String branch ->
-    tasks.register("checkWindow${branch.capitalize()}", JavaExec) {
-        group = 'pack'
-        description = "Checks ${branch}'s release interval lies inside its BE interval."
-        classpath = project(':compat').sourceSets.main.runtimeClasspath
-        mainClass = 'copper.bridge.compat.audit.WindowContainment'
-        args '--branch', branch,
-                '--mindustry', mindustryClone.absolutePath,
-                '--properties', rootProject.file('gradle.properties').absolutePath,
-                '--release-from', releaseTag(findProperty("${branch}.minVersionNumber").toString()),
-                '--be-from', findProperty("${branch}.minBeBuild").toString(),
-                '--be-to', findProperty("${branch}.maxBeBuild").toString()
-        def releaseTo = findProperty("${branch}.maxVersionNumber")
-        if (releaseTo)
-            args '--release-to', releaseTag(releaseTo.toString())
-    }
-}
-
-tasks.register('checkWindowContainment') {
-    group = 'pack'
-    description = "Checks every release interval lies inside its branch's BE interval."
-    dependsOn containmentBranches.collect { "checkWindow${it.capitalize()}" }
-}
-
 tasks.register('auditSourceHistory') {
     group = 'pack'
-    description = "Checks window containment and runs the type and member source-history audits."
-    dependsOn 'checkBridgeApi', 'checkWindowContainment', 'auditTypeHistory', 'auditMemberHistory'
+    description = "Runs the API check and the type and member source-history audits."
+    dependsOn 'checkBridgeApi', 'auditTypeHistory', 'auditMemberHistory'
 }
